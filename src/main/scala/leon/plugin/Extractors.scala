@@ -210,6 +210,15 @@ trait Extractors {
       }
     }
 
+    object ExPasses {
+      def unapply(tree: Apply): Option[(Tree, Tree, Tree)] = tree match {
+        case Apply(TypeApply(ExSelected("leon", "Utils", "passes"), _), List(map, in, out)) =>
+          Some((map, in, out))
+        case _ =>
+          None
+      }
+    }
+
     object ExErrorExpression {
       def unapply(tree: Apply) : Option[(String, Type)] = tree match {
         case a @ Apply(TypeApply(ExSelected("leon", "Utils", "error"), List(tpe)), List(lit : Literal)) =>

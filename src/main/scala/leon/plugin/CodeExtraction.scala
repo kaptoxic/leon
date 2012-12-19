@@ -1043,6 +1043,14 @@ trait CodeExtraction extends Extractors {
             FunctionInvocation(fd, ar.map(rec(_))).setType(fd.returnType).setPosInfo(lc.pos.line,lc.pos.column) 
           }
 
+          case ap @ ExPasses(exs @ ExLiteralMap(_, _, _), in, out) => {
+            val rexs = rec(exs).asInstanceOf[FiniteMap]
+            val rin  = rec(in)
+            val rout = rec(out)
+
+            And(rexs.singletons.map { case (f, t) => Implies(Equals(f, rin), Equals(rout, t)) })
+          }
+
           case pm @ ExPatternMatching(sel, cses) => {
             val rs = rec(sel)
             val rc = cses.map(rewriteCaseDef(_))

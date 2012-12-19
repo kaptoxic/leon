@@ -17,6 +17,13 @@ object Utils {
   }
   implicit def while2Invariant(u: Unit) = InvariantFunction
 
+  def passes[A,B](tests: Map[A, B], i: A, o: B) = {
+    if (tests.isDefinedAt(i)) {
+      tests(i) == o
+    } else {
+      true
+    }
+  }
 
   def waypoint[A](i: Int, expr: A): A = expr
 
