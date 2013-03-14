@@ -1744,4 +1744,37 @@ object TreeOps {
     case e => (None, e)
   }
 
+  def isInductiveOn(solver: Solver)(expr: Expr, on: Identifier): Boolean = on match {
+    case IsTyped(origId, AbstractClassType(cd)) =>
+      def isAlternativeRecursive(cd: CaseClassDef): Boolean = {
+        cd.fieldsIds.exists(_.getType == origId.getType)
+      }
+
+      val toCheck = cd.knownDescendents.collect {
+        case ccd: CaseClassDef =>
+          val isType = CaseClassInstanceOf(ccd, Variable(on))
+
+            val recSelectors = ccd.fieldsIds.filter(_.getType == on.getType)
+
+            if (recSelectors.isEmpty) {
+              And(isType, Not(expr))
+            } else {
+              val v = Variable(on)
+              And(And(isType, expr), Not(replace(recSelectors.map(s => v -> CaseClassSelector(ccd, v, s)).toMap, expr)))
+            }
+      }
+
+      toCheck.forall { cond =>
+        solver.solveSAT(cond) match {
+            case (Some(false), _)  =>
+              true
+            case (_, model)  =>
+              println("Formula: "+cond+" failed: "+model)
+              false
+        }
+      }
+    case _ =>
+      false
+  }
+
 }
