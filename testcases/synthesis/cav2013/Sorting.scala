@@ -51,7 +51,7 @@ object Sorting {
    ***************************/
 
   def insertSpec(elem : Int, list : List, res : List) : Boolean = {
-    isSorted(list) && // Part of precondition, really.
+//    isSorted(list) && // Part of precondition, really.
     isSorted(res) && content(res) == content(list) ++ Set(elem)
   }
 
@@ -60,7 +60,7 @@ object Sorting {
   //  2) Something like "inequality-split".
   def insert(elem : Int, list : List) : List = {
     require(isSorted(list))
-    choose { (res : List) => insertSpec(elem, list, res) }
+    choose { (res : List) => isSorted(list) && insertSpec(elem, list, res) }
   }
 
   def insertImpl(elem : Int, list : List) : List = {
