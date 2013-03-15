@@ -84,7 +84,7 @@ class SynthesisSuite extends FunSuite {
             app.onSuccess((sub zip ss.andThen) map { case (p, ss) => synthesizeWith(sctx, p, ss) }).get
 
           case _ =>
-            throw new AssertionError("Failed to apply "+app)
+            throw new AssertionError("Failed to apply "+app+" on "+p)
         }
 
       case None =>
@@ -236,6 +236,11 @@ object SortedList {
     (out : List) =>
       content(out) == content(in1) ++ Set(v)
   }
+
+  def insertSorted(in1: List, v: Int) = choose {
+    (out : List) =>
+      isSorted(in1) && content(out) == content(in1) ++ Set(v) && isSorted(out)
+  }
 }
     """) {
     case "concat" =>
@@ -248,6 +253,18 @@ object SortedList {
       Apply("ADT Induction on 'in1'", List(
         Apply("CEGIS"),
         Apply("CEGIS")
+      ))
+
+    case "insertSorted" =>
+      Apply("Assert isSorted(in1)", List(
+        Apply("ADT Induction on 'in1'", List(
+          Apply("Ineq. Split on 'head16' and 'v4'", List(
+            Apply("CEGIS"),
+            Apply("CEGIS"),
+            Apply("CEGIS")
+          )),
+          Apply("CEGIS")
+        ))
       ))
   }
 }
