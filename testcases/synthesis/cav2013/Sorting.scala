@@ -159,6 +159,42 @@ object Sorting {
     content(out) == content(in) && isSorted(out)
   }
 
+  def insertSorted(in: List, v: Int): List = {
+    require(isSorted(in));
+
+    in match {
+      case Cons(h, t) =>
+        val r = insertSorted(t, v)
+        if (h < v) {
+          Cons(h, r)
+        } else if (h > v) {
+          Cons(v, Cons(h, t))
+        } else {
+          Cons(h, t)
+        }
+      case _ =>
+        Cons(v, Nil())
+    }
+  } ensuring { res => isSorted(res) && content(res) == content(in) ++ Set(v) }
+
+  def insertSorted1(in: List, v: Int): List = {
+    require(isSorted(in));
+
+    in match {
+      case Cons(h, t) =>
+        val r = insertSorted(t, v)
+        if (h < v) {
+          choose { (res: List) => isSorted(res) && content(res) == content(in) ++ Set(v) }
+        } else if (h > v) {
+          Cons(v, Cons(h, t))
+        } else {
+          Cons(h, t)
+        }
+      case _ =>
+        Cons(v, Nil())
+    }
+  } ensuring { res => isSorted(res) && content(res) == content(in) ++ Set(v) }
+
   def insertionSortImpl(in : List) : List = (in match {
     case Nil() => Nil()
     case Cons(x, xs) => insertImpl(x, insertionSortImpl(xs))

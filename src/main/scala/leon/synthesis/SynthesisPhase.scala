@@ -92,6 +92,9 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
     var chooses = ChooseInfo.extractFromProgram(ctx, p, options).filter(toProcess)
 
     val results = chooses.map { ci =>
+      println(ci.problem)
+      println(ci.pc)
+
       val (sol, isComplete) = ci.synthesizer.synthesize()
 
       ci -> sol.toSimplifiedExpr(ctx, p)

@@ -1770,7 +1770,6 @@ object TreeOps {
             case (Some(false), _)  =>
               true
             case (_, model)  =>
-              println("Formula: "+cond+" failed: "+model)
               false
         }
       }
