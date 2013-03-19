@@ -40,6 +40,11 @@ object Sorting {
     case LCons(x, xs) => isSorted(x) && lIsSorted(xs)
   }
 
+  @induct
+  def sortedLemma(a: Int, x: Int, b: List) = {
+    !(isSorted(Cons(a,b)) && (content(b) contains x)) || (x >= a)
+  } holds
+
   def abs(i : Int) : Int = {
     if(i < 0) -i else i
   } ensuring(_ >= 0)
@@ -55,13 +60,49 @@ object Sorting {
     isSorted(res) && content(res) == content(list) ++ Set(elem)
   }
 
-  // This will require:
-  //  1) Propagation of path-conditions.
-  //  2) Something like "inequality-split".
   def insert(elem : Int, list : List) : List = {
     require(isSorted(list))
-    choose { (res : List) => isSorted(list) && insertSpec(elem, list, res) }
+    choose { (res : List) => insertSpec(elem, list, res) }
   }
+
+    //require(head < elem && isSorted(Cons(head, tail)) && r == insertImpl(elem, tail))
+    //require(head < elem && isSorted(Cons(head, tail)) && isSorted(r) && content(r) == content(tail) ++ Set(elem))
+  // head3;tail3;r4;elem4, ((head3 < elem4) ∧ isSorted(Cons(head3, tail3)) ∧ insertSpec(elem4, tail3, r4)) ≺  ⟨ insertSpec(elem4, Cons(head3, tail3), res) ⟩ res 
+  def insertV(head: Int, tail: List, r: List, rh: Int, rt: List, elem: Int) = {
+    require(head < elem && isSorted(Cons(head, tail)) && content(tail) == content(r) && isSorted(r) && r == Cons(rh, rt) && sortedLemma(head, rh, r))
+
+    //insertSpec(elem, Cons(head, tail), Cons(head, r))
+    //rh >= head
+    isSorted(Cons(head, r))
+
+  } holds
+
+    //require(head < elem && isSorted(Cons(head, tail)) && isSorted(r) && content(r) == content(tail) ++ Set(elem))
+  // head3;tail3;r4;elem4, ((head3 < elem4) ∧ isSorted(Cons(head3, tail3)) ∧ insertSpec(elem4, tail3, r4)) ≺  ⟨ insertSpec(elem4, Cons(head3, tail3), res) ⟩ res 
+  def insertV2(head: Int, tail: List, r: List, rh: Int, rt: List, elem: Int) = {
+    require(head < elem && isSorted(Cons(head, tail)) && r == insertImpl(elem, tail) && r == Cons(rh, rt))
+
+    //insertSpec(elem, Cons(head, tail), Cons(head, r))
+    rh >= head
+
+  } holds
+
+  def insert2(elem : Int, list : List) : List = {
+    require(isSorted(list))
+    list match {
+      case Cons(h, t) =>
+        val r = insert2(elem, t)
+        if (elem > h) {
+          choose { (res : List) => insertSpec(elem, Cons(h,t), res) }
+        } else if (elem < h) {
+          Cons(elem, Cons(h, t))
+        } else {
+          Cons(h, t)
+        }
+      case Nil() =>
+        Cons(elem, Nil())
+    }
+  } ensuring { res => insertSpec(elem, list, res) }
 
   def insertImpl(elem : Int, list : List) : List = {
     require(isSorted(list))

@@ -16,7 +16,12 @@ class ManualSearch(synth: Synthesizer,
 
   def printGraph() {
     def pathToString(path: List[Int]): String = {
-      path.reverse.drop(cd.size).mkString(" ")+": "
+      val p = path.reverse.drop(cd.size)
+      if (p.isEmpty) {
+        ""
+      } else {
+        " "+p.mkString(" ")
+      }
     }
 
     def title(str: String) = "\033[1m"+str+"\033[0m"
@@ -27,20 +32,20 @@ class ManualSearch(synth: Synthesizer,
       n match {
         case l: g.AndLeaf =>
           if (prefix.endsWith(cd.reverse)) {
-            println(pathToString(prefix)+l.task.app)
+            println(pathToString(prefix)+" \u2508 "+l.task.app)
           }
         case l: g.OrLeaf =>
           if (prefix.endsWith(cd.reverse)) {
-            println(pathToString(prefix)+l.task.p)
+            println(pathToString(prefix)+" \u2508 "+l.task.p)
           }
         case an: g.AndNode =>
           if (an.isSolved) {
             if (prefix.endsWith(cd.reverse)) {
-              println(solved(pathToString(prefix)+an.task.app))
+              println(solved(pathToString(prefix)+" \u2508 "+an.task.app))
             }
           } else {
             if (prefix.endsWith(cd.reverse)) {
-              println(title(pathToString(prefix)+an.task.app))
+              println(title(pathToString(prefix)+" \u2510 "+an.task.app))
             }
             for ((st, i) <- an.subTasks.zipWithIndex) {
               traversePathFrom(an.subProblems(st), i :: prefix)
@@ -54,11 +59,13 @@ class ManualSearch(synth: Synthesizer,
             }
           } else {
             if (prefix.endsWith(cd.reverse)) {
-              println(title(pathToString(prefix)+on.task.p))
+              println(title(pathToString(prefix)+" \u2510 "+on.task.p))
             }
             for ((at, i) <- on.altTasks.zipWithIndex) {
               if (on.triedAlternatives contains at) {
-                println(failed(pathToString(i :: prefix)+at.app))
+                if (prefix.endsWith(cd.reverse)) {
+                  println(failed(pathToString(i :: prefix)+" \u2508 "+at.app))
+                }
               } else {
                 traversePathFrom(on.alternatives(at), i :: prefix)
               }
