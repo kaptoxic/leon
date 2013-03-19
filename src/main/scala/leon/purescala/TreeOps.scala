@@ -680,22 +680,36 @@ object TreeOps {
     toRet
   }
 
-  def conditionForPattern(in: Expr, pattern: Pattern) : Expr = pattern match {
-    case WildcardPattern(_) => BooleanLiteral(true)
-    case InstanceOfPattern(_,_) => scala.sys.error("InstanceOfPattern not yet supported.")
-    case CaseClassPattern(_, ccd, subps) => {
-      assert(ccd.fields.size == subps.size)
-      val pairs = ccd.fields.map(_.id).toList zip subps.toList
-      val subTests = pairs.map(p => conditionForPattern(CaseClassSelector(ccd, in, p._1), p._2))
-      val together = And(subTests)
-      And(CaseClassInstanceOf(ccd, in), together)
+  def conditionForPattern(in: Expr, pattern: Pattern, includeBinders: Boolean = false) : Expr = {
+    def bind(ob: Option[Identifier], to: Expr): Expr = {
+      if (!includeBinders) {
+        BooleanLiteral(true)
+      } else {
+        ob.map(id => Equals(Variable(id), to)).getOrElse(BooleanLiteral(true))
+      }
     }
-    case TuplePattern(_, subps) => {
-      val TupleType(tpes) = in.getType
-      assert(tpes.size == subps.size)
-      val subTests = subps.zipWithIndex.map{case (p, i) => conditionForPattern(TupleSelect(in, i+1).setType(tpes(i)), p)}
-      And(subTests)
+
+    def rec(in: Expr, pattern: Pattern): Expr = {
+      pattern match {
+        case WildcardPattern(ob) => bind(ob, in)
+        case InstanceOfPattern(_,_) => scala.sys.error("InstanceOfPattern not yet supported.")
+        case CaseClassPattern(ob, ccd, subps) => {
+          assert(ccd.fields.size == subps.size)
+          val pairs = ccd.fields.map(_.id).toList zip subps.toList
+          val subTests = pairs.map(p => rec(CaseClassSelector(ccd, in, p._1), p._2))
+          val together = And(bind(ob, in) +: subTests)
+          And(CaseClassInstanceOf(ccd, in), together)
+        }
+        case TuplePattern(ob, subps) => {
+          val TupleType(tpes) = in.getType
+          assert(tpes.size == subps.size)
+          val subTests = subps.zipWithIndex.map{case (p, i) => rec(TupleSelect(in, i+1).setType(tpes(i)), p)}
+          And(bind(ob, in) +: subTests)
+        }
+      }
     }
+
+    rec(in, pattern)
   }
 
   private def convertMatchToIfThenElse(expr: Expr) : Expr = {
@@ -733,7 +747,7 @@ object TreeOps {
 
         val condsAndRhs = for(cse <- cases) yield {
           val map = mapForPattern(scrut, cse.pattern)
-          val patCond = conditionForPattern(scrut, cse.pattern)
+          val patCond = conditionForPattern(scrut, cse.pattern, includeBinders = false)
           val realCond = cse.theGuard match {
             case Some(g) => And(patCond, replaceFromIDs(map, g))
             case None => patCond
@@ -1203,7 +1217,7 @@ object TreeOps {
         var soFar = path
 
         MatchExpr(rs, cases.map { c =>
-          val patternExpr = conditionForPattern(rs, c.pattern)
+          val patternExpr = conditionForPattern(rs, c.pattern, includeBinders = true)
 
           val subPath = register(patternExpr, soFar)
           soFar = register(Not(patternExpr), soFar)
@@ -1325,7 +1339,7 @@ object TreeOps {
           e
         } else {
           MatchExpr(rs, cases.flatMap { c =>
-            val patternExpr = conditionForPattern(rs, c.pattern)
+            val patternExpr = conditionForPattern(rs, c.pattern, includeBinders = true)
 
             if (stillPossible && !contradictedBy(patternExpr, path)) {
 
