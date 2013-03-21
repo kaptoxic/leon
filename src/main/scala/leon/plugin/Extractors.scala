@@ -228,6 +228,20 @@ trait Extractors {
   object ExpressionExtractors {
     import ExtractorHelpers._
 
+    object ExHoleExpression {
+      def unapply(tree: Apply) : Option[(Type, Symbol)] = tree match {
+        case apply@Apply(
+              TypeApply(Select(Select(funcheckIdent, utilsName), holeName), typeTree :: Nil),
+              _) => {
+          if (utilsName.toString == "Utils" && holeName.toString == "hole")
+            Some((typeTree.tpe, apply.symbol))
+          else 
+            None
+        }
+        case _ => None
+      }
+    }
+
     object ExEpsilonExpression {
       def unapply(tree: Apply) : Option[(Type, Symbol, Tree)] = tree match {
         case Apply(
