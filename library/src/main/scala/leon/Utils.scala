@@ -31,4 +31,6 @@ object Utils {
   def choose[A, B, C, D, E](predicate: (A, B, C, D, E) => Boolean): (A, B, C, D, E) = noChoose
 
   def error[T](reason: String): T = sys.error(reason)
+  
+  def hole[T](x: T): T = x//throw new RuntimeException("Stub for determing the type of hole.")
 }

@@ -291,6 +291,14 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
       pp(e.getType, lvl)
       sb.append("]")
     }
+    
+    case Hole(desireType) => {
+      var nsb = sb
+      nsb.append("Hole[")
+      nsb = pp(desireType, nsb, lvl)
+      nsb.append("]")
+      nsb
+    }
 
     case (expr: PrettyPrintable) => expr.printWith(lvl, this)
 
@@ -322,6 +330,16 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case MapType(ft,tt) =>  sb.append("Map["); pp(ft, lvl); sb.append(","); pp(tt, lvl); sb.append("]")
     case MultisetType(bt) => sb.append("Multiset["); pp(bt, lvl); sb.append("]")
     case TupleType(tpes) => ppNaryType(tpes, "(", ", ", ")", lvl)
+    case FunctionType(fts, tt) => {
+      var nsb = sb
+      if (fts.size > 1)
+        nsb = ppNaryType(nsb, fts, "(", ", ", ")", lvl)
+      else if (fts.size == 1)
+        nsb = pp(fts.head, nsb, lvl)
+      nsb.append(" => ")
+      pp(tt, nsb, lvl)
+    }
+    case TupleType(tpes) => ppNaryType(sb, tpes, "(", ", ", ")", lvl)
     case c: ClassType => sb.append(c.classDef.id)
     case _ => sb.append("Type?")
   }
