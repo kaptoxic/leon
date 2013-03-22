@@ -434,7 +434,7 @@ class SynthesizerExamples(
       }
     } //breakable { while (!keepGoing) {
 
-    new EmptyReport
+    EmptyReport
   }
 
   def tryToSynthesizeBranch(snippetTree: Expr): Boolean = {
