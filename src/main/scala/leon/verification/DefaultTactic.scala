@@ -40,8 +40,6 @@ class DefaultTactic(reporter: Reporter) extends Tactic(reporter) {
           val bodyAndPostPlug = {
             bodyToPlug: Expr => Let(resFresh, bodyToPlug, replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(post.get)))
           }
-          // lesynth
-          lesynth.Globals.bodyAndPostPlug = bodyAndPostPlug
 
           val bodyAndPost = Let(resFresh, body, replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(post.get)))
 
