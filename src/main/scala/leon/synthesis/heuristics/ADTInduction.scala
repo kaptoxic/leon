@@ -2,6 +2,7 @@ package leon
 package synthesis
 package heuristics
 
+import solvers.TimeoutSolver
 import purescala.Common._
 import purescala.Trees._
 import purescala.Extractors._
@@ -11,13 +12,15 @@ import purescala.Definitions._
 
 case object ADTInduction extends Rule("ADT Induction") with Heuristic {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
+    val tsolver = new TimeoutSolver(sctx.solver, 500L)
     val candidates = p.as.collect {
-        case IsTyped(origId, AbstractClassType(cd)) => (origId, cd)
+        case IsTyped(origId, AbstractClassType(cd)) if isInductiveOn(tsolver)(p.pc, origId) => (origId, cd)
     }
 
     val instances = for (candidate <- candidates) yield {
       val (origId, cd) = candidate
       val oas = p.as.filterNot(_ == origId)
+
 
       val resType = TupleType(p.xs.map(_.getType))
 
