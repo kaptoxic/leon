@@ -28,7 +28,7 @@ class FairZ3Solver(context : LeonContext)
      with LeonComponent {
 
   enclosing =>
-
+    
   val name = "Z3-f"
   val description = "Fair Z3 Solver"
 
