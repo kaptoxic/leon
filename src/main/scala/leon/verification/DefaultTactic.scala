@@ -34,6 +34,13 @@ class DefaultTactic(reporter: Reporter) extends Tactic(reporter) {
       } else {
         val theExpr = { 
           val resFresh = FreshIdentifier("result", true).setType(body.getType)
+			
+          val bodyAndPostPlug = {
+            bodyToPlug: Expr => Let(resFresh, bodyToPlug, replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(post.get)))
+          }
+          // lesynth
+          lesynth.Globals.bodyAndPostPlug = bodyAndPostPlug
+
           val bodyAndPost = Let(resFresh, body, replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(post.get)))
 
           val withPrec = if(prec.isEmpty) {

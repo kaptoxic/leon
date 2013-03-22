@@ -37,6 +37,9 @@ class AnalysisComponent(val global: Global, val pluginInstance: LeonPlugin)
 
       
       pluginInstance.global.program = Some(extractCode(unit))
+      
+      // lesynth
+      lesynth.Globals.program = pluginInstance.global.program   
     }
   }
 }
