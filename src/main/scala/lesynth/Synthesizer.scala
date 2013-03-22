@@ -269,7 +269,7 @@ class Synthesizer(
 
     // initial snippets (will update in the loop)
     var snippets = synthesizeBranchExpressions
-    var snippetsIterator = synthesizeBranchExpressions.iterator
+    var snippetsIterator = snippets.iterator
         
     // iterate while the program is not valid
     import scala.util.control.Breaks._
@@ -304,7 +304,6 @@ class Synthesizer(
             if ! (seenBranchExpressions contains snippetTree.toString)
           ) {
             finest("snippetTree is: " + snippetTree)
-            seenBranchExpressions += snippetTree.toString
 
             // skip avoidable calls
             if (!refiner.isAvoidable(snippetTree)) {              
@@ -315,6 +314,9 @@ class Synthesizer(
             } else {
               fine("Refiner filtered this snippet: " + snippetTree)
             }
+                        
+            // note that we add snippet to already seen only if we cannot find a branch for it
+            seenBranchExpressions += snippetTree.toString
 
           } // for (snippet <- snippets
         } // breakable { for (snippet <- snippets
