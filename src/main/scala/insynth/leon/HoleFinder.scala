@@ -31,17 +31,17 @@ class HoleFinder(fileName: String) {
     }
   }
   
-  def extractWithRun(classpathArray: Array[String]) = {
-  	val SCALACLASSPATH = classpathArray mkString ":"
-  	
-    //LeonMain.run(Array(testDir + "RedBlackTree.scala", "--timeout=3", "--noLuckyTests"), new DefaultReporter, Some(List(SCALACLASSPATH)))
-    LeonMain.run(args, new DefaultReporter, Some(List(SCALACLASSPATH)))
-        
-    Globals.program match {
-      case Some(program) =>
-        Some((program, Globals.hole))
-      case _ =>
-        None
-    }
-  }
+//  def extractWithRun(classpathArray: Array[String]) = {
+//  	val SCALACLASSPATH = classpathArray mkString ":"
+//  	
+//    //LeonMain.run(Array(testDir + "RedBlackTree.scala", "--timeout=3", "--noLuckyTests"), new DefaultReporter, Some(List(SCALACLASSPATH)))
+//    LeonMain.run(args, new DefaultReporter, Some(List(SCALACLASSPATH)))
+//        
+//    Globals.program match {
+//      case Some(program) =>
+//        Some((program, Globals.hole))
+//      case _ =>
+//        None
+//    }
+//  }
 }

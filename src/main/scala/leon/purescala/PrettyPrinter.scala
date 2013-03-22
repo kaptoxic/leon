@@ -327,6 +327,14 @@ object PrettyPrinter {
       nsb.append("]")
       nsb
     }
+    
+    case Hole(desireType) => {
+      var nsb = sb
+      nsb.append("Hole[")
+      nsb = pp(desireType, nsb, lvl)
+      nsb.append("]")
+      nsb
+    }
 
     case (expr: PrettyPrintable) => expr.pp(sb, lvl, pp, pp, pp)
 
@@ -366,6 +374,15 @@ object PrettyPrinter {
     case SetType(bt) => pp(bt, sb.append("Set["), lvl).append("]")
     case MapType(ft,tt) => pp(tt, pp(ft, sb.append("Map["), lvl).append(","), lvl).append("]")
     case MultisetType(bt) => pp(bt, sb.append("Multiset["), lvl).append("]")
+    case FunctionType(fts, tt) => {
+      var nsb = sb
+      if (fts.size > 1)
+        nsb = ppNaryType(nsb, fts, "(", ", ", ")", lvl)
+      else if (fts.size == 1)
+        nsb = pp(fts.head, nsb, lvl)
+      nsb.append(" => ")
+      pp(tt, nsb, lvl)
+    }
     case TupleType(tpes) => ppNaryType(sb, tpes, "(", ", ", ")", lvl)
     case c: ClassType => sb.append(c.classDef.id)
     case _ => sb.append("Type?")
