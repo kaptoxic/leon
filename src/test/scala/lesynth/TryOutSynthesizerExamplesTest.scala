@@ -1,5 +1,10 @@
 package lesynth
 
+import org.junit.Assert._
+import org.junit.{ Test, Ignore }
+
+import testutil.TestConfig
+
 import scala.collection.mutable.{ Map => MutableMap }
 import scala.collection.mutable.{ Set => MutableSet }
 import scala.collection.mutable.{ LinkedList => MutableList }
@@ -40,7 +45,22 @@ import insynth.leon.HoleFinder
 import insynth.leon.loader.HoleExtractor
 import insynth.reconstruction.Output
 
-class SynthesizerExamples(
+class TryOutSynthesizerExamplesTest {
+  
+  @Test
+  def tryOut {
+    import TestConfig._
+    
+    val synthesizer = new TryOutSynthesizerExamples(lesynthTestDir + "ListOperationsHole.scala")
+    
+    val report = synthesizer.synthesize
+    assertTrue(report.isSuccess)
+    println(report.summaryString)
+  }
+  
+}
+
+class TryOutSynthesizerExamples(
   fileName: String,
   // number of condition expressions to try before giving up on that branch expression
   numberOfBooleanSnippets: Int = 5,
@@ -49,20 +69,13 @@ class SynthesizerExamples(
   analyzeSynthesizedFunctionOnly: Boolean = false,
   showLeonOutput: Boolean = false,
   reporter: Reporter = new DefaultReporter,
-  //examples: List[Map[Identifier, Expr]] = Nil,
-  // we need the holeDef to know the right ids
-  introduceExamples: ((FunDef, LeonLoader) => List[Map[Identifier, Expr]]) = { (_, _) => Nil },
-  collectCounterExamplesFromLeon: Boolean = false,
-  filterOutAlreadySeenBranchExpressions: Boolean = true,
-  useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true
-) extends HasLogger {
-
+  collectCounterExamplesFromLeon: Boolean = false) extends HasLogger {
+  
   info("Synthesizer:")
   info("fileName: %s".format(fileName))
   info("numberOfBooleanSnippets: %d".format(numberOfBooleanSnippets))
   info("numberOfCounterExamplesToGenerate: %d".format(numberOfCounterExamplesToGenerate))
   info("leonTimeout: %d".format(leonTimeout))
-  //info("examples: " + examples.mkString(", "))
 
   // some synthesis instance information
   private var program: Program = _
@@ -77,14 +90,8 @@ class SynthesizerExamples(
   private var refiner: Refiner = _
   private var solver: Solver = _
   private var ctx: LeonContext = _
-  private var initialPrecondition: Expr = _
   private var variableRefinements: MutableMap[Identifier, MutableSet[ClassType]] = _
-  // can be used to unnecessary syntheses
-  private var variableRefinedBranch = false
-  private var variableRefinedCondition = true // assure initial synthesis
-  private var booleanExpressionsSaved: Stream[Output] = _
-  
-  private var seenBranchExpressions: Set[String] = Set.empty
+  private var initialPrecondition: Expr = _
 
   // flag denoting if a correct body has been synthesized
   private var found = false
@@ -105,6 +112,7 @@ class SynthesizerExamples(
   val numberOfTestsInIteration = 50
   val numberOfCheckInIteration = 5
 
+  // TODO function to check specifically
   def analyzeProgram = {
 
     val temp = System.currentTimeMillis
@@ -171,28 +179,13 @@ class SynthesizerExamples(
   def synthesizeBranchExpressions =
     inSynth.getExpressions(getCurrentBuilder)
 
-  def synthesizeBooleanExpressions = {
-    if ( variableRefinedCondition ) {
-      // store for later fetch (will memoize values)
-    	booleanExpressionsSaved = 
-  			inSynthBoolean.getExpressions(getCurrentBuilder) take numberOfBooleanSnippets
-			// reset flag
-  		variableRefinedCondition = false
-    }
-  
-	  booleanExpressionsSaved
-  }
+  def synthesizeBooleanExpressions =
+    inSynthBoolean.getExpressions(getCurrentBuilder)
 
   def interactivePause = {
     System.out.println("Press Any Key To Continue...");
     new java.util.Scanner(System.in).nextLine();
   }
-  
-  def getNewExampleQueue = PriorityQueue[(Expr, Int)]()(
-    new Ordering[(Expr, Int)] {
-      def compare(pair1: (Expr, Int), pair2: (Expr, Int)) =
-        pair1._2.compare(pair2._2)
-    })
 
   def initialize = {
 
@@ -263,8 +256,7 @@ class SynthesizerExamples(
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
     exampleRunner = new ExampleRunner(holeFunDef)
-    exampleRunner.counterExamples ++= //examples
-      introduceExamples(holeFunDef, loader)
+    exampleRunner.counterExamples ++= introduceCounterExamples
   }
 
   def countPassedExamples(snippet: Expr) = {
@@ -285,6 +277,36 @@ class SynthesizerExamples(
     holeFunDef.body = oldBodySaved
 
     count
+  }
+
+  def introduceCounterExamples = {
+    val argumentIds = holeFunDef.args.map(_.id)
+    hole.getType match {
+      case ct: ClassType =>
+        val setSubclasses = loader.directSubclassesMap(ct).map(_.asInstanceOf[CaseClassType].classDef)
+
+        val (nilClassSet, consClassSet) = setSubclasses.partition(_.fieldsIds.size == 0)
+
+        val nilClass = nilClassSet.head
+        val consClass = consClassSet.head
+
+        var counter = 0
+        def getIntLiteral = { counter += 1; IntLiteral(counter) }
+
+        val list0 = () => CaseClass(nilClass, Nil)
+        val list1 = () => CaseClass(consClass, getIntLiteral :: list0() :: Nil)
+        val list2 = () => CaseClass(consClass, getIntLiteral :: list1() :: Nil)
+        val list3 = () => CaseClass(consClass, getIntLiteral :: list2() :: Nil)
+        val list4 = () => CaseClass(consClass, getIntLiteral :: list3() :: Nil)
+
+        val lists = List(list0, list1, list2, list3 /*, list4*/ )
+
+        for (l1 <- lists; l2 <- lists)
+          yield Map(argumentIds(0) -> l1(), argumentIds(1) -> l2())
+
+      case _ =>
+        throw new RuntimeException("Could not produce initial examples: Could not match hole type")
+    }
   }
 
   def synthesize: Report = {
@@ -308,11 +330,6 @@ class SynthesizerExamples(
 
     // initial snippets (will update in the loop)
     var snippets = synthesizeBranchExpressions
-    var snippetsIterator = snippets.iterator
-    
-    // ordering of expressions according to passed examples
-    var pq = getNewExampleQueue
-    
     // iterate while the program is not valid
     import scala.util.control.Breaks._
     var iteration = 0
@@ -334,6 +351,12 @@ class SynthesizerExamples(
         reporter.info("# accumulatingExpression(Unit) is: " + accumulatingExpression(UnitLiteral))
         reporter.info("####################################")
 
+        // ordering of expressions according to passed examples
+        var pq = new PriorityQueue[(Expr, Int)]()(
+          new Ordering[(Expr, Int)] {
+            def compare(pair1: (Expr, Int), pair2: (Expr, Int)) =
+              pair1._2.compare(pair2._2)
+          })
         var numberOfTested = 0
 
         // just printing of expressions and pass counts        
@@ -349,13 +372,8 @@ class SynthesizerExamples(
         // try to find it
         breakable {
           // go through all snippets
-          for (
-            snippet <- snippetsIterator; val snippetTree = snippet.getSnippet;
-            // filter if seen
-            if ! (seenBranchExpressions contains snippetTree.toString)
-          ) {
+          for (snippet <- snippets; val snippetTree = snippet.getSnippet) {
             finest("snippetTree is: " + snippetTree)
-            // note that we do not add snippets to the set of seen if enqueued 
 
             // skip avoidable calls
             if (!refiner.isAvoidable(snippetTree)) {
@@ -365,14 +383,10 @@ class SynthesizerExamples(
 
               if (passCount == exampleRunner.counterExamples.size) {
                 info("All examples passed. Testing snippet " + snippetTree + " right away")
-                
                 if (tryToSynthesizeBranch(snippetTree)) {
                   // will set found if correct body is found
                   break
                 }
-
-                // add to seen if branch was not found for it
-                seenBranchExpressions += snippetTree.toString
               } else {
                 info("snippet with pass count filtered: " + (snippetTree, passCount))
                 pq.enqueue((snippetTree, 100 + (passCount * (iteration - 1)) - snippet.getWeight.toInt))
@@ -380,13 +394,12 @@ class SynthesizerExamples(
 
             } else {
               fine("Refiner filtered this snippet: " + snippetTree)
-              seenBranchExpressions += snippetTree.toString
             } // if (!refiner.isAvoidable(snippetTree)) {
 
             // check if we this makes one test iteration            
             if (numberOfTested >= numberOfTestsInIteration) {
               fine("Queue contents: " + pq.mkString(", "))
-              fine({ if (pq.isEmpty) "queue is empty" else "head of queue is: " + pq.head })
+              fine("head of queue is: " + pq.head)
 
               //interactivePause
               // go and check the topmost numberOfCheckInIteration
@@ -398,7 +411,6 @@ class SynthesizerExamples(
                 if (tryToSynthesizeBranch(nextSnippet)) {
                   break
                 }
-                seenBranchExpressions += nextSnippet.toString
               }
 
               numberOfTested = 0
@@ -415,16 +427,8 @@ class SynthesizerExamples(
           return new FullReport(holeFunDef, (endTime - startTime))
         }
 
-        if ( variableRefinedBranch ) {
-          fine("Variable refined, doing branch synthesis again")
-        	// get new snippets
-        	snippets = synthesizeBranchExpressions
-        	snippetsIterator = snippets.iterator
-        	pq = getNewExampleQueue
-        	
-          // reset flag
-          variableRefinedBranch = false
-        }
+        // get new snippets
+        snippets = synthesizeBranchExpressions
 
         fine("filtering based on: " + holeFunDef.precondition.get)
         fine("counterexamples before filter: " + exampleRunner.counterExamples.size)
@@ -478,7 +482,7 @@ class SynthesizerExamples(
 
     // get counterexamples
     fine("Going to generating counterexamples: " + holeFunDef)
-    val (maps, precondition) = generateCounterexamples(program, holeFunDef, numberOfCounterExamplesToGenerate)
+    val (maps, precondition) = generateCounterexamples(program, holeFunDef, 5)
 
     // collect (add) counterexamples from leon
     if (collectCounterExamplesFromLeon)
@@ -511,7 +515,7 @@ class SynthesizerExamples(
         solver.setProgram(program)
 
         // reconstruct (only defined number of boolean expressions)
-        val innerSnippets = synthesizeBooleanExpressions
+        val innerSnippets = synthesizeBooleanExpressions take numberOfBooleanSnippets
         // just printing of expressions
         finest(
           ((innerSnippets zip Iterator.range(0, 500).toStream) map {
@@ -588,7 +592,7 @@ class SynthesizerExamples(
             // program is valid, we have a branch
             if (Globals.allSolved == Some(true)) {
               // we found a branch
-              reporter.info("We found a branch, for expression %s, with condition %s.".format(snippetTree, innerSnippetTree))
+              reporter.info("Wow! We found a branch!")
 
               // update accumulating expression
               val oldAccumulatingExpression = accumulatingExpression
@@ -635,10 +639,6 @@ class SynthesizerExamples(
                         case _ =>
                           dec
                       }
-                    
-                    // the reason for two flags is for easier management of re-syntheses only if needed 
-                    variableRefinedBranch = true
-                    variableRefinedCondition = true
 
                   } else
                     fine("we cannot do variable refinement :(")
