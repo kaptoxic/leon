@@ -477,7 +477,7 @@ case object CEGIS extends Rule("CEGIS") {
             val bss = ndProgram.bss
 
             if (clauses.isEmpty) {
-              needMoreUnrolling = true
+              //needMoreUnrolling = true
             }
 
             while (result.isEmpty && !needMoreUnrolling && !sctx.shouldStop.get) {
