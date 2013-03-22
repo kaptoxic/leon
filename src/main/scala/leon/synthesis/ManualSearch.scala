@@ -1,6 +1,8 @@
 package leon
 package synthesis
 
+import leon.purescala.ScalaPrinter
+
 class ManualSearch(synth: Synthesizer,
                    problem: Problem,
                    rules: Seq[Rule],
@@ -12,7 +14,8 @@ class ManualSearch(synth: Synthesizer,
 
   import synth.reporter._
 
-  var cd = List[Int]()
+  var cd       = List[Int]()
+  var cmdQueue = List[String]()
 
   def printGraph() {
     def pathToString(path: List[Int]): String = {
@@ -92,9 +95,17 @@ class ManualSearch(synth: Synthesizer,
         while(continue) {
           printGraph()
 
-          print("Next action? (q to quit) "+cd.mkString(" ")+" $ ")
           try {
-            val line = readLine()
+
+            print("Next action? (q to quit) "+cd.mkString(" ")+" $ ")
+            val line = if (cmdQueue.isEmpty) {
+              readLine()
+            } else {
+              val n = cmdQueue.head
+              println(n)
+              cmdQueue = cmdQueue.tail
+              n
+            }
             if (line == "q") {
               continue = false
               res = None
@@ -113,20 +124,40 @@ class ManualSearch(synth: Synthesizer,
                 case _ =>
               }
 
-            } else {
-              val parts = line.split("\\s+").toList.map(_.toInt)
+            } else if (line startsWith "p") {
+              val parts = line.split("\\s+").toList.tail.map(_.toInt)
               traversePath(cd ::: parts) match {
+                case Some(n) =>
+                  println("#"*80)
+                  println("AT:"+n.task)
+                  val sp = programAt(n)
+                  sp.acc.foreach(fd => println(ScalaPrinter(fd)))
+                  println("$"*20)
+                  println("ROOT: "+sp.fd.id)
+                case _ =>
+              }
+
+            } else {
+              val parts = line.split("\\s+").toList
+
+              val c = parts.head.toInt
+              cmdQueue = cmdQueue ::: parts.tail
+
+              traversePath(cd ::: c :: Nil) match {
                 case Some(l: g.Leaf) =>
-                  cd = cd ::: parts
                   res = Some(l)
+                  cd = cd ::: c :: Nil
                   continue = false
-                case r =>
-                  error("Path did not lead to a leaf")
+                case Some(_) =>
+                  cd = cd ::: c :: Nil
+                case None =>
+                  error("Invalid path")
               }
             }
           } catch {
             case e =>
               error("Woops: "+e.getMessage())
+              e.printStackTrace()
           }
         }
         res
