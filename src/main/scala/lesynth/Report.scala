@@ -8,7 +8,7 @@ trait Report {
   def isSuccess: Boolean
 }
 
-class EmptyReport extends Report {
+case object EmptyReport extends Report {
   import Report._
   
   implicit val width = 70
@@ -21,7 +21,7 @@ class EmptyReport extends Report {
   override def isSuccess = false
 }
 
-class FullReport(val function: FunDef, val totalTime: Long/*, innerVerificationReport */) extends Report {
+case class FullReport(val function: FunDef, val totalTime: Long/*, innerVerificationReport */) extends Report {
 
   import Report._
   
