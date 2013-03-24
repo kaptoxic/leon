@@ -421,7 +421,14 @@ class Synthesizer(
           }).mkString("\n")
         )
 
-        for (innerSnippetTree <- innerSnippets map { _.getSnippet }) {
+        for (
+          innerSnippetTree <- innerSnippets map { _.getSnippet };
+          if (
+            {	val flag = !refiner.isAvoidable(innerSnippetTree)
+              if (!flag) fine("Refiner filtered this snippet: " + innerSnippetTree)
+              flag }
+          )
+        ) {
           fine("boolean snippet is: " + innerSnippetTree)
 
           val (innerFound, innerPrec) = tryToSynthesizeBooleanCondition(snippetTree, innerSnippetTree, precondition)

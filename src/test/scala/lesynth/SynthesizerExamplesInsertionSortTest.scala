@@ -17,36 +17,10 @@ import leon.purescala.Definitions.FunDef
 import insynth.leon.HoleFinder
 import insynth.leon.loader.{ HoleExtractor, LeonLoader }
 
-class SynthesizerExamplesTest {
+class SynthesizerExamplesInsertionSortTest {
 
   import TestConfig.lesynthTestDir
-  
-  @Test
-  def testConcat1 {
-    val synthesizer = new SynthesizerExamples(
-      lesynthTestDir + "ListOperationsHole.scala",
-      introduceExamples = introduceTwoListArgumentsExamples
-      //examples = introduceCounterExamples
-    )
     
-    val report = synthesizer.synthesize
-    assertTrue(report.isSuccess)
-    println(report.summaryString)
-  }
-  
-  @Test
-  def testConcat2 {
-    val synthesizer = new SynthesizerExamples(
-      lesynthTestDir + "ListOperationsHole.scala", 5, 2, 1,
-      introduceExamples = introduceTwoListArgumentsExamples
-    )
-    
-    val report = synthesizer.synthesize
-    assertTrue(report.isSuccess)
-    println(report.summaryString)
-  }
-  
-  @Ignore
   @Test
   def testInsertionSortSort {
     val synthesizer = new SynthesizerExamples(
@@ -59,22 +33,6 @@ class SynthesizerExamplesTest {
     println(report.summaryString)
   }
   
-  @Test
-  def testMergeSort {
-    val synthesizer = new SynthesizerExamples(
-      lesynthTestDir + "MergeSortHole.scala", 5, 2, 1,
-      introduceExamples = introduceOneListArgumentExamplesForMergeSort,
-      collectCounterExamplesFromLeon = true,
-		  numberOfTestsInIteration = 500,
-		  numberOfCheckInIteration = 2
-    )
-    
-    val report = synthesizer.synthesize
-    assertTrue(report.isSuccess)
-    println(report.summaryString)
-  }
-  
-  @Ignore
   @Test
   def testInsertionSortInsert {
     val synthesizer = new SynthesizerExamples(
