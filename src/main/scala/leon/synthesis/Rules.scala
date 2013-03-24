@@ -7,6 +7,8 @@ import purescala.TypeTrees._
 import purescala.TreeOps._
 import rules._
 
+import lesynth.rules._
+
 object Rules {
   def all = List[Rule](
     Unification.DecompTrivialClash,
@@ -26,7 +28,9 @@ object Rules {
     DetupleOutput,
     ADTSplit,
     IntegerEquation,
-    IntegerInequalities
+    IntegerInequalities,
+    
+    ConditionAbductionSynthesis
   )
 }
 
