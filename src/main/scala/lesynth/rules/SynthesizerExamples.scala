@@ -1,4 +1,5 @@
 package lesynth
+package rules
 
 import scala.collection.mutable.{ Map => MutableMap }
 import scala.collection.mutable.{ Set => MutableSet }
@@ -40,8 +41,12 @@ import insynth.leon.HoleFinder
 import insynth.leon.loader.HoleExtractor
 import insynth.reconstruction.Output
 
-class SynthesizerExamples(
-  fileName: String,
+class SynthesizerForRuleExamples(    
+  // some synthesis instance information
+  val program: Program,
+  val desiredType: LeonType,
+  val holeFunDef: FunDef,
+  fileName: String = "noFileName",
   // number of condition expressions to try before giving up on that branch expression
   numberOfBooleanSnippets: Int = 5,
   numberOfCounterExamplesToGenerate: Int = 5,
@@ -66,10 +71,7 @@ class SynthesizerExamples(
   info("leonTimeout: %d".format(leonTimeout))
   //info("examples: " + examples.mkString(", "))
 
-  // some synthesis instance information
-  private var program: Program = _
   private var hole: Hole = _
-  private var holeFunDef: FunDef = _
   // initial declarations
   private var allDeclarations: List[Declaration] = _
   // objects used in the synthesis
@@ -196,16 +198,10 @@ class SynthesizerExamples(
 
   def initialize = {
 
+    hole = Hole(desiredType)
+    
     // TODO lose this - globals are bad
     Globals.allSolved = None
-
-    // extract hole
-    new HoleFinder(fileName).extract match {
-      case Some((matchProgram, matchHole: Hole)) =>
-        program = matchProgram
-        hole = matchHole
-      case None => throw new RuntimeException("Cannot find hole")
-    }
 
     // context needed for verification
     import leon.Main._
@@ -233,7 +229,6 @@ class SynthesizerExamples(
     inSynthBoolean = new InSynth(allDeclarations, BooleanType, true)
 
     // funDef of the hole
-    holeFunDef = loader.holeDef
     fine("postcondition is: " + holeFunDef.getPostcondition)
 
     // accumulate precondition for the remaining branch to synthesize 
@@ -369,16 +364,12 @@ class SynthesizerExamples(
                   // will set found if correct body is found
                   break
                 }
+
+                // add to seen if branch was not found for it
+                seenBranchExpressions += snippetTree.toString
               } else {
-                if (passCount > 0) {
-                	finest("Snippet with pass count goes into queue: " + (snippetTree, passCount))
-                	pq.enqueue((snippetTree, 100 + (passCount * iteration) - snippet.getWeight.toInt))
-                }
-              	else {
-              		fine("Snippet with pass count was dropped: " + (snippetTree, passCount))
-	                // add to seen if branch was not found for it
-	                seenBranchExpressions += snippetTree.toString
-              	}
+                finest("Snippet with pass count goes into queue: " + (snippetTree, passCount))
+                pq.enqueue((snippetTree, 100 + (passCount * iteration) - snippet.getWeight.toInt))
               }
 
             } else {
@@ -389,7 +380,7 @@ class SynthesizerExamples(
             // check if we this makes one test iteration            
             if (numberOfTested >= numberOfTestsInIteration) {
             	reporter.info("Finalizing enumeration/testing phase.")
-              fine("Queue contents: " + pq.toList.take(10).mkString("\n"))
+              fine("Queue contents: " + pq.mkString(", "))
               fine({ if (pq.isEmpty) "queue is empty" else "head of queue is: " + pq.head })
 
               //interactivePause
@@ -402,9 +393,7 @@ class SynthesizerExamples(
                 if (tryToSynthesizeBranch(nextSnippet)) {
                   break
                 }
-                
-                // dont drop snippets that were on top of queue (they may be good for else ... part)
-                //seenBranchExpressions += nextSnippet.toString
+                seenBranchExpressions += nextSnippet.toString
               }
 
               numberOfTested = 0
@@ -430,9 +419,7 @@ class SynthesizerExamples(
         	
           // reset flag
           variableRefinedBranch = false
-        } else
-          // reseting iterator needed because we may have some expressions that previously did not work
-        	snippetsIterator = snippets.iterator
+        }
 
         fine("filtering based on: " + holeFunDef.precondition.get)
         fine("counterexamples before filter: " + exampleRunner.counterExamples.size)

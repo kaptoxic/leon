@@ -33,6 +33,7 @@ class SynthesizerTest {
     println(report.summaryString)
   }
   
+  @Ignore
   @Test
   def testInsertionSortSort {
     val synthesizer = new Synthesizer(lesynthTestDir + "InsertionSortHoleSort.scala", 5, 2, 1)

@@ -8,11 +8,20 @@ import leon.plugin.ExtractionPhase
 
 import insynth.leon.loader.LeonLoader
 
-class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) {      
+import insynth.util.logging.HasLogger
+
+class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogger {      
   import Globals._
   
-  def isAvoidable(expr: Expr) =
+  def isAvoidable(expr: Expr) = {
+    fine(
+      "Results for refining " + expr + ", are: " +
+      " ,recurentExpression == expr " + (recurentExpression == expr) +
+      " ,isCallAvoidableBySize(expr) " + isCallAvoidableBySize(expr) +
+      " ,hasDoubleRecursion(expr) " + hasDoubleRecursion(expr)
+    )
     recurentExpression == expr || isCallAvoidableBySize(expr) || hasDoubleRecursion(expr)
+  }
   
   //val holeFunDef = Globals.holeFunDef
     
@@ -48,14 +57,14 @@ class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) {
   
   def isLess(arg: Expr, variable: VarDecl): Int = {
 	  def getSize(arg: Expr, size: Int): Int = arg match {
-    	//case FunctionInvocation(`holeFunDef`, args) => 1
+    	//case FunctionInvocation(_, args) => -1 // if some random calls are involved
 	    case CaseClassSelector(cas, expr, fieldId) if fieldId.name == "tail" => getSize(expr, size - 1)
 	    case CaseClassSelector(cas, expr, fieldId) if fieldId.name == "head" => size + 1
 	    case CaseClass(caseClassDef, head :: tail :: Nil) => getSize(tail, size + 1)
 	    case CaseClass(caseClassDef, Nil) => 1
 	    case v: Variable => if (v.id == variable.id) size else 1
 	    case _ => //throw new RuntimeException("Could not match " + arg + " in getSize")
-	      1
+	      -1
 	  }
 	  
 	  getSize(arg, 0)
