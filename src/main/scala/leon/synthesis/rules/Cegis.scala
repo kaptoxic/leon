@@ -22,6 +22,7 @@ case object CEGIS extends Rule("CEGIS") {
     val useCEAsserts          = false
     val useUninterpretedProbe = false
     val useUnsatCores         = true
+    val useOptTimeout         = true
     val useFunGenerators      = sctx.options.cegisGenerateFunCalls
     val useBPaths             = sctx.options.cegisUseBPaths
     val useCETests            = sctx.options.cegisUseCETests
@@ -378,9 +379,10 @@ case object CEGIS extends Rule("CEGIS") {
 
         val ndProgram = new NonDeterministicProgram(p, initGuard)
         var unrolings = 0
-        val maxUnrolings = 3
+        val maxUnrolings = 4
 
-        val mainSolver = new TimeoutSolver(sctx.solver, 10000L) // 10sec
+        val exSolver  = new TimeoutSolver(sctx.solver, 1000L) // 10sec
+        val cexSolver = new TimeoutSolver(sctx.solver, 3000L) // 10sec
 
         var exampleInputs = Set[Seq[Expr]]()
 
@@ -388,7 +390,7 @@ case object CEGIS extends Rule("CEGIS") {
         if (p.pc == BooleanLiteral(true)) {
           exampleInputs += p.as.map(a => simplestValue(a.getType))
         } else {
-          val solver = mainSolver.getNewSolver
+          val solver = exSolver.getNewSolver
 
           solver.assertCnstr(p.pc)
 
@@ -410,11 +412,11 @@ case object CEGIS extends Rule("CEGIS") {
         var collectedCores = Set[Set[Identifier]]()
 
         // solver1 is used for the initial SAT queries
-        var solver1 = mainSolver.getNewSolver
+        var solver1 = exSolver.getNewSolver
         solver1.assertCnstr(And(p.pc :: p.phi :: Variable(initGuard) :: Nil))
 
         // solver2 is used for validating a candidate program, or finding new inputs
-        val solver2 = mainSolver.getNewSolver
+        val solver2 = cexSolver.getNewSolver
         solver2.assertCnstr(And(p.pc :: Not(p.phi) :: Variable(initGuard) :: Nil))
 
 
@@ -425,37 +427,37 @@ case object CEGIS extends Rule("CEGIS") {
             var needMoreUnrolling = false
 
             // Compute all programs that have not been excluded yet
-            var allPrograms: Set[Set[Identifier]] = if (useCEPruning) {
-              ndProgram.allPrograms.filterNot(p => collectedCores.exists(c => c.subsetOf(p)))
-            } else {
-              Set()
-            }
+            var prunedPrograms: Set[Set[Identifier]] = if (useCEPruning) {
+                ndProgram.allPrograms.filterNot(p => collectedCores.exists(c => c.subsetOf(p)))
+              } else {
+                Set()
+              }
 
-            //println("Programs: "+allPrograms.size)
-            //println("CEs:      "+exampleInputs.size)
+            //println("Programs: "+prunedPrograms.size)
+            //println("#Tests:  "+exampleInputs.size)
 
             // We further filter the set of working programs to remove those that fail on known examples
             if (useCEPruning && !exampleInputs.isEmpty && ndProgram.canTest()) {
               //for (ce <- exampleInputs) {
-              //  println("CE: "+ce)
+              //  println("Test: "+ce)
               //}
 
-              for (p <- allPrograms) {
+              for (p <- prunedPrograms) {
                 if (!exampleInputs.forall(ndProgram.testForProgram(p))) {
                   // This program failed on at least one example
                   solver1.assertCnstr(Not(And(p.map(Variable(_)).toSeq)))
-                  allPrograms -= p
+                  prunedPrograms -= p
                 }
               }
 
-              if (allPrograms.isEmpty) {
+              if (prunedPrograms.isEmpty) {
                 needMoreUnrolling = true
               }
 
-              //println("Passing tests: "+allPrograms.size)
+              //println("Passing tests: "+prunedPrograms.size)
             }
 
-            //allPrograms.foreach { p =>
+            //prunedPrograms.foreach { p =>
             //  println("PATH: "+p)
             //  println("CLAUSES: "+p.flatMap( b => ndProgram.mappings.get(b).map{ case (c, ex) => c+" = "+ex}).mkString(" && "))
             //}
@@ -518,6 +520,7 @@ case object CEGIS extends Rule("CEGIS") {
                   }
 
                   if (validateWithZ3) {
+                    //println("Looking for CE...")
                     solver2.checkAssumptions(bssAssumptions) match {
                       case Some(true) =>
                         //println("#"*80)
@@ -535,7 +538,7 @@ case object CEGIS extends Rule("CEGIS") {
 
                         // Retest whether the newly found C-E invalidates all programs
                         if (useCEPruning && ndProgram.canTest) {
-                          if (allPrograms.forall(p => !ndProgram.testForProgram(p)(newCE))) {
+                          if (prunedPrograms.forall(p => !ndProgram.testForProgram(p)(newCE))) {
                             // println("I found a killer example!")
                             needMoreUnrolling = true
                           }
@@ -601,7 +604,14 @@ case object CEGIS extends Rule("CEGIS") {
                         result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr)))
 
                       case _ =>
-                        return RuleApplicationImpossible
+                        if (useOptTimeout) {
+                          // Interpret timeout in CE search as "the candidate is valid"
+                          sctx.reporter.info("CE lookup timeout, considered as untrusted solution")
+                          val expr = ndProgram.determinize(satModel.filter(_._2 == BooleanLiteral(true)).keySet)
+                          result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false))
+                        } else {
+                          return RuleApplicationImpossible
+                        }
                     }
                   }
 

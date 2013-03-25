@@ -50,10 +50,10 @@ class SimpleSearch(synth: Synthesizer,
 
     info(prefix+"Got: "+t.problem)
     t.app.apply(sctx) match {
-      case RuleSuccess(sol) =>
-        info(prefix+"Solved with: "+sol)
+      case RuleSuccess(sol, isTrusted) =>
+        info(prefix+"Solved"+(if(isTrusted) "" else " (untrusted)")+" with: "+sol)
 
-        ExpandSuccess(sol)
+        ExpandSuccess(sol, isTrusted)
       case RuleDecomposed(sub) =>
         info(prefix+"Decomposed into:")
         for(p <- sub) {
@@ -202,7 +202,7 @@ class SimpleSearch(synth: Synthesizer,
     }
   }
 
-  def search(): Option[Solution] = {
+  def search(): Option[(Solution, Boolean)] = {
     sctx.solver.init()
 
     shouldStop = false
@@ -210,7 +210,7 @@ class SimpleSearch(synth: Synthesizer,
     while (!g.tree.isSolved && !shouldStop) {
       searchStep()
     }
-    g.tree.solution
+    g.tree.solution.map(s => (s, g.tree.isTrustworthy))
   }
 
   override def stop() {

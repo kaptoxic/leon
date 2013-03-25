@@ -4,9 +4,10 @@ package synthesis
 import purescala.Common._
 import purescala.Definitions.{Program, FunDef}
 import purescala.TreeOps._
-import purescala.Trees.{Expr, Not}
+import purescala.Trees._
 import purescala.ScalaPrinter
 import solvers.z3._
+import solvers.TimeoutSolver
 import sun.misc.{Signal, SignalHandler}
 
 import solvers.Solver
@@ -75,10 +76,35 @@ class Synthesizer(val context : LeonContext,
     }
 
     res match {
-      case Some(solution) =>
+      case Some((solution, true)) =>
         (solution, true)
+      case Some((sol, false)) =>
+        val mainObject = program.mainObject
+        val simplifiedDefs = sol.defs
+        val npr = program.copy(mainObject = mainObject.copy(defs = mainObject.defs ++ simplifiedDefs))
+
+        //val term = if (problem.xs.size == 1) {
+        //  Equals(Variable(problem.xs.head), sol.term)
+        //} else {
+        //}
+        val term = Equals(Tuple(problem.xs.map(Variable(_))), sol.term)
+
+        val toSolve = Implies(And(Seq(problem.pc, sol.pre, term)), Not(problem.phi))
+
+        val s = new TimeoutSolver(new FairZ3Solver(context), 2000L)
+        s.setProgram(npr)
+        val solver = s.getNewSolver
+        solver.assertCnstr(toSolve)
+
+        val isValid = solver.check == Some(false)
+
+        if (isValid) {
+          (sol, true)
+        } else {
+          (new AndOrGraphPartialSolution(search.g, (task: TaskRunRule) => Solution.choose(task.problem), false).getSolution, false)
+        }
       case None =>
-        (new AndOrGraphPartialSolution(search.g, (task: TaskRunRule) => Solution.choose(task.problem)).getSolution, false)
+        (new AndOrGraphPartialSolution(search.g, (task: TaskRunRule) => Solution.choose(task.problem), true).getSolution, false)
     }
   }
 }
