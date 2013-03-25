@@ -153,9 +153,19 @@ class SimpleSearch(synth: Synthesizer,
 
       val map = (p.as.map(Variable(_): Expr) zip freshAs.map(Variable(_): Expr)).toMap
 
-      val fd = new FunDef(FreshIdentifier("choose", true), ret, freshAs.map(id => VarDecl(id, id.getType)))
+      val res = ResultVariable().setType(ret)
+
+      val mapPost: Map[Expr, Expr] = if (p.xs.size > 1) {
+        p.xs.zipWithIndex.map{ case (id, i)  =>
+          Variable(id) -> TupleSelect(res, i+1)
+        }.toMap
+      } else {
+        Map(Variable(p.xs.head) -> ResultVariable().setType(ret))
+      }
+
+      val fd = new FunDef(FreshIdentifier("chimp", true), ret, freshAs.map(id => VarDecl(id, id.getType)))
       fd.precondition = Some(replace(map, p.pc))
-      fd.postcondition = Some(replace(map, p.phi))
+      fd.postcondition = Some(replace(map++mapPost, p.phi))
 
       fd
     }
