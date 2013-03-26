@@ -98,7 +98,7 @@ case object ADTInduction extends Rule("ADT Induction") with Heuristic {
               // might only have to enforce it on solutions of base cases.
               None
             } else {
-              val funPre = substAll(substMap, Or(globalPre))
+              val funPre = substAll(substMap, And(p.pc, Or(globalPre)))
               val funPost = substAll(substMap, p.phi)
               val outerPre = Or(globalPre)
 
