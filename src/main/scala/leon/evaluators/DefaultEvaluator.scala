@@ -39,8 +39,8 @@ class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx,
             } else {
               res
             }
-          } else {
-            throw EvalError("No value for identifier " + id.name + " in mapping.")
+          } else {            
+            throw EvalError("No value for identifier " + id + " in mapping." + "\n" + ctx)
           }
         }
         case Tuple(ts) => {
