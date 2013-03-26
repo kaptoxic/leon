@@ -16,7 +16,7 @@ import scala.collection.mutable.{Map=>MutableMap}
   * e.g. by passing trees representing variables for the "bounds". */
 object DataGen {
   private val defaultBounds : Map[TypeTree,Seq[Expr]] = Map(
-    Int32Type -> Seq(IntLiteral(0), IntLiteral(1), IntLiteral(-1), IntLiteral(2))
+    Int32Type -> Seq(IntLiteral(0), IntLiteral(1), IntLiteral(-1))
   )
 
   private val boolStream : Stream[Expr] =
@@ -28,9 +28,18 @@ object DataGen {
   private def natStream : Stream[Expr] = natStream0(0)
   private def natStream0(n : Int) : Stream[Expr] = Stream.cons(IntLiteral(n), natStream0(n+1))
 
-  // TODO can we cache something, maybe? It seems like every type should correspond to a unique stream?
-  // We should make sure the cache depends on the bounds (i.e. is not reused for different bounds.)
-  def generate(tpe : TypeTree, bounds : Map[TypeTree,Seq[Expr]] = defaultBounds) : Stream[Expr] = bounds.get(tpe).map(_.toStream).getOrElse {
+  private val cache: MutableMap[TypeTree, Stream[Expr]] = MutableMap.empty
+
+  // TODO: We should make sure the cache depends on the bounds (i.e. is not reused for different bounds.)
+  def generate(tpe: TypeTree, bounds: Map[TypeTree, Seq[Expr]] = defaultBounds): Stream[Expr] = {
+    cache.getOrElse(tpe, {
+      val gen = buildGenerator(tpe, bounds)
+      cache += tpe -> gen
+      gen
+    })
+  }
+
+  private def buildGenerator(tpe : TypeTree, bounds : Map[TypeTree,Seq[Expr]]) : Stream[Expr] = bounds.get(tpe).map(_.toStream).getOrElse {
     tpe match {
       case BooleanType =>
         boolStream
@@ -83,7 +92,7 @@ object DataGen {
 
       naryProduct(freeVars.map(id => generate(id.getType, bounds)))
         .take(maxTries)
-        .filter(s => evalFun(s) == sat)
+        .filter{s => print("."); Console.out.flush(); evalFun(s) == sat }
         .take(maxModels)
         .map(s => freeVars.zip(s).toMap)
 
@@ -148,6 +157,7 @@ object DataGen {
           // TODO can we speed up by caching the random access into
           // the stream in an indexedSeq? After all, `i` increases
           // slowly.
+          print("("+i+")")
           tuple = (ss.head)(i) :: tuple
           is = is.tail
           ss = ss.tail
