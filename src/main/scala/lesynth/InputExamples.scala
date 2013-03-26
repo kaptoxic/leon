@@ -9,13 +9,11 @@ import leon.purescala.TypeTrees.{ ClassType, CaseClassType }
 import leon.purescala.Trees.{ IntLiteral, CaseClass }
 import leon.purescala.Definitions.FunDef
 
-import insynth.leon.HoleFinder
 import insynth.leon.loader.{ HoleExtractor, LeonLoader }
 
 object InputExamples {
       
-  def introduceOneListArgumentExamples(holeFunDef: FunDef, loader: LeonLoader) = {
-    var argumentIds = holeFunDef.args.map(_.id)
+  def introduceOneListArgumentExamples(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
     
     // list type
     val ct = argumentIds(0).getType.asInstanceOf[ClassType]
@@ -44,8 +42,7 @@ object InputExamples {
     
   }  
   
-  def introduceExamplesInsertionSortInsert(holeFunDef: FunDef, loader: LeonLoader) = {
-    var argumentIds = holeFunDef.args.map(_.id)
+  def introduceExamplesInsertionSortInsert(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
     
     // list type
     val ct = argumentIds(1).getType.asInstanceOf[ClassType]
@@ -74,8 +71,7 @@ object InputExamples {
 		Nil    
   }
   
-  def introduceOneListArgumentExamplesForMergeSort(holeFunDef: FunDef, loader: LeonLoader) = {
-    var argumentIds = holeFunDef.args.map(_.id)
+  def introduceOneListArgumentExamplesForMergeSort(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
     
     // list type
     val ct = argumentIds(0).getType.asInstanceOf[ClassType]
@@ -104,9 +100,8 @@ object InputExamples {
       yield Map(argumentIds(0) -> list)    
   }
   
-  def introduceTwoListArgumentsExamples(holeFunDef: FunDef, loader: LeonLoader) = {
+  def introduceTwoListArgumentsExamples(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
         
-		    val argumentIds = holeFunDef.args.map(_.id)
 		    loader.hole.getType match {
 	      case ct: ClassType =>
 	    		val setSubclasses = loader.directSubclassesMap(ct).map(_.asInstanceOf[CaseClassType].classDef)

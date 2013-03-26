@@ -17,7 +17,7 @@ import leon.purescala.TreeOps
 
 import insynth.util.logging.HasLogger
 
-class ExampleRunner(holeFunDef: FunDef, maxSteps: Int = 2000) extends HasLogger {
+class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
 
   import TreeOps._
 
@@ -27,7 +27,7 @@ class ExampleRunner(holeFunDef: FunDef, maxSteps: Int = 2000) extends HasLogger 
 
   // its okay to construct just one, prog is not use in the default evaluator
   lazy val defaultEvaluator = {
-    val ev = new DefaultEvaluator(leonEmptyContext, Globals.program.get)
+    val ev = new DefaultEvaluator(leonEmptyContext, program)
     ev.maxSteps = maxSteps
     ev
   }
@@ -60,16 +60,16 @@ class ExampleRunner(holeFunDef: FunDef, maxSteps: Int = 2000) extends HasLogger 
   }
 
   /** count how many examples pass */
-  def countPassed(body: Expr) = {
+  def countPassed(expressionToCheck: Expr) = {
     // TODO body dont have set type in synthesizer
-    val expressionToCheck =
-      //Globals.bodyAndPostPlug(exp)
-      {
-        val resFresh = FreshIdentifier("result", true).setType(body.getType)
-        Let(
-          resFresh, body,
-          replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
-      }
+//    val expressionToCheck =
+//      //Globals.bodyAndPostPlug(exp)
+//      {
+//        val resFresh = FreshIdentifier("result", true).setType(body.getType)
+//        Let(
+//          resFresh, body,
+//          replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
+//      }
     fine("expressionToCheck: " + expressionToCheck)
 
     (0 /: counterExamples) {
@@ -81,50 +81,50 @@ class ExampleRunner(holeFunDef: FunDef, maxSteps: Int = 2000) extends HasLogger 
     }
   }
 
-  def countPassedAndTerminating(body: Expr): Int = {
-    // TODO body dont have set type in synthesizer
-    val expressionToCheck =
-      //Globals.bodyAndPostPlug(exp)
-      {
-        val resFresh = FreshIdentifier("result", true).setType(body.getType)
-        Let(
-          resFresh, body,
-          replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
-      }
-    fine("expressionToCheck: " + expressionToCheck)
-
-    (0 /: counterExamples) {
-      (res, ce) =>
-        {
-          evaluateToResult(expressionToCheck, ce) match {
-            case EvaluationSuccessful(BooleanLiteral(true)) =>
-              res + 1
-            case EvaluationError("Stack overflow") =>
-              return -counterExamples.size
-            case m =>
-              res
-          }
-        }
-    }
-  }
+//  def countPassedAndTerminating(body: Expr): Int = {
+//    // TODO body dont have set type in synthesizer
+//    val expressionToCheck =
+//      //Globals.bodyAndPostPlug(exp)
+//      {
+//        val resFresh = FreshIdentifier("result", true).setType(body.getType)
+//        Let(
+//          resFresh, body,
+//          replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
+//      }
+//    fine("expressionToCheck: " + expressionToCheck)
+//
+//    (0 /: counterExamples) {
+//      (res, ce) =>
+//        {
+//          evaluateToResult(expressionToCheck, ce) match {
+//            case EvaluationSuccessful(BooleanLiteral(true)) =>
+//              res + 1
+//            case EvaluationError("Stack overflow") =>
+//              return -counterExamples.size
+//            case m =>
+//              res
+//          }
+//        }
+//    }
+//  }
 
   // check if this body passes all examples
-  def check(body: Expr): Boolean = {
-    val examplesToCheck = counterExamples
-    val expressionToCheck = Globals.bodyAndPostPlug(body)
-    fine("Expression to check: " + expressionToCheck)
-
-    var res = true
-    val iterator = counterExamples.iterator
-
-    while (res && iterator.hasNext) {
-      val currentExample = iterator.next
-      res = evaluate(expressionToCheck, currentExample)
-
-      if (!res) fine("Failed example: " + currentExample)
-    }
-
-    return res
-  }
+//  def check(body: Expr): Boolean = {
+//    val examplesToCheck = counterExamples
+//    val expressionToCheck = Globals.bodyAndPostPlug(body)
+//    fine("Expression to check: " + expressionToCheck)
+//
+//    var res = true
+//    val iterator = counterExamples.iterator
+//
+//    while (res && iterator.hasNext) {
+//      val currentExample = iterator.next
+//      res = evaluate(expressionToCheck, currentExample)
+//
+//      if (!res) fine("Failed example: " + currentExample)
+//    }
+//
+//    return res
+//  }
 
 }

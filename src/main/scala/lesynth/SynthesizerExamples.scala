@@ -2,46 +2,47 @@ package lesynth
 
 import scala.collection.mutable.{ Map => MutableMap }
 import scala.collection.mutable.{ Set => MutableSet }
-import scala.collection.mutable.{ LinkedList => MutableList }
-import scala.util.matching.Regex
 import scala.collection.mutable.PriorityQueue
 
-import scala.tools.nsc.{ Settings => NSCSettings, MainGenericRunner }
-
-import leon.{ Main => LeonMain, Reporter, DefaultReporter, SilentReporter, Settings, LeonContext }
+import leon.{Reporter, DefaultReporter, SilentReporter, LeonContext}
 import leon.solvers.{ Solver, TimeoutSolver }
 import leon.solvers.z3.{ FairZ3Solver }
 import leon.verification.AnalysisPhase
 import leon.purescala.TypeTrees.{ TypeTree => LeonType, _ }
 import leon.purescala.Trees.{ Variable => LeonVariable, _ }
-import leon.purescala.Definitions.{ FunDef, VarDecl, Program, ObjectDef }
+import leon.purescala.Definitions.{FunDef, Program}
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
-import leon.plugin.ExtractionPhase
 
 import insynth.util.logging.HasLogger
 import insynth.interfaces.Declaration
 import insynth.InSynth
-import insynth.reconstruction.codegen.CodeGenerator
 import insynth.leon.loader.LeonLoader
 import insynth.leon.LeonDeclaration
 import insynth.leon.ImmediateExpression
 import insynth.engine.InitialEnvironmentBuilder
-import insynth.leon.LeonQueryBuilder
-import insynth.interfaces.{ Loader, Declaration, QueryBuilder }
-import insynth.engine.{ Engine, InitialEnvironmentBuilder }
-import insynth.engine.scheduler.WeightScheduler
-import insynth.structures.ContainerNode
-import insynth.util.TimeOut
-import insynth.Config
-import insynth.reconstruction.Reconstructor
+import insynth.interfaces.Declaration
+import insynth.engine.InitialEnvironmentBuilder
 import insynth.leon.TypeTransformer
-import insynth.leon.HoleFinder
-import insynth.leon.loader.HoleExtractor
 import insynth.reconstruction.Output
+import leon.synthesis.Problem
+import leon.Main.processOptions
+import leon.purescala.TypeTrees._
 
-class SynthesizerExamples(
-  fileName: String,
+import scala.collection.mutable.{Map => MutableMap}
+import scala.collection.mutable.{Set => MutableSet}
+import scala.util.control.Breaks.break
+import scala.util.control.Breaks.breakable
+
+class SynthesizerForRuleExamples(    
+  // some synthesis instance information
+  val solver: Solver,
+  val program: Program,
+  val desiredType: LeonType,
+  val holeFunDef: FunDef,
+  val problem: Problem,
+  val freshResVar: LeonVariable,
+  fileName: String = "noFileName",
   // number of condition expressions to try before giving up on that branch expression
   numberOfBooleanSnippets: Int = 5,
   numberOfCounterExamplesToGenerate: Int = 5,
@@ -51,7 +52,7 @@ class SynthesizerExamples(
   reporter: Reporter = new DefaultReporter,
   //examples: List[Map[Identifier, Expr]] = Nil,
   // we need the holeDef to know the right ids
-  introduceExamples: ((FunDef, LeonLoader) => List[Map[Identifier, Expr]]) = { (_, _) => Nil },
+  introduceExamples: ((Seq[Identifier], LeonLoader) => List[Map[Identifier, Expr]]) = { (_, _) => Nil },
   collectCounterExamplesFromLeon: Boolean = false,
   filterOutAlreadySeenBranchExpressions: Boolean = true,
   useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true,  
@@ -65,11 +66,11 @@ class SynthesizerExamples(
   info("numberOfCounterExamplesToGenerate: %d".format(numberOfCounterExamplesToGenerate))
   info("leonTimeout: %d".format(leonTimeout))
   //info("examples: " + examples.mkString(", "))
+  
+  info("holeFunDef: %s".format(holeFunDef))
+  info("problem: %s".format(problem.toString))
 
-  // some synthesis instance information
-  private var program: Program = _
   private var hole: Hole = _
-  private var holeFunDef: FunDef = _
   // initial declarations
   private var allDeclarations: List[Declaration] = _
   // objects used in the synthesis
@@ -77,7 +78,7 @@ class SynthesizerExamples(
   private var inSynth: InSynth = _
   private var inSynthBoolean: InSynth = _
   private var refiner: Refiner = _
-  private var solver: Solver = _
+  //private var solver: Solver = _
   private var ctx: LeonContext = _
   private var initialPrecondition: Expr = _
   private var variableRefinements: MutableMap[Identifier, MutableSet[ClassType]] = _
@@ -110,15 +111,35 @@ class SynthesizerExamples(
     val temp = System.currentTimeMillis
     Globals.allSolved = Some(true)
 
-    val report = AnalysisPhase.run(ctx)(program)
+    import TreeOps._
+    
+    val body = holeFunDef.getBody
+    val theExpr = {
+	    val resFresh = FreshIdentifier("result", true).setType(body.getType)
+      val bodyAndPost = 		    
+		    Let(
+	    		resFresh, body,
+	    		replace(Map(ResultVariable() -> LeonVariable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition))
+    		)	
+
+      val withPrec = if( holeFunDef.precondition.isEmpty) {
+        bodyAndPost
+      } else {
+        Implies(matchToIfThenElse(holeFunDef.precondition.get), bodyAndPost)
+      }
+
+      withPrec
+    }
+    
+    Globals.allSolved = solver.solve(theExpr)
+    fine("solver said " + Globals.allSolved + " for " + theExpr)
+    //interactivePause
 
     val time = System.currentTimeMillis - temp
-    fine("Analysis took: " + time + ", from report: " + report.totalTime)
+    //fine("Analysis took: " + time + ", from report: " + report.totalTime)
 
     // accumulate
     verTime += time
-
-    report
   }
 
   // TODO return boolean (do not do unecessary analyze)
@@ -196,36 +217,30 @@ class SynthesizerExamples(
 
   def initialize = {
 
+    hole = Hole(desiredType)
+    
     // TODO lose this - globals are bad
     Globals.allSolved = None
 
-    // extract hole
-    new HoleFinder(fileName).extract match {
-      case Some((matchProgram, matchHole: Hole)) =>
-        program = matchProgram
-        hole = matchHole
-      case None => throw new RuntimeException("Cannot find hole")
-    }
-
     // context needed for verification
     import leon.Main._
-    val reporter =
-      if (showLeonOutput) new DefaultReporter
-      else new SilentReporter
+//    val reporter =
+//      if (showLeonOutput) new DefaultReporter
+//      else new SilentReporter
+//
+//    val args =
+//      if (analyzeSynthesizedFunctionOnly)
+//        Array(fileName, "--timeout=" + leonTimeout, "--functions=" + holeFunDef.id.name)
+//      else
+//        Array(fileName, "--timeout=" + leonTimeout)
+//    info("Leon context array: " + args.mkString(","))
+//    ctx = processOptions(reporter, args.toList)
 
-    val args =
-      if (analyzeSynthesizedFunctionOnly)
-        Array(fileName, "--timeout=" + leonTimeout, "--functions=" + holeFunDef.id.name)
-      else
-        Array(fileName, "--timeout=" + leonTimeout)
-    info("Leon context array: " + args.mkString(","))
-    ctx = processOptions(reporter, args.toList)
-
-    solver = //new FairZ3Solver(ctx)
-      new TimeoutSolver(new FairZ3Solver(ctx), leonTimeout)
+    //solver = //new FairZ3Solver(ctx)
+    //  new TimeoutSolver(new FairZ3Solver(ctx), leonTimeout)
 
     // create new insynth object
-    loader = new LeonLoader(program, hole, false)
+    loader = new LeonLoader(program, hole, problem.as, false)
     inSynth = new InSynth(loader, true)
     // save all declarations seen
     allDeclarations = inSynth.getCurrentBuilder.getAllDeclarations
@@ -233,7 +248,6 @@ class SynthesizerExamples(
     inSynthBoolean = new InSynth(allDeclarations, BooleanType, true)
 
     // funDef of the hole
-    holeFunDef = loader.holeDef
     fine("postcondition is: " + holeFunDef.getPostcondition)
 
     // accumulate precondition for the remaining branch to synthesize 
@@ -262,9 +276,11 @@ class SynthesizerExamples(
     refiner = new Refiner(program, hole, holeFunDef)
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
-    exampleRunner = new ExampleRunner(holeFunDef)
+    exampleRunner = new ExampleRunner(program)
     exampleRunner.counterExamples ++= //examples
-      introduceExamples(holeFunDef, loader)
+      introduceExamples(problem.as, loader)
+      
+    fine("Introduced examples: " + exampleRunner.counterExamples.mkString(", "))
   }
 
   def countPassedExamples(snippet: Expr) = {
@@ -278,8 +294,24 @@ class SynthesizerExamples(
     val accumulatedExpression = accumulatingExpression(snippet)
     // set appropriate body to the function for the correct evaluation
     holeFunDef.body = Some(accumulatedExpression)
+    
+    
+    import TreeOps._
+    val expressionToCheck =
+      //Globals.bodyAndPostPlug(exp)
+      {
+		    val resFresh = FreshIdentifier("result", true).setType(accumulatedExpression.getType)		 
+        Let(
+          resFresh, accumulatedExpression,
+          replace(Map(ResultVariable() -> LeonVariable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
+      }
+    
+    fine("going to count passed for: " + holeFunDef)
+    fine("going to count passed for: " + expressionToCheck)
 
-    val count = exampleRunner.countPassed(accumulatedExpression)
+    val count = exampleRunner.countPassed(expressionToCheck)
+//    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
+//      interactivePause
 
     holeFunDef.precondition = oldPreconditionSaved
     holeFunDef.body = oldBodySaved
@@ -343,6 +375,8 @@ class SynthesizerExamples(
         //interactivePause
 
         reporter.info("Going into a enumeration/testing phase.")
+        fine("evaluating examples: " + exampleRunner.counterExamples.mkString("\n"))
+        
         // found precondition?
         found = false
         // try to find it
@@ -357,7 +391,7 @@ class SynthesizerExamples(
             // note that we do not add snippets to the set of seen if enqueued 
 
             // skip avoidable calls
-            if (!refiner.isAvoidable(snippetTree)) {
+            if (!refiner.isAvoidable(snippetTree, problem.as)) {
 
               // passed example pairs
               val passCount = countPassedExamples(snippetTree)
@@ -375,7 +409,8 @@ class SynthesizerExamples(
                 	pq.enqueue((snippetTree, 100 + (passCount * iteration) - snippet.getWeight.toInt))
                 }
               	else {
-              		fine("Snippet with pass count was dropped: " + (snippetTree, passCount))
+              		fine("Snippet with pass count was dropped: " + (snippetTree, passCount) +
+            		    " while number of examples was: " + exampleRunner.counterExamples.size)
 	                // add to seen if branch was not found for it
 	                seenBranchExpressions += snippetTree.toString
               	}
@@ -512,11 +547,13 @@ class SynthesizerExamples(
     //      return true
     //    }
 
+      if(maps.isEmpty) throw new RuntimeException("asdasdasd")
+      
     // will modify funDef body and precondition, restore it later
     try {
       if (!maps.isEmpty) {
         // proceed with synthesizing boolean expressions
-        solver.setProgram(program)
+        //solver.setProgram(program)
 
         // reconstruct (only defined number of boolean expressions)
         val innerSnippets = synthesizeBooleanExpressions
@@ -529,7 +566,7 @@ class SynthesizerExamples(
         for (
             innerSnippetTree <- innerSnippets map { _.getSnippet };
             if (
-              {	val flag = !refiner.isAvoidable(innerSnippetTree)
+              {	val flag = !refiner.isAvoidable(innerSnippetTree, problem.as)
                 if (!flag) fine("Refiner filtered this snippet: " + innerSnippetTree)
                 flag }
             )
