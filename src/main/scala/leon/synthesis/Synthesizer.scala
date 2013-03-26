@@ -25,7 +25,8 @@ class Synthesizer(val context : LeonContext,
                   val problem: Problem,
                   val options: SynthesisOptions) {
 
-  val silentContext = context.copy(reporter = new SilentReporter)
+  val silentReporter = new SilentReporter
+  val silentContext = context.copy(reporter = silentReporter)
 
   val rules: Seq[Rule] = options.rules
 
@@ -79,32 +80,55 @@ class Synthesizer(val context : LeonContext,
       case Some((solution, true)) =>
         (solution, true)
       case Some((sol, false)) =>
-        val mainObject = program.mainObject
-        val simplifiedDefs = sol.defs
-        val npr = program.copy(mainObject = mainObject.copy(defs = mainObject.defs ++ simplifiedDefs))
+        reporter.info("Solution requires validation")
 
-        //val term = if (problem.xs.size == 1) {
-        //  Equals(Variable(problem.xs.head), sol.term)
-        //} else {
-        //}
-        val term = Equals(Tuple(problem.xs.map(Variable(_))), sol.term)
+        val (npr, fds) = solutionToProgram(sol)
 
-        val toSolve = Implies(And(Seq(problem.pc, sol.pre, term)), Not(problem.phi))
+        val tsolver = new TimeoutSolver(new FairZ3Solver(silentContext), 10000L)
+        tsolver.setProgram(npr)
 
-        val s = new TimeoutSolver(new FairZ3Solver(context), 2000L)
-        s.setProgram(npr)
-        val solver = s.getNewSolver
-        solver.assertCnstr(toSolve)
+        import verification.AnalysisPhase._
+        val vcs = generateVerificationConditions(reporter, npr, fds.map(_.id.name))
+        val vcreport = checkVerificationConditions(silentReporter, Seq(tsolver), vcs)
 
-        val isValid = solver.check == Some(false)
-
-        if (isValid) {
+        if (vcreport.totalValid == vcreport.totalConditions) {
           (sol, true)
         } else {
+          reporter.warning("Solution was invalid:")
+          reporter.warning(ScalaPrinter(npr))
+          reporter.warning(vcreport.summaryString)
           (new AndOrGraphPartialSolution(search.g, (task: TaskRunRule) => Solution.choose(task.problem), false).getSolution, false)
         }
       case None =>
         (new AndOrGraphPartialSolution(search.g, (task: TaskRunRule) => Solution.choose(task.problem), true).getSolution, false)
     }
+  }
+
+  // Returns the new program and the new functions generated for this
+  def solutionToProgram(sol: Solution): (Program, Set[FunDef]) = {
+    import purescala.TypeTrees.TupleType
+    import purescala.Definitions.VarDecl
+
+    val mainObject = program.mainObject
+
+    // Create new fundef for the body
+    val ret = TupleType(problem.xs.map(_.getType))
+    val res = ResultVariable().setType(ret)
+
+    val mapPost: Map[Expr, Expr] =
+      problem.xs.zipWithIndex.map{ case (id, i)  =>
+        Variable(id) -> TupleSelect(res, i+1)
+      }.toMap
+
+    val fd = new FunDef(FreshIdentifier("finalTerm", true), ret, problem.as.map(id => VarDecl(id, id.getType)))
+    fd.precondition  = Some(And(problem.pc, sol.pre))
+    fd.postcondition = Some(replace(mapPost, problem.phi))
+    fd.body          = Some(sol.term)
+
+    val newDefs = sol.defs + fd
+
+    val npr = program.copy(mainObject = mainObject.copy(defs = mainObject.defs ++ newDefs))
+
+    (npr, newDefs)
   }
 }
