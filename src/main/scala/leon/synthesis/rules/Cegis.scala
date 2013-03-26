@@ -4,6 +4,7 @@ package rules
 
 import solvers.TimeoutSolver
 import purescala.Trees._
+import purescala.DataGen
 import purescala.Common._
 import purescala.Definitions._
 import purescala.TypeTrees._
@@ -381,8 +382,8 @@ case object CEGIS extends Rule("CEGIS") {
         var unrolings = 0
         val maxUnrolings = 4
 
-        val exSolver  = new TimeoutSolver(sctx.solver, 1000L) // 10sec
-        val cexSolver = new TimeoutSolver(sctx.solver, 3000L) // 10sec
+        val exSolver  = new TimeoutSolver(sctx.solver, 1000L) // 1sec
+        val cexSolver = new TimeoutSolver(sctx.solver, 3000L) // 3sec
 
         var exampleInputs = Set[Seq[Expr]]()
 
@@ -406,6 +407,12 @@ case object CEGIS extends Rule("CEGIS") {
               sctx.reporter.warning("Solver could not solve path-condition")
               return RuleApplicationImpossible // This is not necessary though, but probably wanted
           }
+
+          val discoveredInputs = DataGen.findModels(p.pc, evaluator, 20, 1000).map{
+            m => p.as.map(a => m.getOrElse(a, simplestValue(a.getType)))
+          }
+
+          exampleInputs ++= discoveredInputs
         }
 
         // Keep track of collected cores to filter programs to test
