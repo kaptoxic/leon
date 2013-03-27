@@ -5,44 +5,28 @@ import leon.solvers.{ Solver, TimeoutSolver }
 import leon.solvers.z3.{ FairZ3Solver }
 import leon.verification.AnalysisPhase
 import leon.plugin.ExtractionPhase
-import leon.purescala.TypeTrees.{ ClassType, CaseClassType }
+import leon.purescala.TypeTrees.{ ClassType, CaseClassType, Int32Type }
 import leon.purescala.Trees.{ IntLiteral, CaseClass }
-import leon.purescala.Definitions.FunDef
+import leon.purescala.Definitions.{ FunDef, VarDecls }
+import leon.purescala.Common.Identifier
 
 import insynth.leon.loader.{ HoleExtractor, LeonLoader }
 
 object InputExamples {
-      
-  def introduceOneListArgumentExamples(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
-    
-    // list type
-    val ct = argumentIds(0).getType.asInstanceOf[ClassType]
-    
-		val setSubclasses = loader.directSubclassesMap(ct).map(_.asInstanceOf[CaseClassType].classDef)
-		
-		val (nilClassSet, consClassSet) = setSubclasses.partition(_.fieldsIds.size == 0)
-		
-		val nilClass = nilClassSet.head
-		val consClass = consClassSet.head
-		
-		var counter = 10
-		def getIntLiteral = { counter+=1; IntLiteral(counter) }
-		val intLiteral = IntLiteral(5)
-		
-		val list0 = CaseClass(nilClass, Nil)
-		val list1 = CaseClass(consClass, IntLiteral(5) :: list0 :: Nil)
-		val list2 = CaseClass(consClass, IntLiteral(3) :: list1 :: Nil)
-		val list3 = CaseClass(consClass, IntLiteral(1) :: list2 :: Nil)
-		val list32 = CaseClass(consClass, IntLiteral(10) :: CaseClass(consClass, IntLiteral(7) :: list1 :: Nil) :: Nil)
-		
-		val lists = List(list0, list1, list2, list3, list32)
-		
-		for(l1 <- lists)
-      yield Map(argumentIds(0) -> l1)
-    
-  }  
   
-  def introduceExamplesInsertionSortInsert(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
+  def getInputExamples(argumentIds: Seq[Identifier], loader: LeonLoader) = {
+    argumentIds match {
+      case singleArgument :: Nil if isList(singleArgument) =>
+        introduceOneListArgumentExamples(argumentIds, loader)
+      case first :: second :: Nil if isList(first) && isList(second) =>
+        introduceTwoListArgumentsExamples(argumentIds, loader)
+      case first :: second :: Nil if isInt(first) && isList(second) =>
+        introduceExamplesIntList(argumentIds, loader)
+      case _ => null
+    }
+  }   
+  
+  def introduceExamplesIntList(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
     
     // list type
     val ct = argumentIds(1).getType.asInstanceOf[ClassType]
@@ -71,7 +55,7 @@ object InputExamples {
 		Nil    
   }
   
-  def introduceOneListArgumentExamplesForMergeSort(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
+  def introduceOneListArgumentExamples(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
     
     // list type
     val ct = argumentIds(0).getType.asInstanceOf[ClassType]
@@ -129,5 +113,36 @@ object InputExamples {
 	        null
 		    }
   }
-  
+   
+  def isList(id: Identifier) = id.getType.toString == "List"
+  def isInt(id: Identifier) = id.getType == Int32Type
+        
+//  def introduceOneListArgumentExamples(argumentIds: Seq[leon.purescala.Common.Identifier], loader: LeonLoader) = {
+//    
+//    // list type
+//    val ct = argumentIds(0).getType.asInstanceOf[ClassType]
+//    
+//		val setSubclasses = loader.directSubclassesMap(ct).map(_.asInstanceOf[CaseClassType].classDef)
+//		
+//		val (nilClassSet, consClassSet) = setSubclasses.partition(_.fieldsIds.size == 0)
+//		
+//		val nilClass = nilClassSet.head
+//		val consClass = consClassSet.head
+//		
+//		var counter = 10
+//		def getIntLiteral = { counter+=1; IntLiteral(counter) }
+//		val intLiteral = IntLiteral(5)
+//		
+//		val list0 = CaseClass(nilClass, Nil)
+//		val list1 = CaseClass(consClass, IntLiteral(5) :: list0 :: Nil)
+//		val list2 = CaseClass(consClass, IntLiteral(3) :: list1 :: Nil)
+//		val list3 = CaseClass(consClass, IntLiteral(1) :: list2 :: Nil)
+//		val list32 = CaseClass(consClass, IntLiteral(10) :: CaseClass(consClass, IntLiteral(7) :: list1 :: Nil) :: Nil)
+//		
+//		val lists = List(list0, list1, list2, list3, list32)
+//		
+//		for(l1 <- lists)
+//      yield Map(argumentIds(0) -> l1)
+//    
+//  }  
 }

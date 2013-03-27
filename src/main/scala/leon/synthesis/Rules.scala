@@ -33,7 +33,7 @@ object Rules {
     IntegerEquation,
     IntegerInequalities,
     
-    ConditionAbductionSynthesis
+    ConditionAbductionSynthesisTwoPhase
   )
 }
 
