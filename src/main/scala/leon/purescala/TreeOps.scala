@@ -1772,12 +1772,12 @@ object TreeOps {
             val recSelectors = ccd.fieldsIds.filter(_.getType == on.getType)
 
             if (recSelectors.isEmpty) {
-              And(isType, Not(expr))
+              None
             } else {
               val v = Variable(on)
-              And(And(isType, expr), Not(replace(recSelectors.map(s => v -> CaseClassSelector(ccd, v, s)).toMap, expr)))
+              Some(And(And(isType, expr), Not(replace(recSelectors.map(s => v -> CaseClassSelector(ccd, v, s)).toMap, expr))))
             }
-      }
+      }.flatten
 
       toCheck.forall { cond =>
         solver.solveSAT(cond) match {
