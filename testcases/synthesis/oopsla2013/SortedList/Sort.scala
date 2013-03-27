@@ -40,11 +40,6 @@ object Complete {
 
   } ensuring { res => (content(res) == content(in1) ++ Set(v)) && isSorted(res) }
 
-  //def insert1(in1: List, v: Int) = choose {
-  //  (out : List) =>
-  //    isSorted(in1) && (content(out) == content(in1) ++ Set(v)) && isSorted(out)
-  //}
-
   def insert2(in1: List, v: Int): List = {
     require(isSorted(in1))
     in1 match {
@@ -62,11 +57,6 @@ object Complete {
 
   } ensuring { res => (content(res) == content(in1) ++ Set(v)) && isSorted(res) && size(res) == size(in1) + 1 }
 
-  //def insert2(in1: List, v: Int) = choose {
-  //  (out : List) =>
-  //    isSorted(in1) && (content(out) == content(in1) ++ Set(v)) && isSorted(out) && size(out) == size(in1) + 1
-  //}
-
   def delete(in1: List, v: Int): List = {
     require(isSorted(in1))
     in1 match {
@@ -83,11 +73,6 @@ object Complete {
     }
   } ensuring { res => content(res) == content(in1) -- Set(v) && isSorted(res) }
 
-  //def delete(in1: List, v: Int) = choose {
-  //  (out : List) =>
-  //    isSorted(in1) && (content(out) == content(in1) -- Set(v)) && isSorted(out)
-  //}
-
   def union(in1: List, in2: List): List = {
     require(isSorted(in1) && isSorted(in2))
     in1 match {
@@ -98,11 +83,6 @@ object Complete {
     }
   } ensuring { res => content(res) == content(in1) ++ content(in2) && isSorted(res) }
 
-  //def union(in1: List, in2: List) = choose {
-  //  (out : List) =>
-  //    isSorted(in1) && isSorted(in2) && (content(out) == content(in1) ++ content(in2)) && isSorted(out)
-  //}
-
   def diff(in1: List, in2: List): List = {
     require(isSorted(in1) && isSorted(in2))
     in2 match {
@@ -112,11 +92,6 @@ object Complete {
         in1
     }
   } ensuring { res => content(res) == content(in1) -- content(in2) && isSorted(res) }
-
-  //def diff(in1: List, in2: List) = choose {
-  //  (out : List) =>
-  //    isSorted(in1) && isSorted(in2) && (content(out) == content(in1) -- content(in2)) && isSorted(out)
-  //}
 
   // ***********************
   // Sorting algorithms
@@ -146,26 +121,22 @@ object Complete {
       (Cons(x1, s1), Cons(x2, s2))
   }) ensuring(res => splitSpec(list, res))
 
-  //def split(list : List) : (List,List) = {
-  //  choose { (res : (List,List)) => splitSpec(list, res) }
-  //}
+  // def sort1(in : List) : List = (in match {
+  //   case Nil => Nil
+  //   case Cons(x, xs) => insert1(sort1(xs), x)
+  // }) ensuring(res => sortSpec(in, res))
 
-  def sort1(in : List) : List = (in match {
-    case Nil => Nil
-    case Cons(x, xs) => insert1(sort1(xs), x)
-  }) ensuring(res => sortSpec(in, res))
+  // // Not really quicksort, neither mergesort.
+  // def sort2(in : List) : List = (in match {
+  //   case Nil => Nil
+  //   case Cons(x, Nil) => Cons(x, Nil)
+  //   case _ =>
+  //     val (s1,s2) = split(in)
+  //     union(sort2(s1), sort2(s2))
+  // }) ensuring(res => sortSpec(in, res))
 
-  // Not really quicksort, neither mergesort.
-  def sort2(in : List) : List = (in match {
-    case Nil => Nil
-    case Cons(x, Nil) => Cons(x, Nil)
-    case _ =>
-      val (s1,s2) = split(in)
-      union(sort2(s1), sort2(s2))
-  }) ensuring(res => sortSpec(in, res))
-
-  //def sort(list: List): List = choose {
-  //  (res: List) => sortSpec(list, res)
-  //}
+  def sort(list: List): List = choose {
+    (res: List) => sortSpec(list, res)
+  }
 
 }
