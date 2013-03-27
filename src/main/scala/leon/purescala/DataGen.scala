@@ -212,45 +212,4 @@ object DataGen {
       (0 to sum).toStream.flatMap(fst => summingTo(sum - fst, n - 1).map(fst :: _))
     }
   }
-
-  def main(args : Array[String]) {
-    val listDef = new AbstractClassDef(FreshIdentifier("List"), None)
-    val listTpe = AbstractClassType(listDef)
-    val nilDef  = (new CaseClassDef(FreshIdentifier("Nil"), None)).setParent(listDef)
-    val consDef = (new CaseClassDef(FreshIdentifier("Cons"), None)).setParent(listDef)
-    consDef.fields = Seq(
-                      VarDecl(FreshIdentifier("head"), Int32Type),
-                      VarDecl(FreshIdentifier("tail"), listTpe))
-
-    println("Press to start...")
-    Console.readLine
-
-    val s = generate(TupleType(Seq(Int32Type,Int32Type)), Map.empty)
-
-    time(s(10000))
-    time(s(100000))
-    //time(s(1000000))
-
-    streamCache.clear
-
-    val l = generate(listTpe)
-
-    time(l(0))
-    time(l(40))
-    time(l(1000))
-
-    streamCache.clear
-
-    val t = generate(TupleType(Seq(Int32Type, Int32Type, listTpe, listTpe)))
-
-    time(t(10000))
-  }
-
-  def time[T](action : =>T) : T = {
-    val t1 = System.currentTimeMillis
-    val r = action
-    val t2 = System.currentTimeMillis
-    println(r + " (" + ((t2-t1).toDouble/1000.0d) + ")")
-    r 
-  }
 }
