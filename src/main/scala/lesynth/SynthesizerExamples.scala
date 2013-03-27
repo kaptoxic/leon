@@ -42,7 +42,6 @@ class SynthesizerForRuleExamples(
   val holeFunDef: FunDef,
   val problem: Problem,
   val freshResVar: LeonVariable,
-  fileName: String = "noFileName",
   // number of condition expressions to try before giving up on that branch expression
   numberOfBooleanSnippets: Int = 5,
   numberOfCounterExamplesToGenerate: Int = 5,
@@ -59,6 +58,8 @@ class SynthesizerForRuleExamples(
   numberOfTestsInIteration: Int = 50,
   numberOfCheckInIteration: Int = 5
 ) extends HasLogger {
+  
+  val fileName: String = "noFileName"
 
   info("Synthesizer:")
   info("fileName: %s".format(fileName))
@@ -278,7 +279,7 @@ class SynthesizerForRuleExamples(
 
     exampleRunner = new ExampleRunner(program)
     exampleRunner.counterExamples ++= //examples
-      introduceExamples(problem.as, loader)
+      introduceExamples(holeFunDef.args.map(_.id), loader)
       
     fine("Introduced examples: " + exampleRunner.counterExamples.mkString(", "))
   }
@@ -547,7 +548,7 @@ class SynthesizerForRuleExamples(
     //      return true
     //    }
 
-      if(maps.isEmpty) throw new RuntimeException("asdasdasd")
+      //if(maps.isEmpty) throw new RuntimeException("asdasdasd")
       
     // will modify funDef body and precondition, restore it later
     try {
