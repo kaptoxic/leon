@@ -109,8 +109,8 @@ object DataGen {
     }
   }
 
-  def findModels(expr : Expr, evaluator : Evaluator, maxModels : Int, maxTries : Int, bounds : Map[TypeTree,Seq[Expr]] = defaultBounds) : Stream[Map[Identifier,Expr]] = {
-    val freeVars : Seq[Identifier] = variablesOf(expr).toSeq
+  def findModels(expr : Expr, evaluator : Evaluator, maxModels : Int, maxTries : Int, bounds : Map[TypeTree,Seq[Expr]] = defaultBounds, forcedFreeVars: Option[Seq[Identifier]] = None) : Stream[Map[Identifier,Expr]] = {
+    val freeVars : Seq[Identifier] = forcedFreeVars.getOrElse(variablesOf(expr).toSeq)
 
     evaluator.compile(expr, freeVars).map { evalFun =>
       val sat = EvaluationResults.Successful(BooleanLiteral(true))

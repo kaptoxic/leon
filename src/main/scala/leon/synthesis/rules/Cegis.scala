@@ -410,8 +410,8 @@ case object CEGIS extends Rule("CEGIS") {
 
         }
 
-        val discoveredInputs = DataGen.findModels(p.pc, evaluator, 20, 1000).map{
-          m => p.as.map(a => m.getOrElse(a, simplestValue(a.getType)))
+        val discoveredInputs = DataGen.findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(p.as)).map{
+          m => p.as.map(a => m(a))
         }
 
         // println("Generating tests..")
@@ -465,6 +465,29 @@ case object CEGIS extends Rule("CEGIS") {
               }
 
               //println("Passing tests: "+prunedPrograms.size)
+            }
+
+            if (prunedPrograms.size > 0 && prunedPrograms.size <= 3) {
+              // Immediate Test
+              for (prog <- prunedPrograms) {
+                val expr = ndProgram.determinize(prog)
+                val res = Equals(Tuple(p.xs.map(Variable(_))), expr)
+                val solver3 = cexSolver.getNewSolver
+                solver3.assertCnstr(And(p.pc :: res :: Not(p.phi) :: Nil))
+
+                solver3.check match {
+                  case Some(false) =>
+                    result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = true))
+                  case None =>
+                    result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false))
+                  case Some(true) =>
+                    // invalid program, we skip
+                }
+              }
+
+              if (result.isEmpty) {
+                result = Some(RuleApplicationImpossible)
+              }
             }
 
             //prunedPrograms.foreach { p =>
