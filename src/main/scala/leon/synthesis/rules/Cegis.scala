@@ -408,12 +408,15 @@ case object CEGIS extends Rule("CEGIS") {
               return RuleApplicationImpossible // This is not necessary though, but probably wanted
           }
 
-          val discoveredInputs = DataGen.findModels(p.pc, evaluator, 20, 1000).map{
-            m => p.as.map(a => m.getOrElse(a, simplestValue(a.getType)))
-          }
-
-          exampleInputs ++= discoveredInputs
         }
+
+        val discoveredInputs = DataGen.findModels(p.pc, evaluator, 20, 1000).map{
+          m => p.as.map(a => m.getOrElse(a, simplestValue(a.getType)))
+        }
+
+        // println("Generating tests..")
+        // println("Found: "+discoveredInputs.size)
+        exampleInputs ++= discoveredInputs
 
         // Keep track of collected cores to filter programs to test
         var collectedCores = Set[Set[Identifier]]()
