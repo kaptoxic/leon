@@ -92,7 +92,7 @@ object DataGen {
 
       naryProduct(freeVars.map(id => generate(id.getType, bounds)))
         .take(maxTries)
-        .filter{s => print("."); Console.out.flush(); evalFun(s) == sat }
+        .filter{s => evalFun(s) == sat }
         .take(maxModels)
         .map(s => freeVars.zip(s).toMap)
 
@@ -157,7 +157,6 @@ object DataGen {
           // TODO can we speed up by caching the random access into
           // the stream in an indexedSeq? After all, `i` increases
           // slowly.
-          print("("+i+")")
           tuple = (ss.head)(i) :: tuple
           is = is.tail
           ss = ss.tail
