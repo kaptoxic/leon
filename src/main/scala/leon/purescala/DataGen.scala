@@ -22,24 +22,49 @@ object DataGen {
   private val boolStream : Stream[Expr] =
     Stream.cons(BooleanLiteral(true), Stream.cons(BooleanLiteral(false), Stream.empty))
 
+  class VectorizedStream[T](initial : Stream[T]) {
+    private def mkException(i : Int) = new IndexOutOfBoundsException("Can't access VectorizedStream at : " + i)
+    private def streamHeadIndex : Int = indexed.size
+    private var stream  : Stream[T] = initial
+    private var indexed : Vector[T] = Vector.empty
+
+    def apply(index : Int) : T = {
+      if(index < streamHeadIndex) {
+        indexed(index)
+      } else {
+        val diff = index - streamHeadIndex // diff >= 0
+        var i = 0
+        while(i < diff) {
+          if(stream.isEmpty) throw mkException(index)
+          indexed = indexed :+ stream.head
+          stream  = stream.tail
+          i += 1
+        }
+        // The trick is *not* to read past the desired element. Leave it in the
+        // stream, or it will force the *following* one...
+        stream.headOption.getOrElse { throw mkException(index) }
+      }
+    }
+  }
+
   private def intStream : Stream[Expr] = Stream.cons(IntLiteral(0), intStream0(1))
   private def intStream0(n : Int) : Stream[Expr] = Stream.cons(IntLiteral(n), intStream0(if(n > 0) -n else -(n-1)))
 
-  private def natStream : Stream[Expr] = natStream0(0)
+  def natStream : Stream[Expr] = natStream0(0)
   private def natStream0(n : Int) : Stream[Expr] = Stream.cons(IntLiteral(n), natStream0(n+1))
 
-  private val cache: MutableMap[TypeTree, Stream[Expr]] = MutableMap.empty
+  private val streamCache : MutableMap[TypeTree,Stream[Expr]] = MutableMap.empty
 
-  // TODO: We should make sure the cache depends on the bounds (i.e. is not reused for different bounds.)
-  def generate(tpe: TypeTree, bounds: Map[TypeTree, Seq[Expr]] = defaultBounds): Stream[Expr] = {
-    cache.getOrElse(tpe, {
-      val gen = buildGenerator(tpe, bounds)
-      cache += tpe -> gen
-      gen
+  def generate(tpe : TypeTree, bounds : Map[TypeTree,Seq[Expr]] = defaultBounds) : Stream[Expr] = {
+    streamCache.getOrElse(tpe, {
+      val s = generate0(tpe, bounds)
+      streamCache(tpe) = s
+      s
     })
   }
 
-  private def buildGenerator(tpe : TypeTree, bounds : Map[TypeTree,Seq[Expr]]) : Stream[Expr] = bounds.get(tpe).map(_.toStream).getOrElse {
+  // TODO We should make sure the cache depends on the bounds (i.e. is not reused for different bounds.)
+  private def generate0(tpe : TypeTree, bounds : Map[TypeTree,Seq[Expr]]) : Stream[Expr] = bounds.get(tpe).map(_.toStream).getOrElse {
     tpe match {
       case BooleanType =>
         boolStream
@@ -120,6 +145,7 @@ object DataGen {
   // Takes a series of streams and enumerates their cartesian product.
   private def naryProduct[T](streams : Seq[Stream[T]]) : Stream[List[T]] = {
     val dimensions = streams.size
+    val vectorizedStreams = streams.map(new VectorizedStream(_))
 
     if(dimensions == 0)
       return Stream.cons(Nil, Stream.empty)
@@ -141,7 +167,7 @@ object DataGen {
       var d = 0
       var continue = true
       var is = indexList
-      var ss = streams.toList
+      var ss = vectorizedStreams.toList
 
       if(indexList.sum >= bounds.max) {
         allReached = true
@@ -185,5 +211,46 @@ object DataGen {
     } else {
       (0 to sum).toStream.flatMap(fst => summingTo(sum - fst, n - 1).map(fst :: _))
     }
+  }
+
+  def main(args : Array[String]) {
+    val listDef = new AbstractClassDef(FreshIdentifier("List"), None)
+    val listTpe = AbstractClassType(listDef)
+    val nilDef  = (new CaseClassDef(FreshIdentifier("Nil"), None)).setParent(listDef)
+    val consDef = (new CaseClassDef(FreshIdentifier("Cons"), None)).setParent(listDef)
+    consDef.fields = Seq(
+                      VarDecl(FreshIdentifier("head"), Int32Type),
+                      VarDecl(FreshIdentifier("tail"), listTpe))
+
+    println("Press to start...")
+    Console.readLine
+
+    val s = generate(TupleType(Seq(Int32Type,Int32Type)), Map.empty)
+
+    time(s(10000))
+    time(s(100000))
+    //time(s(1000000))
+
+    streamCache.clear
+
+    val l = generate(listTpe)
+
+    time(l(0))
+    time(l(40))
+    time(l(1000))
+
+    streamCache.clear
+
+    val t = generate(TupleType(Seq(Int32Type, Int32Type, listTpe, listTpe)))
+
+    time(t(10000))
+  }
+
+  def time[T](action : =>T) : T = {
+    val t1 = System.currentTimeMillis
+    val r = action
+    val t2 = System.currentTimeMillis
+    println(r + " (" + ((t2-t1).toDouble/1000.0d) + ")")
+    r 
   }
 }
