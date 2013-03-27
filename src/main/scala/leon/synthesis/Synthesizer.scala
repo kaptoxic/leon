@@ -95,7 +95,7 @@ class Synthesizer(val context : LeonContext,
           (sol, true)
         } else {
           reporter.warning("Solution was invalid:")
-          reporter.warning(ScalaPrinter(npr))
+          reporter.warning(fds.map(ScalaPrinter(_)).mkString("\n\n"))
           reporter.warning(vcreport.summaryString)
           (new AndOrGraphPartialSolution(search.g, (task: TaskRunRule) => Solution.choose(task.problem), false).getSolution, false)
         }
