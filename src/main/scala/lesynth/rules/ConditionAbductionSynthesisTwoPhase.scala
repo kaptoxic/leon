@@ -8,6 +8,8 @@ import leon.purescala.TreeOps._
 import leon.purescala.Extractors._
 import leon.purescala.Definitions._
 import leon.synthesis._
+import leon.solvers.{ Solver, TimeoutSolver }
+
 import InputExamples._
 import lesynth.SynthesizerForRuleExamples
 
@@ -19,7 +21,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
         List(new RuleInstantiation(p, this, SolutionBuilder.none, "Condition abduction") {
           def apply(sctx: SynthesisContext): RuleApplicationResult = {
             try {
-              val solver = sctx.solver
+              val solver = new TimeoutSolver(sctx.solver, 2000L)
               val program = sctx.program
               val reporter = sctx.reporter
 
@@ -40,8 +42,9 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
 
                 val synthesizer = new SynthesizerForRuleExamples(
                   solver, program, desiredType, holeFunDef, p, freshResVar,
+                  20, 2, 1,
                   reporter = reporter,
-                  introduceExamples = introduceTwoListArgumentsExamples)
+                  introduceExamples = getInputExamples)
 
                 synthesizer.synthesize match {
                   case EmptyReport => RuleApplicationImpossible
