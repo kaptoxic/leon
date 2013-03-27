@@ -38,7 +38,7 @@ class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogge
 	    	
     def isBadInvocation(expr2: Expr) = expr2 match {
 	    case FunctionInvocation(`holeFunDef`, args) =>
-	      (0 /: (args zip funDefArgs)) {
+	      (0 /: (args zip holeFunDef.args.map(_.id))) {
 	        case (res, (arg, par)) if res == 0 => isLess(arg, par)
 	        case (res, _) => res
 	      } >= 0
@@ -62,7 +62,10 @@ class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogge
 	    case CaseClassSelector(cas, expr, fieldId) if fieldId.name == "head" => size + 1
 	    case CaseClass(caseClassDef, head :: tail :: Nil) => getSize(tail, size + 1)
 	    case CaseClass(caseClassDef, Nil) => 1
-	    case v: Variable => if (v.id == variable) size else 1
+	    case v: Variable => if (v.id == variable) size else {
+	      fine("variable IDs do not match: " + v.id.uniqueName + " and " + variable.uniqueName )
+	      1
+	    }
 	    case _ => //throw new RuntimeException("Could not match " + arg + " in getSize")
 	      -1
 	  }
