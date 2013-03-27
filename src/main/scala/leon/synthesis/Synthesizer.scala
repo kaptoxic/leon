@@ -28,7 +28,7 @@ class Synthesizer(val context : LeonContext,
 
   val rules: Seq[Rule] = options.rules
 
-  val solver: FairZ3Solver = new FairZ3Solver(context)
+  val solver: FairZ3Solver = new FairZ3Solver(silentContext)
   solver.setProgram(program)
 
   val simpleSolver: Solver = new UninterpretedZ3Solver(silentContext)
