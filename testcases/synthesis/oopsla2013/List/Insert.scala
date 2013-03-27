@@ -6,7 +6,6 @@ object Insert {
   case class Cons(head: Int, tail: List) extends List
   case object Nil extends List
 
-  // proved with unrolling=0
   def size(l: List) : Int = (l match {
       case Nil => 0
       case Cons(_, t) => 1 + size(t)
