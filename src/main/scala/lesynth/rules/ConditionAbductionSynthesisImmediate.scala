@@ -11,7 +11,7 @@ import leon.synthesis.{ Rule, RuleInstantiation, SynthesisContext, Problem, Solu
 import InputExamples._
 import lesynth.SynthesizerForRuleExamples
 
-case object ConditionAbductionSynthesis extends Rule("Condition abduction synthesis.") {
+case object ConditionAbductionSynthesisImmediate extends Rule("Condition abduction synthesis (immediate).") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation]= {
     val solver = sctx.solver
 		val program = sctx.program
