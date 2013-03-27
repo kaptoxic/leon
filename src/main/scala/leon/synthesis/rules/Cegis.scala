@@ -12,6 +12,8 @@ import purescala.TreeOps._
 import purescala.Extractors._
 import purescala.ScalaPrinter
 
+import scala.collection.mutable.{Map=>MutableMap}
+
 import evaluators._
 
 import solvers.z3.FairZ3Solver
@@ -28,6 +30,8 @@ case object CEGIS extends Rule("CEGIS") {
     val useBPaths             = sctx.options.cegisUseBPaths
     val useCETests            = sctx.options.cegisUseCETests
     val useCEPruning          = sctx.options.cegisUseCEPruning
+    // Limits the number of programs CEGIS will specifically test for instead of reasonning symbolically
+    val testUpTo              = 5
     val evaluator             = new CodeGenEvaluator(sctx.context, sctx.program)
 
     case class Generator(tpe: TypeTree, altBuilder: () => List[(Expr, Set[Identifier])]);
@@ -81,6 +85,8 @@ case object CEGIS extends Rule("CEGIS") {
       p.as.filter(a => isSubtypeOf(a.getType, t)).map(id => (Variable(id) : Expr, Set[Identifier]()))
     }
 
+    val funcCache: MutableMap[TypeTree, Seq[FunDef]] = MutableMap.empty
+
     def funcAlternatives(t: TypeTree): List[(Expr, Set[Identifier])] = {
       if (useFunGenerators) {
         def isCandidate(fd: FunDef): Boolean = {
@@ -106,11 +112,19 @@ case object CEGIS extends Rule("CEGIS") {
           isSubtypeOf(fd.returnType, t) && !isRecursiveCall && isNotSynthesizable
         }
 
-        sctx.program.definedFunctions.filter(isCandidate).map{ fd =>
-          val ids = fd.args.map(vd => FreshIdentifier("c", true).setType(vd.getType))
+        val funcs = funcCache.get(t) match {
+          case Some(alts) =>
+            alts
+          case None =>
+            val alts = sctx.program.definedFunctions.filter(isCandidate)
+            funcCache += t -> alts
+            alts
+        }
 
-          (FunctionInvocation(fd, ids.map(Variable(_))), ids.toSet)
-        }.toList
+        funcs.map{ fd =>
+            val ids = fd.args.map(vd => FreshIdentifier("c", true).setType(vd.getType))
+            (FunctionInvocation(fd, ids.map(Variable(_))), ids.toSet)
+          }.toList
       } else {
         Nil
       }
@@ -382,7 +396,7 @@ case object CEGIS extends Rule("CEGIS") {
         var unrolings = 0
         val maxUnrolings = 4
 
-        val exSolver  = new TimeoutSolver(sctx.solver, 1000L) // 1sec
+        val exSolver  = new TimeoutSolver(sctx.solver, 3000L) // 3sec
         val cexSolver = new TimeoutSolver(sctx.solver, 3000L) // 3sec
 
         var exampleInputs = Set[Seq[Expr]]()
@@ -414,6 +428,26 @@ case object CEGIS extends Rule("CEGIS") {
           m => p.as.map(a => m(a))
         }
 
+        def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
+          for (prog <- programs) {
+            val expr = ndProgram.determinize(prog)
+            val res = Equals(Tuple(p.xs.map(Variable(_))), expr)
+            val solver3 = cexSolver.getNewSolver
+            solver3.assertCnstr(And(p.pc :: res :: Not(p.phi) :: Nil))
+
+            solver3.check match {
+              case Some(false) =>
+                return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = true)
+              case None =>
+                return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false)
+              case Some(true) =>
+                // invalid program, we skip
+            }
+          }
+
+          RuleApplicationImpossible
+        }
+
         // println("Generating tests..")
         // println("Found: "+discoveredInputs.size)
         exampleInputs ++= discoveredInputs
@@ -443,8 +477,8 @@ case object CEGIS extends Rule("CEGIS") {
                 Set()
               }
 
-            //println("Programs: "+prunedPrograms.size)
-            //println("#Tests:  "+exampleInputs.size)
+            // println("Programs: "+prunedPrograms.size)
+            // println("#Tests:  "+exampleInputs.size)
 
             // We further filter the set of working programs to remove those that fail on known examples
             if (useCEPruning && !exampleInputs.isEmpty && ndProgram.canTest()) {
@@ -464,31 +498,17 @@ case object CEGIS extends Rule("CEGIS") {
                 needMoreUnrolling = true
               }
 
-              //println("Passing tests: "+prunedPrograms.size)
+              // println("Passing tests: "+prunedPrograms.size)
             }
 
-            if (prunedPrograms.size > 0 && prunedPrograms.size <= 3) {
+            if (prunedPrograms.size > 0 && prunedPrograms.size <= testUpTo) {
               // Immediate Test
-              for (prog <- prunedPrograms) {
-                val expr = ndProgram.determinize(prog)
-                val res = Equals(Tuple(p.xs.map(Variable(_))), expr)
-                val solver3 = cexSolver.getNewSolver
-                solver3.assertCnstr(And(p.pc :: res :: Not(p.phi) :: Nil))
-
-                solver3.check match {
-                  case Some(false) =>
-                    result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = true))
-                  case None =>
-                    result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false))
-                  case Some(true) =>
-                    // invalid program, we skip
-                }
-              }
-
-              if (result.isEmpty) {
-                result = Some(RuleApplicationImpossible)
-              }
+              result = Some(checkForPrograms(prunedPrograms))
             }
+
+            // prunedPrograms.foreach { p =>
+            //   println("Program: "+ndProgram.determinize(p))
+            // }
 
             //prunedPrograms.foreach { p =>
             //  println("PATH: "+p)
@@ -527,12 +547,12 @@ case object CEGIS extends Rule("CEGIS") {
                   })
 
                   //println("CEGIS OUT!")
-                  //println("Found solution: "+bssAssumptions)
+                  println("Found solution: "+bssAssumptions)
 
-                  //bssAssumptions.collect { case Variable(b) => ndProgram.mappings(b) }.foreach {
-                  //  case (c, ex) =>
-                  //    println(". "+c+" = "+ex)
-                  //}
+                  bssAssumptions.collect { case Variable(b) => ndProgram.mappings(b) }.foreach {
+                    case (c, ex) =>
+                      println(". "+c+" = "+ex)
+                  }
 
                   val validateWithZ3 = if (useCETests && !exampleInputs.isEmpty && ndProgram.canTest()) {
 
@@ -567,7 +587,7 @@ case object CEGIS extends Rule("CEGIS") {
 
                         exampleInputs += newCE
 
-                        //println("Found counter example: "+fixedAss)
+                        println("Found counter example: "+fixedAss)
 
                         // Retest whether the newly found C-E invalidates all programs
                         if (useCEPruning && ndProgram.canTest) {
@@ -665,8 +685,8 @@ case object CEGIS extends Rule("CEGIS") {
                   needMoreUnrolling = true
 
                 case _ =>
-                  //println("%%%% WOOPS")
-                  return RuleApplicationImpossible
+                  // Last chance, we test first few programs
+                  return checkForPrograms(prunedPrograms.take(testUpTo))
               }
             }
 
