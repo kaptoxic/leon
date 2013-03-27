@@ -77,7 +77,7 @@ object Complete {
     require(isSorted(in1) && isSorted(in2))
     in1 match {
       case Cons(h1, t1) =>
-        union(t1, insert1(in2, h1))
+        insert1(union(t1, in2), h1)
       case Nil =>
         in2
     }

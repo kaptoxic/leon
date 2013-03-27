@@ -32,6 +32,7 @@ case object CEGIS extends Rule("CEGIS") {
     val useCEPruning          = sctx.options.cegisUseCEPruning
     // Limits the number of programs CEGIS will specifically test for instead of reasonning symbolically
     val testUpTo              = 5
+    val useBssFiltering       = true
     val evaluator             = new CodeGenEvaluator(sctx.context, sctx.program)
 
     case class Generator(tpe: TypeTree, altBuilder: () => List[(Expr, Set[Identifier])]);
@@ -265,10 +266,10 @@ case object CEGIS extends Rule("CEGIS") {
 
         val simplerRes = simplifyLets(res)
 
-        // println("COMPILATION RESULT: ")
-        // println(ScalaPrinter(simplerRes))
-        // println("BSS: "+bssOrdered)
-        // println("FREE: "+variablesOf(simplerRes))
+        //println("COMPILATION RESULT: ")
+        //println(ScalaPrinter(simplerRes))
+        //println("BSS: "+bssOrdered)
+        //println("FREE: "+variablesOf(simplerRes))
 
         def compileWithArray(): Option[(Seq[Expr], Seq[Expr]) => EvaluationResult] = {
           val ba = FreshIdentifier("bssArray").setType(ArrayType(BooleanType))
@@ -325,6 +326,45 @@ case object CEGIS extends Rule("CEGIS") {
 
       }
 
+      def filterFor(remainingBss: Set[Identifier]): Seq[Expr] = {
+        val filteredBss = remainingBss + initGuard
+
+        // The following code is black-magic, read with caution
+        mappings     = mappings.filterKeys(filteredBss)
+        guardedTerms = Map()
+        bTree        = bTree.filterKeys(filteredBss)
+        bTree        = bTree.mapValues(cToBs => cToBs.mapValues(bs => bs & filteredBss))
+
+        val filteredCss  = mappings.map(_._2._1).toSet
+        cChildren        = cChildren.filterKeys(filteredCss)
+        cChildren        = cChildren.mapValues(css => css & filteredCss)
+
+        // Finally, we reset the state of the evaluator
+        triedCompilation = false
+        progEvaluator    = None
+
+        // We need to regenerate clauses for each b
+        val pathConstraints = for ((parentGuard, cToBs) <- bTree; (c, bs) <- cToBs) yield {
+          val bvs = bs.toList.map(Variable(_))
+
+          val failedPath = Not(Variable(parentGuard))
+
+          val distinct = bvs.combinations(2).collect {
+            case List(a, b) =>
+              Or(Not(a) :: Not(b) :: Nil)
+          }
+
+          And(Seq(Or(failedPath :: bvs), Implies(failedPath, And(bvs.map(Not(_))))) ++ distinct)
+        }
+
+        // Generate all the b => c = ...
+        val impliess = mappings.map { case (bid, (recId, ex)) =>
+          Implies(Variable(bid), Equals(Variable(recId), ex))
+        }
+
+        (pathConstraints ++ impliess).toSeq
+      }
+
       def unroll: (List[Expr], Set[Identifier]) = {
         var newClauses      = List[Expr]()
         var newGuardedTerms = Map[Identifier, Set[Identifier]]()
@@ -372,7 +412,7 @@ case object CEGIS extends Rule("CEGIS") {
 
         guardedTerms = newGuardedTerms
 
-        // Finally, we reset the state of the evalautor
+        // Finally, we reset the state of the evaluator
         triedCompilation = false
         progEvaluator    = None
 
@@ -449,22 +489,24 @@ case object CEGIS extends Rule("CEGIS") {
         }
 
         // println("Generating tests..")
-        // println("Found: "+discoveredInputs.size)
+        println("Found: "+discoveredInputs.size)
         exampleInputs ++= discoveredInputs
 
         // Keep track of collected cores to filter programs to test
         var collectedCores = Set[Set[Identifier]]()
 
+        val initExClause = And(p.pc :: p.phi :: Variable(initGuard) :: Nil)
+        val initCExClause = And(p.pc :: Not(p.phi) :: Variable(initGuard) :: Nil)
+
         // solver1 is used for the initial SAT queries
         var solver1 = exSolver.getNewSolver
-        solver1.assertCnstr(And(p.pc :: p.phi :: Variable(initGuard) :: Nil))
+        solver1.assertCnstr(initExClause)
 
         // solver2 is used for validating a candidate program, or finding new inputs
-        val solver2 = cexSolver.getNewSolver
-        solver2.assertCnstr(And(p.pc :: Not(p.phi) :: Variable(initGuard) :: Nil))
+        var solver2 = cexSolver.getNewSolver
+        solver2.assertCnstr(initCExClause)
 
-
-        var allClauses = List[Expr]()
+        var didFilterAlready = false
 
         try {
           do {
@@ -477,15 +519,13 @@ case object CEGIS extends Rule("CEGIS") {
                 Set()
               }
 
-            // println("Programs: "+prunedPrograms.size)
-            // println("#Tests:  "+exampleInputs.size)
+            val allPrograms = prunedPrograms.size
+
+            println("Programs: "+prunedPrograms.size)
+            println("#Tests:  "+exampleInputs.size)
 
             // We further filter the set of working programs to remove those that fail on known examples
             if (useCEPruning && !exampleInputs.isEmpty && ndProgram.canTest()) {
-              //for (ce <- exampleInputs) {
-              //  println("Test: "+ce)
-              //}
-
               for (p <- prunedPrograms) {
                 if (!exampleInputs.forall(ndProgram.testForProgram(p))) {
                   // This program failed on at least one example
@@ -498,46 +538,65 @@ case object CEGIS extends Rule("CEGIS") {
                 needMoreUnrolling = true
               }
 
-              // println("Passing tests: "+prunedPrograms.size)
+              println("Passing tests: "+prunedPrograms.size)
             }
 
-            if (prunedPrograms.size > 0 && prunedPrograms.size <= testUpTo) {
+            val nPassing = prunedPrograms.size
+
+            var bssAssumptions = Set[Identifier]()
+
+            if (nPassing > 0 && nPassing <= testUpTo) {
               // Immediate Test
               result = Some(checkForPrograms(prunedPrograms))
+            } else if (nPassing > 0 && ((nPassing < allPrograms/10) || didFilterAlready) && useBssFiltering) {
+              // We filter the Bss so that the formula we give to z3 is much smalled
+              val bssToKeep = prunedPrograms.foldLeft(Set[Identifier]())(_ ++ _)
+              println("To Keep: "+bssToKeep.size+"/"+ndProgram.bss.size)
+
+              // Cannot unroll normally after having filtered, so we need to
+              // repeat the filtering procedure at next unrolling.
+              didFilterAlready = true
+              
+              // Freshening solvers
+              solver1 = exSolver.getNewSolver
+              solver1.assertCnstr(initExClause)
+              solver2 = cexSolver.getNewSolver
+              solver2.assertCnstr(initCExClause)
+
+              val clauses = ndProgram.filterFor(bssToKeep)
+              val clause = And(clauses)
+
+              solver1.assertCnstr(clause)
+              solver2.assertCnstr(clause)
+
+              //println("Filtered clauses:")
+              //for (c <- clauses) {
+              //  println(" - " + c)
+              //}
+
+            } else {
+              val (clauses, closedBs) = ndProgram.unroll
+
+              bssAssumptions = closedBs
+
+              //println("UNROLLING: ")
+              //for (c <- clauses) {
+              //  println(" - " + c)
+              //}
+              //println("CLOSED Bs "+closedBs)
+
+              val clause = And(clauses)
+
+              solver1.assertCnstr(clause)
+              solver2.assertCnstr(clause)
             }
-
-            // prunedPrograms.foreach { p =>
-            //   println("Program: "+ndProgram.determinize(p))
-            // }
-
-            //prunedPrograms.foreach { p =>
-            //  println("PATH: "+p)
-            //  println("CLAUSES: "+p.flatMap( b => ndProgram.mappings.get(b).map{ case (c, ex) => c+" = "+ex}).mkString(" && "))
-            //}
-
-            val (clauses, closedBs) = ndProgram.unroll
-            //println("UNROLLING: ")
-            //for (c <- clauses) {
-            //  println(" - " + c)
-            //}
-            //println("CLOSED Bs "+closedBs)
-
-            val clause = And(clauses)
-            allClauses = clause :: allClauses
-
-            solver1.assertCnstr(clause)
-            solver2.assertCnstr(clause)
 
             val tpe = TupleType(p.xs.map(_.getType))
             val bss = ndProgram.bss
 
-            if (clauses.isEmpty) {
-              //needMoreUnrolling = true
-            }
-
             while (result.isEmpty && !needMoreUnrolling && !sctx.shouldStop.get) {
 
-              solver1.checkAssumptions(closedBs.map(id => Not(Variable(id)))) match {
+              solver1.checkAssumptions(bssAssumptions.map(id => Not(Variable(id)))) match {
                 case Some(true) =>
                   val satModel = solver1.getModel
 
@@ -547,12 +606,12 @@ case object CEGIS extends Rule("CEGIS") {
                   })
 
                   //println("CEGIS OUT!")
-                  println("Found solution: "+bssAssumptions)
+                  //println("Found solution: "+bssAssumptions)
 
-                  bssAssumptions.collect { case Variable(b) => ndProgram.mappings(b) }.foreach {
-                    case (c, ex) =>
-                      println(". "+c+" = "+ex)
-                  }
+                  //bssAssumptions.collect { case Variable(b) => ndProgram.mappings(b) }.foreach {
+                  //  case (c, ex) =>
+                  //    println(". "+c+" = "+ex)
+                  //}
 
                   val validateWithZ3 = if (useCETests && !exampleInputs.isEmpty && ndProgram.canTest()) {
 
@@ -659,7 +718,7 @@ case object CEGIS extends Rule("CEGIS") {
                       case _ =>
                         if (useOptTimeout) {
                           // Interpret timeout in CE search as "the candidate is valid"
-                          sctx.reporter.info("CE lookup timeout, considered as untrusted solution")
+                          sctx.reporter.info("CEGIS could not prove the validity of the resulting expression")
                           val expr = ndProgram.determinize(satModel.filter(_._2 == BooleanLiteral(true)).keySet)
                           result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false))
                         } else {
