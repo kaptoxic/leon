@@ -497,6 +497,7 @@ class SynthesizerForRuleExamples(
     // TODO spare one analyzing step
     // analyze the program
     fine("analyzing program for funDef:" + holeFunDef)
+    solver.setProgram(program)
     analyzeProgram
 
     // check if solver could solved this instance
@@ -637,6 +638,7 @@ class SynthesizerForRuleExamples(
             // if expression implies counterexamples add it to the precondition and try to validate program
             holeFunDef.precondition = Some(newCondition)
             // do analysis
+            solver.setProgram(program)
             analyzeProgram
             // program is valid, we have a branch
             if (Globals.allSolved == Some(true)) {
