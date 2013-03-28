@@ -204,8 +204,8 @@ case object CEGIS extends Rule("CEGIS") {
               res == BooleanLiteral(true)
 
             case EvaluationResults.RuntimeError(err) =>
-              sctx.reporter.error("Error testing CE: "+err)
-              true
+              //sctx.reporter.error("Error testing CE: "+err)
+              false
 
             case EvaluationResults.EvaluatorError(err) =>
               sctx.reporter.error("Error testing CE: "+err)
@@ -434,7 +434,7 @@ case object CEGIS extends Rule("CEGIS") {
 
         val ndProgram = new NonDeterministicProgram(p, initGuard)
         var unrolings = 0
-        val maxUnrolings = 4
+        val maxUnrolings = 3
 
         val exSolver  = new TimeoutSolver(sctx.solver, 3000L) // 3sec
         val cexSolver = new TimeoutSolver(sctx.solver, 3000L) // 3sec
@@ -508,9 +508,30 @@ case object CEGIS extends Rule("CEGIS") {
 
         var didFilterAlready = false
 
+        val tpe = TupleType(p.xs.map(_.getType))
+
         try {
           do {
             var needMoreUnrolling = false
+
+            var bssAssumptions = Set[Identifier]()
+
+            if (!didFilterAlready) {
+              val (clauses, closedBs) = ndProgram.unroll
+
+              bssAssumptions = closedBs
+
+              //println("UNROLLING: ")
+              //for (c <- clauses) {
+              //  println(" - " + c)
+              //}
+              //println("CLOSED Bs "+closedBs)
+
+              val clause = And(clauses)
+
+              solver1.assertCnstr(clause)
+              solver2.assertCnstr(clause)
+            }
 
             // Compute all programs that have not been excluded yet
             var prunedPrograms: Set[Set[Identifier]] = if (useCEPruning) {
@@ -543,12 +564,12 @@ case object CEGIS extends Rule("CEGIS") {
 
             val nPassing = prunedPrograms.size
 
-            var bssAssumptions = Set[Identifier]()
-
-            if (nPassing > 0 && nPassing <= testUpTo) {
+            if (nPassing == 0) {
+              needMoreUnrolling = true;
+            } else if (nPassing <= testUpTo) {
               // Immediate Test
               result = Some(checkForPrograms(prunedPrograms))
-            } else if (nPassing > 0 && ((nPassing < allPrograms/10) || didFilterAlready) && useBssFiltering) {
+            } else if (((nPassing < allPrograms/10) || didFilterAlready) && useBssFiltering) {
               // We filter the Bss so that the formula we give to z3 is much smalled
               val bssToKeep = prunedPrograms.foldLeft(Set[Identifier]())(_ ++ _)
               println("To Keep: "+bssToKeep.size+"/"+ndProgram.bss.size)
@@ -574,24 +595,8 @@ case object CEGIS extends Rule("CEGIS") {
               //  println(" - " + c)
               //}
 
-            } else {
-              val (clauses, closedBs) = ndProgram.unroll
-
-              bssAssumptions = closedBs
-
-              //println("UNROLLING: ")
-              //for (c <- clauses) {
-              //  println(" - " + c)
-              //}
-              //println("CLOSED Bs "+closedBs)
-
-              val clause = And(clauses)
-
-              solver1.assertCnstr(clause)
-              solver2.assertCnstr(clause)
             }
 
-            val tpe = TupleType(p.xs.map(_.getType))
             val bss = ndProgram.bss
 
             while (result.isEmpty && !needMoreUnrolling && !sctx.shouldStop.get) {
