@@ -17,6 +17,8 @@ import leon.purescala.TreeOps
 
 import insynth.util.logging.HasLogger
 
+import EvaluationResults._
+
 class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
 
   import TreeOps._
@@ -35,7 +37,7 @@ class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
   def evaluate(expr: Expr, mapping: Map[Identifier, Expr]) = {
     fine("to evaluate: " + expr + " for mapping: " + mapping)
     defaultEvaluator.eval(expr, mapping) match {
-      case EvaluationSuccessful(BooleanLiteral(true)) =>
+      case Successful(BooleanLiteral(true)) =>
         fine("Eval succeded: EvaluationSuccessful(true)")
         true
       case m =>
