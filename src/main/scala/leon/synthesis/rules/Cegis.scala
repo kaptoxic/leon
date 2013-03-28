@@ -33,6 +33,7 @@ case object CEGIS extends Rule("CEGIS") {
     // Limits the number of programs CEGIS will specifically test for instead of reasonning symbolically
     val testUpTo              = 5
     val useBssFiltering       = true
+    val filterThreshold       = 1.0/2
     val evaluator             = new CodeGenEvaluator(sctx.context, sctx.program)
 
     case class Generator(tpe: TypeTree, altBuilder: () => List[(Expr, Set[Identifier])]);
@@ -338,6 +339,11 @@ case object CEGIS extends Rule("CEGIS") {
         val filteredCss  = mappings.map(_._2._1).toSet
         cChildren        = cChildren.filterKeys(filteredCss)
         cChildren        = cChildren.mapValues(css => css & filteredCss)
+        for (c <- filteredCss) {
+          if (!(cChildren contains c)) {
+            cChildren += c -> Set()
+          }
+        }
 
         // Finally, we reset the state of the evaluator
         triedCompilation = false
@@ -361,6 +367,10 @@ case object CEGIS extends Rule("CEGIS") {
         val impliess = mappings.map { case (bid, (recId, ex)) =>
           Implies(Variable(bid), Equals(Variable(recId), ex))
         }
+
+        //for (i <- impliess) {
+        //  println(": "+i)
+        //}
 
         (pathConstraints ++ impliess).toSeq
       }
@@ -489,7 +499,7 @@ case object CEGIS extends Rule("CEGIS") {
         }
 
         // println("Generating tests..")
-        println("Found: "+discoveredInputs.size)
+        // println("Found: "+discoveredInputs.size)
         exampleInputs ++= discoveredInputs
 
         // Keep track of collected cores to filter programs to test
@@ -542,8 +552,8 @@ case object CEGIS extends Rule("CEGIS") {
 
             val allPrograms = prunedPrograms.size
 
-            println("Programs: "+prunedPrograms.size)
-            println("#Tests:  "+exampleInputs.size)
+            //println("Programs: "+prunedPrograms.size)
+            //println("#Tests:  "+exampleInputs.size)
 
             // We further filter the set of working programs to remove those that fail on known examples
             if (useCEPruning && !exampleInputs.isEmpty && ndProgram.canTest()) {
@@ -559,7 +569,7 @@ case object CEGIS extends Rule("CEGIS") {
                 needMoreUnrolling = true
               }
 
-              println("Passing tests: "+prunedPrograms.size)
+              //println("Passing tests: "+prunedPrograms.size)
             }
 
             val nPassing = prunedPrograms.size
@@ -569,10 +579,10 @@ case object CEGIS extends Rule("CEGIS") {
             } else if (nPassing <= testUpTo) {
               // Immediate Test
               result = Some(checkForPrograms(prunedPrograms))
-            } else if (((nPassing < allPrograms/10) || didFilterAlready) && useBssFiltering) {
+            } else if (((nPassing < allPrograms*filterThreshold) || didFilterAlready) && useBssFiltering) {
               // We filter the Bss so that the formula we give to z3 is much smalled
               val bssToKeep = prunedPrograms.foldLeft(Set[Identifier]())(_ ++ _)
-              println("To Keep: "+bssToKeep.size+"/"+ndProgram.bss.size)
+              //println("To Keep: "+bssToKeep.size+"/"+ndProgram.bss.size)
 
               // Cannot unroll normally after having filtered, so we need to
               // repeat the filtering procedure at next unrolling.
@@ -651,7 +661,7 @@ case object CEGIS extends Rule("CEGIS") {
 
                         exampleInputs += newCE
 
-                        println("Found counter example: "+fixedAss)
+                        //println("Found counter example: "+fixedAss)
 
                         // Retest whether the newly found C-E invalidates all programs
                         if (useCEPruning && ndProgram.canTest) {
