@@ -361,6 +361,7 @@ object TreeOps {
     def combine(s1: Set[Identifier], s2: Set[Identifier]) = s1 ++ s2
     def compute(t: Expr, s: Set[Identifier]) = t match {
       case Let(i,_,_) => s -- Set(i)
+      case Choose(is,_) => s -- is
       case MatchExpr(_, cses) => s -- (cses.map(_.pattern.binders).foldLeft(Set[Identifier]())((a, b) => a ++ b))
       case _ => s
     }
@@ -1771,12 +1772,12 @@ object TreeOps {
             val recSelectors = ccd.fieldsIds.filter(_.getType == on.getType)
 
             if (recSelectors.isEmpty) {
-              And(isType, Not(expr))
+              None
             } else {
               val v = Variable(on)
-              And(And(isType, expr), Not(replace(recSelectors.map(s => v -> CaseClassSelector(ccd, v, s)).toMap, expr)))
+              Some(And(And(isType, expr), Not(replace(recSelectors.map(s => v -> CaseClassSelector(ccd, v, s)).toMap, expr))))
             }
-      }
+      }.flatten
 
       toCheck.forall { cond =>
         solver.solveSAT(cond) match {

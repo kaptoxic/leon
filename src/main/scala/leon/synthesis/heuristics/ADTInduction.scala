@@ -92,13 +92,14 @@ case object ADTInduction extends Rule("ADT Induction") with Heuristic {
               SimpleCase(caze, calls.foldLeft(sol.term){ case (t, (binders, callargs)) => LetTuple(binders, FunctionInvocation(newFun, callargs), t) })
             }
 
-            if (sols.exists(_.pre != BooleanLiteral(true))) {
+            // Might be overly picky with obviously true pre (a.is[Cons] OR a.is[Nil])
+            if (false && sols.exists(_.pre != BooleanLiteral(true))) {
               // Required to avoid an impossible cases, which suffices to
               // allow invalid programs. This might be too strong though: we
               // might only have to enforce it on solutions of base cases.
               None
             } else {
-              val funPre = substAll(substMap, Or(globalPre))
+              val funPre = substAll(substMap, And(p.pc, Or(globalPre)))
               val funPost = substAll(substMap, p.phi)
               val outerPre = Or(globalPre)
 
