@@ -7,11 +7,15 @@ import leon.purescala.TypeTrees._
 import leon.purescala.TreeOps._
 import leon.purescala.Extractors._
 import leon.purescala.Definitions._
+import leon.purescala.DataGen.findModels
 import leon.synthesis._
 import leon.solvers.{ Solver, TimeoutSolver }
 
 import InputExamples._
 import lesynth.SynthesizerForRuleExamples
+import leon.evaluators.DefaultEvaluator
+import insynth.leon.loader.LeonLoader
+import leon.evaluators.CodeGenEvaluator
 
 case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abduction synthesis (two phase).") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
@@ -21,7 +25,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
         List(new RuleInstantiation(p, this, SolutionBuilder.none, "Condition abduction") {
           def apply(sctx: SynthesisContext): RuleApplicationResult = {
             try {
-              val solver = new TimeoutSolver(sctx.solver, 2000L)
+              val solver = new TimeoutSolver(sctx.solver, 1000L)
               val program = sctx.program
               val reporter = sctx.reporter
 
@@ -35,6 +39,14 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
               try {
                 val freshResID = FreshIdentifier("result").setType(holeFunDef.returnType)
                 val freshResVar = Variable(freshResID)
+                
+                val evaluator = new CodeGenEvaluator(sctx.context, program)
+                val models = findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(holeFunDef.args.map(_.id)))
+                
+							  def getInputExamples(argumentIds: Seq[Identifier], loader: LeonLoader) = {
+                  println(models.toList)
+							    models.toList
+							  }   
                 
                 holeFunDef.postcondition = Some(replace(
                   Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))
