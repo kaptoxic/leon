@@ -94,7 +94,7 @@ class FunctionTemplate private(
         val leonArgs = ga.map(_.get).force
         val invocation = FunctionInvocation(funDef, leonArgs)
         solver.getEvaluator.eval(invocation) match {
-          case EvaluationSuccessful(result) =>
+          case EvaluationResults.Successful(result) =>
             val z3Invocation = z3.mkApp(solver.functionDefToDecl(funDef), args: _*)
             val z3Value      = solver.toZ3Formula(result).get
             val asZ3         = z3.mkEq(z3Invocation, z3Value)
@@ -201,6 +201,23 @@ object FunctionTemplate {
           val rb = rec(pathVar, replace(Map(Variable(i) -> Variable(newExpr)), b))
           rb
 
+        case l @ LetTuple(is, e, b) =>
+          val tuple : Identifier = FreshIdentifier("t", true).setType(TupleType(is.map(_.getType)))
+          exprVars += tuple
+          val re = rec(pathVar, e)
+          storeGuarded(pathVar, Equals(Variable(tuple), re))
+
+          val mapping = for ((id, i) <- is.zipWithIndex) yield {
+            val newId = FreshIdentifier("ti", true).setType(id.getType)
+            exprVars += newId
+            storeGuarded(pathVar, Equals(Variable(newId), TupleSelect(Variable(tuple), i+1)))
+
+            (Variable(id) -> Variable(newId))
+          }
+
+          val rb = rec(pathVar, replace(mapping.toMap, b))
+          rb
+
         case m : MatchExpr => sys.error("MatchExpr's should have been eliminated.")
 
         case i @ Implies(lhs, rhs) =>
@@ -272,7 +289,18 @@ object FunctionTemplate {
           }
         }
 
-        case c @ Choose(_, _) => Variable(FreshIdentifier("choose", true).setType(c.getType))
+        case c @ Choose(ids, cond) =>
+          val cid = FreshIdentifier("choose", true).setType(c.getType)
+          exprVars += cid
+
+          val m: Map[Expr, Expr] = if (ids.size == 1) {
+            Map(Variable(ids.head) -> Variable(cid))
+          } else {
+            ids.zipWithIndex.map{ case (id, i) => Variable(id) -> TupleSelect(Variable(cid), i+1) }.toMap
+          }
+
+          storeGuarded(pathVar, replace(m, cond))
+          Variable(cid)
 
         case n @ NAryOperator(as, r) => r(as.map(a => rec(pathVar, a))).setType(n.getType)
         case b @ BinaryOperator(a1, a2, r) => r(rec(pathVar, a1), rec(pathVar, a2)).setType(b.getType)
