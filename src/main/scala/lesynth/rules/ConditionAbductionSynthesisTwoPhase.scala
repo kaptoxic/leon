@@ -41,10 +41,10 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 val freshResVar = Variable(freshResID)
                 
                 val evaluator = new CodeGenEvaluator(sctx.context, program)
-                val models = findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(holeFunDef.args.map(_.id)))
+                val models = findModels(p.pc, evaluator, 40, 2000, forcedFreeVars = Some(holeFunDef.args.map(_.id)))
                 
 							  def getInputExamples(argumentIds: Seq[Identifier], loader: LeonLoader) = {
-                  println(models.toList)
+                  //println(models.toList)
 							    models.toList
 							  }   
                 
@@ -54,9 +54,12 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
 
                 val synthesizer = new SynthesizerForRuleExamples(
                   solver, program, desiredType, holeFunDef, p, freshResVar,
-                  20, 2, 1,
+                  40, 2, 1,
                   reporter = reporter,
-                  introduceExamples = getInputExamples)
+                  introduceExamples = getInputExamples,  
+				  numberOfTestsInIteration = 100,
+				  numberOfCheckInIteration = 5
+        		)
 
                 synthesizer.synthesize match {
                   case EmptyReport => RuleApplicationImpossible
