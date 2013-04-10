@@ -559,7 +559,7 @@ class SynthesizerForRuleExamples(
       
     // will modify funDef body and precondition, restore it later
     try {
-      {
+      { //if (!maps.isEmpty) {
         // proceed with synthesizing boolean expressions
         //solver.setProgram(program)
 
@@ -614,6 +614,15 @@ class SynthesizerForRuleExamples(
   }
 
   def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, precondition: Expr): (Boolean, Option[Expr]) = {
+		
+		// trying some examples that cannot be verified
+    if (snippetTree.toString == "Cons(aList.head, merge(aList.tail, bList))" //&&
+      //innerSnippetTree.toString.contains("aList.head < bList.head")
+) {
+          val endTime = System.currentTimeMillis
+          reporter.info("We are done, in time: " + (endTime - startTime))
+      interactivePause
+}
 
     if (snippetTree.toString == "Cons(aList.head, merge(aList.tail, bList))" //&&
       //innerSnippetTree.toString.contains("aList.head < bList.head")
