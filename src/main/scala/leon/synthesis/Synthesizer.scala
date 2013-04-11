@@ -78,8 +78,10 @@ class Synthesizer(val context : LeonContext,
 
     res match {
       case Some((solution, true)) =>
+        val ssol = solution.toSimplifiedExpr(context, program)
         (solution, true)
       case Some((sol, false)) =>
+        val ssol = sol.toSimplifiedExpr(context, program)
         reporter.info("Solution requires validation")
 
         val (npr, fds) = solutionToProgram(sol)
