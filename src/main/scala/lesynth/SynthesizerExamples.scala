@@ -99,9 +99,6 @@ class SynthesizerForRuleExamples(
   private var accumulatingExpression: Expr => Expr = _
   //private var accumulatingExpressionMatch: Expr => Expr = _
 
-  var flag1 = false
-  var flag2 = false
-
   // time
   var startTime: Long = _
   var verTime: Long = 0
@@ -446,7 +443,6 @@ class SynthesizerForRuleExamples(
                 //seenBranchExpressions += nextSnippet.toString
               }
 
-
               numberOfTested = 0
             } else
               numberOfTested += 1
@@ -554,12 +550,10 @@ class SynthesizerForRuleExamples(
     //    }
 
       //if(maps.isEmpty) throw new RuntimeException("asdasdasd")
-
-
       
     // will modify funDef body and precondition, restore it later
     try {
-      {
+      { //if (!maps.isEmpty) {
         // proceed with synthesizing boolean expressions
         //solver.setProgram(program)
 
@@ -614,7 +608,8 @@ class SynthesizerForRuleExamples(
   }
 
   def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, precondition: Expr): (Boolean, Option[Expr]) = {
-
+		
+		// trying some examples that cannot be verified
     if (snippetTree.toString == "Cons(aList.head, merge(aList.tail, bList))" //&&
       //innerSnippetTree.toString.contains("aList.head < bList.head")
 ) {
