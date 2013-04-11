@@ -6,6 +6,7 @@ import scala.collection.mutable.{ LinkedList => MutableList }
 
 import leon.{ Main => LeonMain, DefaultReporter, Settings, LeonContext }
 import leon.evaluators._
+import leon.evaluators.EvaluationResults._
 import leon.solvers.Solver
 import leon.solvers.z3.{ FairZ3Solver }
 import leon.verification.AnalysisPhase
