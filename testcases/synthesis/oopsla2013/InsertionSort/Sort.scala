@@ -30,7 +30,7 @@ object InsertionSort {
     l match {
       case Nil() => Cons(e, Nil())
       case Cons(x, xs) =>
-        if (x <= e) Cons(x, sortedIns(e, xs))
+        if (x <= e) Cons(x, insert(e, xs))
         else Cons(e, l)
     }
   } ensuring (res => contents(res) == contents(l) ++ Set(e)

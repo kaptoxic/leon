@@ -45,7 +45,7 @@ object InsertionSort {
    * list */
   def sort(l: List): List = (l match {
     case Nil() => Nil()
-    case Cons(x, xs) => sortedIns(x, sort(xs))
+    case Cons(x, xs) => insert(x, sort(xs))
   }) ensuring (res => contents(res) == contents(l)
     && isSorted(res)
     && size(res) == size(l))

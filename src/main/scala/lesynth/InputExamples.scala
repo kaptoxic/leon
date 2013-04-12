@@ -21,8 +21,8 @@ object InputExamples {
   numOfModels: Int, numOfTries: Int, _forcedFreeVars: Option[Seq[Identifier]])
   (argumentIds: Seq[Identifier], loader: LeonLoader) = {
     
-    val models = findModels(p.pc, evaluator, numOfModels, numOfTries
-      /*, forcedFreeVars = _forcedFreeVars*/)
+    val models = findModels(p.pc, evaluator, numOfModels, numOfTries,
+      forcedFreeVars = _forcedFreeVars)
 
     models.toList
     
