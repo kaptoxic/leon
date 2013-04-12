@@ -349,10 +349,12 @@ class SynthesizerForRuleExamples(
     // iterate while the program is not valid
     import scala.util.control.Breaks._
     var iteration = 0
+    var noBranchFoundIteration = 0
     breakable {
       while (keepGoing) {
         // next iteration
         iteration += 1
+        noBranchFoundIteration += 1
         reporter.info("####################################")
         reporter.info("######Iteration #" + iteration + " ###############")
         reporter.info("####################################")
@@ -402,6 +404,7 @@ class SynthesizerForRuleExamples(
                 
                 if (tryToSynthesizeBranch(snippetTree)) {
                   // will set found if correct body is found
+                  noBranchFoundIteration = 0
                   break
                 }
               } else {
@@ -423,7 +426,7 @@ class SynthesizerForRuleExamples(
             } // if (!refiner.isAvoidable(snippetTree)) {
 
             // check if we this makes one test iteration            
-            if (numberOfTested >= numberOfTestsInIteration) {
+            if (numberOfTested >= numberOfTestsInIteration * noBranchFoundIteration) {
             	reporter.info("Finalizing enumeration/testing phase.")
               fine("Queue contents: " + pq.toList.take(10).mkString("\n"))
               fine({ if (pq.isEmpty) "queue is empty" else "head of queue is: " + pq.head })
@@ -436,6 +439,7 @@ class SynthesizerForRuleExamples(
                 //interactivePause
 
                 if (tryToSynthesizeBranch(nextSnippet)) {
+                  noBranchFoundIteration = 0
                   break
                 }
                 
