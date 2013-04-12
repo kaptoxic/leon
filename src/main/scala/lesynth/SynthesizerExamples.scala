@@ -131,6 +131,18 @@ class SynthesizerForRuleExamples(
 
       withPrec
     }
+        
+    val reporter = //new DefaultReporter
+      new SilentReporter
+    val args =
+      if (analyzeSynthesizedFunctionOnly)
+        Array(fileName, "--timeout=" + leonTimeout, "--functions=" + holeFunDef.id.name)
+      else
+        Array(fileName, "--timeout=" + leonTimeout)
+    info("Leon context array: " + args.mkString(","))
+    ctx = processOptions(reporter, args.toList)
+    val solver = new TimeoutSolver(new FairZ3Solver(ctx), 1000L)
+    solver.setProgram(program)
     
     Globals.allSolved = solver.solve(theExpr)
     fine("solver said " + Globals.allSolved + " for " + theExpr)
@@ -614,7 +626,7 @@ class SynthesizerForRuleExamples(
   def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, precondition: Expr): (Boolean, Option[Expr]) = {
 		
 		// trying some examples that cannot be verified
-    if (snippetTree.toString == "Cons(aList.head, merge(aList.tail, bList))" //&&
+    if (snippetTree.toString == "Cons(l.head, insert(e, l.tail))" //&&
       //innerSnippetTree.toString.contains("aList.head < bList.head")
 ) {
           val endTime = System.currentTimeMillis
