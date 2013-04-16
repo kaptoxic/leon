@@ -34,6 +34,8 @@ import scala.collection.mutable.{Set => MutableSet}
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 
+import SynthesisInfo.Action._
+
 class SynthesizerForRuleExamples(    
   // some synthesis instance information
   val solver: Solver,
@@ -99,17 +101,15 @@ class SynthesizerForRuleExamples(
   private var accumulatingExpression: Expr => Expr = _
   //private var accumulatingExpressionMatch: Expr => Expr = _
 
-  // time
-  var startTime: Long = _
-  var verTime: Long = 0
-  var synTime: Long = 0
+  // information about the synthesis
+  private val synthInfo = new SynthesisInfo
 
   // filtering/ranking with examples support
   var exampleRunner: ExampleRunner = _
 
   def analyzeProgram = {
-
-    val temp = System.currentTimeMillis
+		
+    synthInfo.start(Verification)
     Globals.allSolved = Some(true)
 
     import TreeOps._
@@ -148,19 +148,17 @@ class SynthesizerForRuleExamples(
     fine("solver said " + Globals.allSolved + " for " + theExpr)
     //interactivePause
 
-    val time = System.currentTimeMillis - temp
-    //fine("Analysis took: " + time + ", from report: " + report.totalTime)
 
-    // accumulate
-    verTime += time
+    // measure time
+    synthInfo.end
+    fine("Analysis took of theExpr: " + synthInfo.last)
   }
 
   // TODO return boolean (do not do unecessary analyze)
   def generateCounterexamples(program: Program, funDef: FunDef, number: Int): (Seq[Map[Identifier, Expr]], Expr) = {
 
     fine("generate counter examples with funDef.prec= " + funDef.precondition.getOrElse(BooleanLiteral(true)))
-    val temp = System.currentTimeMillis
-
+    
     // get current precondition
     var precondition = funDef.precondition.getOrElse(BooleanLiteral(true))
     // where we will accumulate counterexamples as sequence of maps
@@ -192,9 +190,9 @@ class SynthesizerForRuleExamples(
       ind += 1
     }
 
-    val temptime = System.currentTimeMillis - temp
-    fine("Generation of counter-examples took: " + temptime)
-    verTime += temptime
+//    val temptime = System.currentTimeMillis - temp
+//    fine("Generation of counter-examples took: " + temptime)
+//    verTime += temptime
 
     // return found counterexamples and the formed precondition
     (maps, precondition)
@@ -202,10 +200,12 @@ class SynthesizerForRuleExamples(
 
   def getCurrentBuilder = new InitialEnvironmentBuilder(allDeclarations)
 
-  def synthesizeBranchExpressions =
-    inSynth.getExpressions(getCurrentBuilder)
+  def synthesizeBranchExpressions = {    
+    synthInfo.profile(Generation) { inSynth.getExpressions(getCurrentBuilder) }    
+  }
 
   def synthesizeBooleanExpressions = {
+    synthInfo.start(Generation)
     if ( variableRefinedCondition ) {
       // store for later fetch (will memoize values)
     	booleanExpressionsSaved = 
@@ -214,7 +214,7 @@ class SynthesizerForRuleExamples(
   		variableRefinedCondition = false
     }
   
-	  booleanExpressionsSaved
+    synthInfo end booleanExpressionsSaved
   }
 
   def interactivePause = {
@@ -289,7 +289,8 @@ class SynthesizerForRuleExamples(
     refiner = new Refiner(program, hole, holeFunDef)
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
-    exampleRunner = new ExampleRunner(program)
+    // seems to have problems for <= 4000
+    exampleRunner = new ExampleRunner(program, 4000)
     exampleRunner.counterExamples ++= //examples
       introduceExamples(holeFunDef.args.map(_.id), loader)
       
@@ -297,6 +298,8 @@ class SynthesizerForRuleExamples(
   }
 
   def countPassedExamples(snippet: Expr) = {
+    synthInfo.start(Evaluation)
+    
     val oldPreconditionSaved = holeFunDef.precondition
     val oldBodySaved = holeFunDef.body
 
@@ -329,14 +332,14 @@ class SynthesizerForRuleExamples(
     holeFunDef.precondition = oldPreconditionSaved
     holeFunDef.body = oldBodySaved
 
-    count
+    synthInfo end count
   }
 
   def synthesize: Report = {
     reporter.info("Synthesis called on file: " + fileName)
 
-    // get start time
-    startTime = System.currentTimeMillis
+    // profile
+    synthInfo start Synthesis
 
     reporter.info("Initializing synthesizer: ")
     reporter.info("numberOfBooleanSnippets: %d".format(numberOfBooleanSnippets))
@@ -357,16 +360,18 @@ class SynthesizerForRuleExamples(
     
     // ordering of expressions according to passed examples
     var pq = getNewExampleQueue
-    
+        
     // iterate while the program is not valid
     import scala.util.control.Breaks._
+    var totalExpressionsTested = 0
     var iteration = 0
     var noBranchFoundIteration = 0
+    var numberOfTested = 0
     breakable {
       while (keepGoing) {
         // next iteration
         iteration += 1
-        noBranchFoundIteration += 1
+        noBranchFoundIteration = 1
         reporter.info("####################################")
         reporter.info("######Iteration #" + iteration + " ###############")
         reporter.info("####################################")
@@ -375,7 +380,7 @@ class SynthesizerForRuleExamples(
         reporter.info("# accumulatingExpression(Unit) is: " + accumulatingExpression(UnitLiteral))
         reporter.info("####################################")
 
-        var numberOfTested = 0
+        numberOfTested = 0
 
         // just printing of expressions and pass counts        
         fine( {
@@ -404,19 +409,19 @@ class SynthesizerForRuleExamples(
           ) {
             finest("snippetTree is: " + snippetTree)
             // note that we do not add snippets to the set of seen if enqueued 
-
+            
             // skip avoidable calls
             if (!refiner.isAvoidable(snippetTree, problem.as)) {
 
               // passed example pairs
               val passCount = countPassedExamples(snippetTree)
+            	fine("Pass count for snippet is: " + (snippetTree, passCount))
 
               if (passCount == exampleRunner.counterExamples.size) {
                 info("All examples passed. Testing snippet " + snippetTree + " right away")
                 
                 if (tryToSynthesizeBranch(snippetTree)) {
                   // will set found if correct body is found
-                  noBranchFoundIteration = 0
                   break
                 }
               } else {
@@ -442,7 +447,7 @@ class SynthesizerForRuleExamples(
             	reporter.info("Finalizing enumeration/testing phase.")
               fine("Queue contents: " + pq.toList.take(10).mkString("\n"))
               fine({ if (pq.isEmpty) "queue is empty" else "head of queue is: " + pq.head })
-
+                            
               //interactivePause
               // go and check the topmost numberOfCheckInIteration
               for (i <- 1 to math.min(numberOfCheckInIteration, pq.size)) {
@@ -451,7 +456,6 @@ class SynthesizerForRuleExamples(
                 //interactivePause
 
                 if (tryToSynthesizeBranch(nextSnippet)) {
-                  noBranchFoundIteration = 0
                   break
                 }
                 
@@ -459,18 +463,23 @@ class SynthesizerForRuleExamples(
                 //seenBranchExpressions += nextSnippet.toString
               }
 
+            	totalExpressionsTested += numberOfTested
+            	println("totalExpressionsTested: " + totalExpressionsTested)
               numberOfTested = 0
+              
+	            // increment iteration to consider more candidates
+	            noBranchFoundIteration +=1
             } else
               numberOfTested += 1
-
+              
           } // for (snippet <- snippets
         } // breakable { for (snippet <- snippets
 
         // if did not found for any of the branch expressions
         if (found) {
-          val endTime = System.currentTimeMillis
-          reporter.info("We are done, in time: " + (endTime - startTime))
-          return new FullReport(holeFunDef, (endTime - startTime))
+          synthInfo end Synthesis
+          reporter.info("We are done, in time: " + synthInfo.last)
+          return new FullReport(holeFunDef, synthInfo)
         }
 
         if ( variableRefinedBranch ) {
@@ -629,8 +638,7 @@ class SynthesizerForRuleExamples(
     if (snippetTree.toString == "Cons(l.head, insert(e, l.tail))" //&&
       //innerSnippetTree.toString.contains("aList.head < bList.head")
 ) {
-          val endTime = System.currentTimeMillis
-          reporter.info("We are done, in time: " + (endTime - startTime))
+      reporter.info("We are done")
       interactivePause
 }
 

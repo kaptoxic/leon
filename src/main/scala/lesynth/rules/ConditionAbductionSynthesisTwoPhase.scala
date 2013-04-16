@@ -52,12 +52,13 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   reporter = reporter,
                   introduceExamples = getInputExamples,  
 								  numberOfTestsInIteration = 50,
-								  numberOfCheckInIteration = 5
+								  numberOfCheckInIteration = 2
 							  )
 
                 synthesizer.synthesize match {
                   case EmptyReport => RuleApplicationImpossible
-                  case FullReport(resFunDef, _) =>
+                  case fr@FullReport(resFunDef, _) =>
+                    println(fr.summaryString)
                     RuleSuccess(Solution(resFunDef.getPrecondition, Set.empty, resFunDef.body.get))
                 }
               } catch {
