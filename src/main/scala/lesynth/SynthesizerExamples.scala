@@ -34,6 +34,9 @@ import scala.collection.mutable.{Set => MutableSet}
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 
+import SynthesisInfo._
+import SynthesisInfo.Action._
+
 class SynthesizerForRuleExamples(    
   // some synthesis instance information
   val solver: Solver,
@@ -101,20 +104,15 @@ class SynthesizerForRuleExamples(
   private var accumulatingExpression: Expr => Expr = _
   //private var accumulatingExpressionMatch: Expr => Expr = _
 
-  var flag1 = false
-  var flag2 = false
-
-  // time
-  var startTime: Long = _
-  var verTime: Long = 0
-  var synTime: Long = 0
+  // information about the synthesis
+  private val synthInfo = new SynthesisInfo
 
   // filtering/ranking with examples support
   var exampleRunner: ExampleRunner = _
 
   def analyzeProgram = {
-
-    val temp = System.currentTimeMillis
+		
+    synthInfo.start(Verification)
     Globals.allSolved = Some(true)
 
     import TreeOps._
@@ -154,19 +152,16 @@ class SynthesizerForRuleExamples(
     fine("solver said " + Globals.allSolved + " for " + theExpr)
     //interactivePause
 
-    val time = System.currentTimeMillis - temp
-    //fine("Analysis took: " + time + ", from report: " + report.totalTime)
-
-    // accumulate
-    verTime += time
+    // measure time
+    synthInfo.end
+    fine("Analysis took of theExpr: " + synthInfo.last)
   }
 
   // TODO return boolean (do not do unecessary analyze)
   def generateCounterexamples(program: Program, funDef: FunDef, number: Int): (Seq[Map[Identifier, Expr]], Expr) = {
 
     fine("generate counter examples with funDef.prec= " + funDef.precondition.getOrElse(BooleanLiteral(true)))
-    val temp = System.currentTimeMillis
-
+    
     // get current precondition
     var precondition = funDef.precondition.getOrElse(BooleanLiteral(true))
     // where we will accumulate counterexamples as sequence of maps
@@ -198,21 +193,22 @@ class SynthesizerForRuleExamples(
       ind += 1
     }
 
-    val temptime = System.currentTimeMillis - temp
-    fine("Generation of counter-examples took: " + temptime)
-    verTime += temptime
+//    val temptime = System.currentTimeMillis - temp
+//    fine("Generation of counter-examples took: " + temptime)
+//    verTime += temptime
 
     // return found counterexamples and the formed precondition
     (maps, precondition)
   }
-  
-  
+
   def getCurrentBuilder = new InitialEnvironmentBuilder(allDeclarations)
 
-  def synthesizeBranchExpressions =
-    inSynth.getExpressions(getCurrentBuilder)
+  def synthesizeBranchExpressions = {    
+    synthInfo.profile(Generation) { inSynth.getExpressions(getCurrentBuilder) }    
+  }
 
   def synthesizeBooleanExpressions = {
+    synthInfo.start(Generation)
     if ( variableRefinedCondition ) {
       // store for later fetch (will memoize values)
     	booleanExpressionsSaved = 
@@ -222,7 +218,7 @@ class SynthesizerForRuleExamples(
   		variableRefinedCondition = false
     }
   
-	  booleanExpressionsSaved
+    synthInfo end booleanExpressionsSaved
   }
 
   def interactivePause = {
@@ -298,6 +294,8 @@ class SynthesizerForRuleExamples(
   }
 
   def countPassedExamples(snippet: Expr) = {
+    synthInfo.start(Action.Evaluation)
+    
     val oldPreconditionSaved = holeFunDef.precondition
     val oldBodySaved = holeFunDef.body
 
@@ -330,11 +328,14 @@ class SynthesizerForRuleExamples(
     holeFunDef.precondition = oldPreconditionSaved
     holeFunDef.body = oldBodySaved
 
-    count
+    synthInfo end count
   }
   
   
   def evaluateCandidate(snippet: Expr, mapping: Map[Identifier, Expr]) = {
+    
+	synthInfo.start(Action.Evaluation)
+
     val oldPreconditionSaved = holeFunDef.precondition
     val oldBodySaved = holeFunDef.body
 
@@ -367,14 +368,14 @@ class SynthesizerForRuleExamples(
 //    if(snippet.toString == "checkf(f2, reverse(r2))")
 //      interactivePause
       
-    count
+    synthInfo end count
   }
 
   def synthesize: Report = {
     reporter.info("Synthesis called on file: " + fileName)
 
-    // get start time
-    startTime = System.currentTimeMillis
+    // profile
+    synthInfo start Synthesis
 
     reporter.info("Initializing synthesizer: ")
     reporter.info("numberOfBooleanSnippets: %d".format(numberOfBooleanSnippets))
@@ -496,9 +497,9 @@ class SynthesizerForRuleExamples(
 
         // if did not found for any of the branch expressions
         if (found) {
-          val endTime = System.currentTimeMillis
-          reporter.info("We are done, in time: " + (endTime - startTime))
-          return new FullReport(holeFunDef, (endTime - startTime))
+          synthInfo end Synthesis
+          reporter.info("We are done, in time: " + synthInfo.last)
+          return new FullReport(holeFunDef, synthInfo)
         }
 
         if ( variableRefinedBranch ) {
