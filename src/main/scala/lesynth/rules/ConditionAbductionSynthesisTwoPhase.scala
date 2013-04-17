@@ -13,6 +13,8 @@ import leon.evaluators.CodeGenEvaluator
 
 import InputExamples._
 
+import leon.StopwatchCollections
+
 case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abduction synthesis (two phase).") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
 
@@ -47,18 +49,19 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 holeFunDef.precondition = Some(p.pc)
 
                 val synthesizer = new SynthesizerForRuleExamples(
-                  solver, program, desiredType, holeFunDef, p, freshResVar,
+                  solver, program, desiredType, holeFunDef, sctx, p, freshResVar,
                   20, 2, 1,
                   reporter = reporter,
                   introduceExamples = getInputExamples,  
 								  numberOfTestsInIteration = 50,
-								  numberOfCheckInIteration = 2
+								  numberOfCheckInIteration = 1
 							  )
-
+                
                 synthesizer.synthesize match {
                   case EmptyReport => RuleApplicationImpossible
                   case fr@FullReport(resFunDef, _) =>
                     println(fr.summaryString)
+                    println("Compilation time: " + StopwatchCollections.get("Compilation").getMillis)
                     RuleSuccess(Solution(resFunDef.getPrecondition, Set.empty, resFunDef.body.get))
                 }
               } catch {

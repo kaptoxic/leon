@@ -13,6 +13,7 @@ import leon.purescala.Trees.{ Variable => LeonVariable, _ }
 import leon.purescala.Definitions.{FunDef, Program}
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
+import leon.evaluators._
 
 import insynth.util.logging.HasLogger
 import insynth.interfaces.Declaration
@@ -25,14 +26,14 @@ import insynth.interfaces.Declaration
 import insynth.engine.InitialEnvironmentBuilder
 import insynth.leon.TypeTransformer
 import insynth.reconstruction.Output
-import leon.synthesis.Problem
-import leon.Main.processOptions
-import leon.purescala.TypeTrees._
 
 import scala.collection.mutable.{Map => MutableMap}
 import scala.collection.mutable.{Set => MutableSet}
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
+
+import leon.synthesis.{ Problem, SynthesisContext }
+import leon.Main.processOptions
 
 import SynthesisInfo.Action._
 
@@ -42,6 +43,7 @@ class SynthesizerForRuleExamples(
   val program: Program,
   val desiredType: LeonType,
   val holeFunDef: FunDef,
+  val sctx: SynthesisContext,
   val problem: Problem,
   val freshResVar: LeonVariable,
   // number of condition expressions to try before giving up on that branch expression
@@ -105,7 +107,7 @@ class SynthesizerForRuleExamples(
   private val synthInfo = new SynthesisInfo
 
   // filtering/ranking with examples support
-  var exampleRunner: ExampleRunner = _
+  var exampleRunner: DefaultExampleRunner = _
 
   def analyzeProgram = {
 		
@@ -290,11 +292,14 @@ class SynthesizerForRuleExamples(
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
     // seems to have problems for <= 4000
-    exampleRunner = new ExampleRunner(program, 4000)
-    exampleRunner.counterExamples ++= //examples
+    exampleRunner = new DefaultExampleRunner(program, holeFunDef)
+    val evaluator = new DefaultEvaluator(sctx.context, program)
+    evaluator.maxSteps = 4000
+    exampleRunner.evaluator = evaluator
+    exampleRunner addExamples //examples
       introduceExamples(holeFunDef.args.map(_.id), loader)
       
-    fine("Introduced examples: " + exampleRunner.counterExamples.mkString(", "))
+    fine("Introduced examples: " + exampleRunner.examples.mkString(", "))
   }
 
   def countPassedExamples(snippet: Expr) = {
@@ -325,6 +330,7 @@ class SynthesizerForRuleExamples(
     fine("going to count passed for: " + holeFunDef)
     fine("going to count passed for: " + expressionToCheck)
 
+    //exampleRunner.evaluator = new CodeGenEvaluator(sctx.context, program)
     val count = exampleRunner.countPassed(expressionToCheck)
 //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
 //      interactivePause
@@ -395,7 +401,7 @@ class SynthesizerForRuleExamples(
         //interactivePause
 
         reporter.info("Going into a enumeration/testing phase.")
-        fine("evaluating examples: " + exampleRunner.counterExamples.mkString("\n"))
+        fine("evaluating examples: " + exampleRunner.examples.mkString("\n"))
         
         // found precondition?
         found = false
@@ -417,7 +423,7 @@ class SynthesizerForRuleExamples(
               val passCount = countPassedExamples(snippetTree)
             	fine("Pass count for snippet is: " + (snippetTree, passCount))
 
-              if (passCount == exampleRunner.counterExamples.size) {
+              if (passCount == exampleRunner.examples.size) {
                 info("All examples passed. Testing snippet " + snippetTree + " right away")
                 
                 if (tryToSynthesizeBranch(snippetTree)) {
@@ -431,7 +437,7 @@ class SynthesizerForRuleExamples(
                 }
               	else {
               		fine("Snippet with pass count was dropped: " + (snippetTree, passCount) +
-            		    " while number of examples was: " + exampleRunner.counterExamples.size)
+            		    " while number of examples was: " + exampleRunner.examples.size)
 	                // add to seen if branch was not found for it
 	                seenBranchExpressions += snippetTree.toString
               	}
@@ -478,6 +484,8 @@ class SynthesizerForRuleExamples(
         // if did not found for any of the branch expressions
         if (found) {
           synthInfo end Synthesis
+          synthInfo.iterations = iteration
+          synthInfo.numberOfEnumeratedExpressions = numberOfTested
           reporter.info("We are done, in time: " + synthInfo.last)
           return new FullReport(holeFunDef, synthInfo)
         }
@@ -496,10 +504,10 @@ class SynthesizerForRuleExamples(
         	snippetsIterator = snippets.iterator
 
         fine("filtering based on: " + holeFunDef.precondition.get)
-        fine("counterexamples before filter: " + exampleRunner.counterExamples.size)
+        fine("counterexamples before filter: " + exampleRunner.examples.size)
         exampleRunner.filter(holeFunDef.precondition.get)
-        fine("counterexamples after filter: " + exampleRunner.counterExamples.size)
-        fine("counterexamples after filter: " + exampleRunner.counterExamples.mkString("\n"))
+        fine("counterexamples after filter: " + exampleRunner.examples.size)
+        fine("counterexamples after filter: " + exampleRunner.examples.mkString("\n"))
       }
     } //breakable { while (!keepGoing) {
 
@@ -552,7 +560,7 @@ class SynthesizerForRuleExamples(
 
     // collect (add) counterexamples from leon
     if (collectCounterExamplesFromLeon)
-      exampleRunner.counterExamples ++= maps
+      exampleRunner addExamples maps
 
     // this should not be possible
     //    val keepGoing = Globals.allSolved match {
@@ -600,7 +608,7 @@ class SynthesizerForRuleExamples(
           ) {
           fine("boolean snippet is: " + innerSnippetTree)
 
-          val (innerFound, innerPrec) = tryToSynthesizeBooleanCondition(snippetTree, innerSnippetTree, precondition)
+          val (innerFound, innerPrec) = tryToSynthesizeBooleanCondition(snippetTree, innerSnippetTree, maps)
 
           // if precondition found
           if (innerFound) {
@@ -632,7 +640,7 @@ class SynthesizerForRuleExamples(
     }
   }
 
-  def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, precondition: Expr): (Boolean, Option[Expr]) = {
+  def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, counterExamples: Seq[Map[Identifier, Expr]]): (Boolean, Option[Expr]) = {
 		
 		// trying some examples that cannot be verified
     if (snippetTree.toString == "Cons(l.head, insert(e, l.tail))" //&&
@@ -658,16 +666,20 @@ class SynthesizerForRuleExamples(
       // nothing here
       // here, our expression is not contradictory, continue
       case Some(false) =>
-        // check if synthesized boolean expression implies precondition (counterexamples)
-        val implyExpression = Implies(newCondition, precondition)
-        fine("implyExpression is: " + implyExpression)
+        // check if synthesized boolean expression implies precondition (counterexamples)        
+        val implyCounterExamples = (false /: counterExamples) {
+          case (false, exMapping) =>
+            exampleRunner.evaluateToResult(newCondition, exMapping) match {
+              case EvaluationResults.Successful(BooleanLiteral(false)) => false
+              case r =>
+                fine("Evaluation result for " + newCondition + " on " + exMapping + " is " + r)
+                true
+            }
+          case _ => true
+        }        
+        fine("implyCounterExamples: " + implyCounterExamples)
 
-        // check if synthesized condition implies counter-examples
-        val solveReturn = solver.solve(implyExpression)
-        fine("solve returned: " + solveReturn)
-
-        solveReturn match {
-          case Some(true) =>
+        if (!implyCounterExamples) {
             // if expression implies counterexamples add it to the precondition and try to validate program
             holeFunDef.precondition = Some(newCondition)
             // do analysis
@@ -740,12 +752,12 @@ class SynthesizerForRuleExamples(
               val preconditionToRestore = Some(accumulatingPrecondition)
               (false, preconditionToRestore)
             }
-
-          case _ =>
-
+        }
+            else {
             fine("solver filtered out the precondition (does not imply counterexamples)")
             (false, None)
-        } //solveReturn match { (for implying counterexamples)
+            }
+         //solveReturn match { (for implying counterexamples)
     } // notFalseSolveReturn match {
   }
 
