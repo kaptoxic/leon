@@ -16,25 +16,29 @@ import cafebabe.Flags._
 
 import java.lang.reflect.InvocationTargetException
 
+import leon.codegen.runtime.Ticker
+
 class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr, argsDecl: Seq[Identifier]) {
   private lazy val cl = unit.loader.loadClass(cf.className)
   private lazy val meth = cl.getMethods()(0)
 
   private val exprType = expression.getType
 
-  protected[codegen] def evalToJVM(args: Seq[Expr]): AnyRef = {
+  protected[codegen] def evalToJVM(args: Seq[Expr], maxInvocations : Int = -1): AnyRef = {
     assert(args.size == argsDecl.size)
 
+    val ticker : Ticker = if(maxInvocations < 0) null else (new Ticker(1))
+
     if (args.isEmpty) {
-      meth.invoke(null)
+      meth.invoke(null, Seq(ticker).toArray : _*)
     } else {
-      meth.invoke(null, args.map(unit.valueToJVM).toArray : _*)
+      meth.invoke(null, (ticker +: args.map(unit.valueToJVM)).toArray : _*)
     }
   }
 
   // This may throw an exception. We unwrap it if needed.
   // We also need to reattach a type in some cases (sets, maps).
-  def eval(args: Seq[Expr]) : Expr = {
+  def eval(args: Seq[Expr], maxInvocations : Int = -1) : Expr = {
     try {
       val result = unit.jvmToValue(evalToJVM(args))
       if(!result.isTyped) {

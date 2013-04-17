@@ -26,6 +26,7 @@ object CodeGeneration {
   private val ErrorClass     = "leon/codegen/runtime/LeonCodeGenRuntimeException"
   private val ImpossibleEvaluationClass = "leon/codegen/runtime/LeonCodeGenEvaluationException"
   private val HashingClass   = "leon/codegen/runtime/LeonCodeGenRuntimeHashing"
+  protected[codegen] val TickerClass    = "leon/codegen/runtime/Ticker"
 
   def defToJVMName(p : Program, d : Definition) : String = "Leon$CodeGen$" + d.id.uniqueName
 
@@ -56,8 +57,12 @@ object CodeGeneration {
 
   // Assumes the CodeHandler has never received any bytecode.
   // Generates method body, and freezes the handler at the end.
+  // Each function takes a 'Ticker' as a first argument.
+  // In the future, we may want to extend this to a class supporting more
+  // instrumentation than just counting function calls...
   def compileFunDef(funDef : FunDef, ch : CodeHandler)(implicit env : CompilationEnvironment) {
-    val newMapping = funDef.args.map(_.id).zipWithIndex.toMap
+    // Note the offset of 1 to account for the Ticker...
+    val newMapping = funDef.args.map(_.id).zipWithIndex.toMap.mapValues(_ + 1)
 
     val bodyWithPre = if(funDef.hasPrecondition) {
       IfExpr(funDef.precondition.get, funDef.getBody, Error("Precondition failed"))
@@ -74,6 +79,11 @@ object CodeGeneration {
     }
 
     val exprToCompile = purescala.TreeOps.matchToIfThenElse(bodyWithPost)
+
+    val postTick = ch.getFreshLabel("postTick")
+    ch << ALoad(0) << IfNull(postTick)
+    ch << ALoad(0) << InvokeVirtual(TickerClass, "tick", "()V")
+    ch << Label(postTick)
 
     mkExpr(exprToCompile, ch)(env.withVars(newMapping))
 
@@ -263,10 +273,12 @@ object CodeGeneration {
         mkExpr(e, ch)
         ch << Label(al)
 
+      // Function invocations
       case FunctionInvocation(fd, as) =>
         val (cn, mn, ms) = env.funDefToMethod(fd).getOrElse {
           throw CompilationException("Unknown method : " + fd.id)
         }
+        ch << ALoad(0) // loads up the ticker
         for(a <- as) {
           mkExpr(a, ch)
         }
