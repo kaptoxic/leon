@@ -7,7 +7,6 @@ import leon.purescala.TypeTrees._
 import leon.purescala.TreeOps._
 import leon.purescala.Extractors._
 import leon.purescala.Definitions._
-import leon.purescala.DataGen.findModels
 import leon.synthesis._
 import leon.solvers.{ Solver, TimeoutSolver }
 import leon.evaluators.CodeGenEvaluator

@@ -290,8 +290,12 @@ class SynthesizerForRuleExamples(
     // calculate cases that should not happen
     refiner = new Refiner(program, hole, holeFunDef)
 
-    exampleRunner = new ExampleRunner(program, exampleRunnerSteps)
-    exampleRunner.counterExamples ++= //examples
+    // seems to have problems for <= 4000
+    exampleRunner = new DefaultExampleRunner(program, holeFunDef)
+    val evaluator = new DefaultEvaluator(sctx.context, program)
+    evaluator.maxSteps = 4000
+    exampleRunner.evaluator = evaluator
+    exampleRunner addExamples //examples
       introduceExamples(holeFunDef.args.map(_.id), loader)
       
     info("Introduced examples: " + exampleRunner.counterExamples.mkString("\t"))
@@ -593,7 +597,7 @@ class SynthesizerForRuleExamples(
 
     // collect (add) counterexamples from leon
     if (collectCounterExamplesFromLeon)
-      exampleRunner.counterExamples ++= maps
+      exampleRunner addExamples maps
 
     // this should not be possible
     //    val keepGoing = Globals.allSolved match {
