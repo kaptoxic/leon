@@ -50,8 +50,10 @@ object CompilationEnvironment {
 
     val fs = p.definedFunctions.filter(_.hasImplementation)
 
+    val tickerType = "L" + CodeGeneration.TickerClass + ";"
+
     val fMap : Map[FunDef,(String,String,String)] = (fs.map { fd =>
-      val sig = "(" + fd.args.map(a => typeToJVM(a.tpe)).mkString("") + ")" + typeToJVM(fd.returnType)
+      val sig = "(" + tickerType + fd.args.map(a => typeToJVM(a.tpe)).mkString("") + ")" + typeToJVM(fd.returnType)
 
       fd -> (className, fd.id.uniqueName, sig)
     }).toMap
