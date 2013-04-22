@@ -25,7 +25,7 @@ class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr
   protected[codegen] def evalToJVM(args: Seq[Expr], maxInvocations : Int = -1): AnyRef = {
     assert(args.size == argsDecl.size)
 
-    val ticker : Ticker = if(maxInvocations < 0) null else (new Ticker(1))
+    val ticker : Ticker = if(maxInvocations < 0) null else (new Ticker(maxInvocations))
 
     if (args.isEmpty) {
       meth.invoke(null, Seq(ticker).toArray : _*)
@@ -36,7 +36,7 @@ class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr
 
   // This may throw an exception. We unwrap it if needed.
   // We also need to reattach a type in some cases (sets, maps).
-  def eval(args: Seq[Expr], maxInvocations : Int = -1) : Expr = {
+  def eval(args: Seq[Expr], maxInvocations : Int = 1000) : Expr = {
     try {
       val result = unit.jvmToValue(evalToJVM(args))
       if(!result.isTyped) {

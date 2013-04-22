@@ -52,12 +52,16 @@ public final class Set {
   }
 
   public Set union(Set s) {
+  	if (this == s || s._underlying == _underlying) new Set(_underlying);
+  	
     TreeSet<Object> n = new TreeSet<Object>(_underlying);
     n.addAll(s.underlying());
     return new Set(n);
   }
 
   public Set intersect(Set s) {
+  	if (this == s || s._underlying == _underlying) new Set(_underlying);
+  	
     TreeSet<Object> n = new TreeSet<Object>();
     for(Object o : _underlying) {
       if(s.underlying().contains(o)) {

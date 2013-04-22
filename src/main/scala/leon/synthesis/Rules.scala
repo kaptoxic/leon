@@ -11,25 +11,25 @@ import lesynth.rules._
 
 object Rules {
   def all = List[Rule](
-    Unification.DecompTrivialClash,
-    Unification.OccursCheck, // probably useless
-    Disunification.Decomp,
-    ADTDual,
-    OnePoint,
-    Ground,
-    CaseSplit,
-    UnusedInput,
-    UnconstrainedOutput,
-    OptimisticGround,
-    EqualitySplit,
-    InequalitySplit,
-    CEGIS,
-    Assert,
-    DetupleOutput,
-    DetupleInput,
-    ADTSplit,
-    IntegerEquation,
-    IntegerInequalities,    
+//    Unification.DecompTrivialClash,
+//    Unification.OccursCheck, // probably useless
+//    Disunification.Decomp,
+//    ADTDual,
+//    OnePoint,
+//    Ground,
+//    CaseSplit,
+//    UnusedInput,
+//    UnconstrainedOutput,
+//    OptimisticGround,
+//    EqualitySplit,
+//    InequalitySplit,
+//    CEGIS,
+//    Assert,
+//    DetupleOutput,
+//    DetupleInput,
+//    ADTSplit,
+//    IntegerEquation,
+//    IntegerInequalities,    
     ConditionAbductionSynthesisTwoPhase
   )
 }

@@ -80,6 +80,8 @@ object CodeGeneration {
     val postTick = ch.getFreshLabel("postTick")
     ch << ALoad(0) << IfNull(postTick)
     ch << ALoad(0) << InvokeVirtual(TickerClass, "tick", "()V")
+//    ch << ALoad(0) << IfNull(postTick)
+//    ch << ALoad(0) << InvokeVirtual(TickerClass, "printTicks", "()V")
     ch << Label(postTick)
 
     mkExpr(exprToCompile, ch)(env.withVars(newMapping))

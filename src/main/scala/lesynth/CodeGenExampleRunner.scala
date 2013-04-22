@@ -22,7 +22,7 @@ import EvaluationResults._
 
 import leon.StopwatchCollections
 
-class CodeGenExampleRunner(val evaluatorIn: Evaluator, funDef: FunDef, maxSteps: Int = 2000) extends HasLogger {
+class CodeGenExampleRunner(val evaluatorIn: Evaluator, funDef: FunDef, maxSteps: Int = 1000) extends HasLogger {
 
   import TreeOps._
 
@@ -46,6 +46,11 @@ class CodeGenExampleRunner(val evaluatorIn: Evaluator, funDef: FunDef, maxSteps:
     
   def evaluate(expr: Expr, args: Seq[Expr]) {
     evaluator.eval(expr, funDef.args.map(_.id).zip(args).toMap)
+  }
+  
+  def evaluateToResult(expr: Expr, mapping: Map[Identifier, Expr]) = {
+    fine("to evaluate: " + expr + " for mapping: " + mapping)
+    evaluator.eval(expr, mapping)
   }
   
   def compile(expr: Expr, ids: Seq[Identifier]) = {

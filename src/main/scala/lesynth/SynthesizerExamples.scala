@@ -107,7 +107,7 @@ class SynthesizerForRuleExamples(
   private val synthInfo = new SynthesisInfo
 
   // filtering/ranking with examples support
-  var exampleRunner: DefaultExampleRunner = _
+  var exampleRunner: CodeGenExampleRunner = _
 
   def analyzeProgram = {
 		
@@ -292,9 +292,11 @@ class SynthesizerForRuleExamples(
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
     // seems to have problems for <= 4000
-    exampleRunner = new DefaultExampleRunner(program, holeFunDef)
-    val evaluator = new DefaultEvaluator(sctx.context, program)
-    evaluator.maxSteps = 4000
+    //exampleRunner = new DefaultExampleRunner(program, holeFunDef)    
+    exampleRunner = new CodeGenExampleRunner(null, holeFunDef)
+    //val evaluator = new DefaultEvaluator(sctx.context, program)
+    val evaluator = new CodeGenEvaluator(sctx.context, program)
+    //evaluator.maxSteps = 4000
     exampleRunner.evaluator = evaluator
     exampleRunner addExamples //examples
       introduceExamples(holeFunDef.args.map(_.id), loader)
@@ -330,7 +332,7 @@ class SynthesizerForRuleExamples(
     fine("going to count passed for: " + holeFunDef)
     fine("going to count passed for: " + expressionToCheck)
 
-    //exampleRunner.evaluator = new CodeGenEvaluator(sctx.context, program)
+    exampleRunner.evaluator = new CodeGenEvaluator(sctx.context, program)
     val count = exampleRunner.countPassed(expressionToCheck)
 //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
 //      interactivePause
