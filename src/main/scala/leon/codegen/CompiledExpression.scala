@@ -16,31 +16,48 @@ import cafebabe.Flags._
 
 import java.lang.reflect.InvocationTargetException
 
-import leon.codegen.runtime.Ticker
+import leon.codegen.runtime.RuntimeMonitor
+
+// Be careful if you change these defaults. Passing `null` for a monitor
+// to a compiled function should have the same effect (and it is hardcoded
+// in `CodeGeneration.scala`).
+case class CodeGenEvalParams(
+  evaluateContracts : Boolean = false,  // Should we check pre- and post-conditions?
+  maxFunctionInvocations : Int = -1     // Negative means unbounded.
+)
 
 class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr, argsDecl: Seq[Identifier]) {
+  private val defaultParams = CodeGenEvalParams()
+
   private lazy val cl = unit.loader.loadClass(cf.className)
   private lazy val meth = cl.getMethods()(0)
 
   private val exprType = expression.getType
 
-  protected[codegen] def evalToJVM(args: Seq[Expr], maxInvocations : Int = -1): AnyRef = {
+  protected[codegen] def evalToJVM(args: Seq[Expr], params : CodeGenEvalParams = defaultParams): AnyRef = {
     assert(args.size == argsDecl.size)
 
-    val ticker : Ticker = if(maxInvocations < 0) null else (new Ticker(1))
+    val monitor : RuntimeMonitor = if(params == defaultParams) {
+      null
+    } else {
+      new RuntimeMonitor(
+        params.evaluateContracts,
+        params.maxFunctionInvocations
+      )
+    }
 
     if (args.isEmpty) {
-      meth.invoke(null, Seq(ticker).toArray : _*)
+      meth.invoke(null, Seq(monitor).toArray : _*)
     } else {
-      meth.invoke(null, (ticker +: args.map(unit.valueToJVM)).toArray : _*)
+      meth.invoke(null, (monitor +: args.map(unit.valueToJVM)).toArray : _*)
     }
   }
 
   // This may throw an exception. We unwrap it if needed.
   // We also need to reattach a type in some cases (sets, maps).
-  def eval(args: Seq[Expr], maxInvocations : Int = -1) : Expr = {
+  def eval(args: Seq[Expr], params : CodeGenEvalParams = defaultParams) : Expr = {
     try {
-      val result = unit.jvmToValue(evalToJVM(args))
+      val result = unit.jvmToValue(evalToJVM(args, params))
       if(!result.isTyped) {
         result.setType(exprType)
       }
