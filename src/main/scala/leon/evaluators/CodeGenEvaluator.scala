@@ -7,15 +7,16 @@ import purescala.TreeOps._
 import purescala.Trees._
 import purescala.TypeTrees._
 
+import codegen.CodeGenEvalParams
 import codegen.CompilationUnit
 
-class CodeGenEvaluator(ctx : LeonContext, val unit : CompilationUnit) extends Evaluator(ctx, unit.program) {
+class CodeGenEvaluator(ctx : LeonContext, val unit : CompilationUnit, val evaluationParameters : CodeGenEvalParams) extends Evaluator(ctx, unit.program) {
   val name = "codegen-eval"
   val description = "Evaluator for PureScala expressions based on compilation to JVM"
 
   /** Another constructor to make it look more like other `Evaluator`s. */
-  def this(ctx : LeonContext, prog : Program) {
-    this(ctx, CompilationUnit.compileProgram(prog).get) // this .get is dubious...
+  def this(ctx : LeonContext, prog : Program, params : CodeGenEvalParams = CodeGenEvalParams.default) {
+    this(ctx, CompilationUnit.compileProgram(prog).get, params) // this .get is dubious...
   }
 
   def eval(expression : Expr, mapping : Map[Identifier,Expr]) : EvaluationResult = {
@@ -34,7 +35,7 @@ class CodeGenEvaluator(ctx : LeonContext, val unit : CompilationUnit) extends Ev
 
       Some((args : Seq[Expr]) => {
         try {
-          EvaluationResults.Successful(ce.eval(args))
+          EvaluationResults.Successful(ce.eval(args, evaluationParameters))
         } catch {
           case e : ArithmeticException =>
             EvaluationResults.RuntimeError(e.getMessage)
@@ -47,6 +48,9 @@ class CodeGenEvaluator(ctx : LeonContext, val unit : CompilationUnit) extends Ev
 
           case e : LeonCodeGenEvaluationException =>
             EvaluationResults.EvaluatorError(e.getMessage)
+
+          case e : StackOverflowError =>
+            EvaluationResults.EvaluatorError("Stack overflow (divergent computation?)")
         }
       })
     } catch {

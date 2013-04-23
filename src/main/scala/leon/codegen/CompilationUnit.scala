@@ -136,7 +136,7 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
     val m = cf.addMethod(
       typeToJVM(e.getType),
       "eval",
-      (("L" + CodeGeneration.TickerClass + ";") +:
+      (("L" + CodeGeneration.MonitorClass + ";") +:
        args.map(a => typeToJVM(a.getType))) : _*
     )
 
@@ -214,7 +214,7 @@ object CompilationUnit {
       val m = cf.addMethod(
         typeToJVM(funDef.returnType),
         mn,
-        (("L" + CodeGeneration.TickerClass + ";") +:
+        (("L" + CodeGeneration.MonitorClass + ";") +:
          funDef.args.map(a => typeToJVM(a.tpe))) : _*
       )
       m.setFlags((
