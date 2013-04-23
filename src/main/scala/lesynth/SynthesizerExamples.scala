@@ -289,7 +289,7 @@ class SynthesizerForRuleExamples(
     refiner = new Refiner(program, hole, holeFunDef)
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
-    exampleRunner = new ExampleRunner(program)
+    exampleRunner = new ExampleRunner(program, 4000)
     exampleRunner.counterExamples ++= //examples
       introduceExamples(holeFunDef.args.map(_.id), loader)
       
@@ -428,32 +428,56 @@ class SynthesizerForRuleExamples(
 
         reporter.info("Going into a enumeration/testing phase.")
         fine("evaluating examples: " + exampleRunner.counterExamples.mkString("\n"))
-        
+                
         breakable {
           while(true) {
+            val batchSize = numberOfTestsInIteration * (1 << noBranchFoundIteration)
+            
+          	reporter.info("numberOfTested: " + numberOfTested)
 		        // ranking of candidates        
 		        val candidates = {
 		          val (it1, it2) = snippetsIterator.duplicate
-		          snippetsIterator = it2.drop(numberOfTestsInIteration * noBranchFoundIteration)
-		          it1.take(numberOfTestsInIteration * noBranchFoundIteration).        
+		          snippetsIterator = it2.drop(batchSize)
+		          it1.take(batchSize).        
 		        	map(_.getSnippet).filterNot(
-		            snip => (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
+		            snip => {
+		              if (snip.toString == "merge(sort(split(list).fst), sort(split(list).snd))") println("AAA")
+		              
+		              (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
+		            }
 		          ).toSeq
 		        }
 		        info("got candidates of size: " + candidates.size)
-		        interactivePause
+		        //interactivePause
 		          
 		        if (candidates.size > 0) {
 			        val ranker = new Ranker(candidates, 
-			          Evaluation(exampleRunner.counterExamples, this.evaluateCandidate _, candidates, exampleRunner), true)
+			          Evaluation(exampleRunner.counterExamples, this.evaluateCandidate _, candidates, exampleRunner),
+			          false)
 			        
 			        val maxCandidate = ranker.getMax
 			        info("maxCandidate is: " + maxCandidate)
-			        interactivePause
+			        numberOfTested += batchSize
+			        
+//			        if (candidates.exists(_.toString == "merge(sort(split(list).fst), sort(split(list).snd))")) {
+//			          println(ranker.printTuples)
+//			          println("AAA2")
+//			          println("Candidates: " + candidates.zipWithIndex.map({
+//		              case (cand, ind) => "[" + ind + "]" + cand.toString
+//			          }).mkString(", "))
+//			          println("Examples: " + exampleRunner.counterExamples.zipWithIndex.map({
+//		              case (example, ind) => "[" + ind + "]" + example.toString
+//			          }).mkString(", "))
+//			          interactivePause
+//			        }
+			        
+			        //interactivePause
 			        if (tryToSynthesizeBranch(maxCandidate)) {
 			          noBranchFoundIteration = 0
 			          break
 			        }
+			        
+			        noBranchFoundIteration += 1
 		        }
           }
         }
