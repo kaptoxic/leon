@@ -18,30 +18,25 @@ import java.lang.reflect.InvocationTargetException
 
 import leon.codegen.runtime.RuntimeMonitor
 
-// Be careful if you change these defaults. Passing `null` for a monitor
-// to a compiled function should have the same effect (and it is hardcoded
-// in `CodeGeneration.scala`).
-case class CodeGenEvalParams(
-  evaluateContracts : Boolean = false,  // Should we check pre- and post-conditions?
-  maxFunctionInvocations : Int = -1     // Negative means unbounded.
-)
-
 class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr, argsDecl: Seq[Identifier]) {
-  private val defaultParams = CodeGenEvalParams()
+  private val defParams = CodeGenEvalParams.default
 
   private lazy val cl = unit.loader.loadClass(cf.className)
   private lazy val meth = cl.getMethods()(0)
 
   private val exprType = expression.getType
 
-  protected[codegen] def evalToJVM(args: Seq[Expr], params : CodeGenEvalParams = defaultParams): AnyRef = {
+  protected[codegen] def evalToJVM(args: Seq[Expr], params : CodeGenEvalParams = defParams): AnyRef = {
     assert(args.size == argsDecl.size)
 
-    val monitor : RuntimeMonitor = if(params == defaultParams) {
+    val monitor : RuntimeMonitor = if(params == defParams) {
+      // The generated code is instrumented to check for null, and to act as the default
+      // configuration dictates in these cases.
+      // This is slightly faster than reading the object each time just to ignore it.
       null
     } else {
       new RuntimeMonitor(
-        params.evaluateContracts,
+        params.checkContracts,
         params.maxFunctionInvocations
       )
     }
@@ -55,7 +50,7 @@ class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr
 
   // This may throw an exception. We unwrap it if needed.
   // We also need to reattach a type in some cases (sets, maps).
-  def eval(args: Seq[Expr], params : CodeGenEvalParams = defaultParams) : Expr = {
+  def eval(args: Seq[Expr], params : CodeGenEvalParams = defParams) : Expr = {
     try {
       val result = unit.jvmToValue(evalToJVM(args, params))
       if(!result.isTyped) {

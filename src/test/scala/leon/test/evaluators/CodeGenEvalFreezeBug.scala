@@ -3,7 +3,9 @@ package evaluators
 
 import leon._
 
+import leon.codegen.CodeGenEvalParams
 import leon.evaluators._
+import leon.evaluators.EvaluationResults._
 
 import leon.plugin.{TemporaryInputPhase, ExtractionPhase}
 
@@ -80,10 +82,15 @@ class CodeGenEvalFreezeBug extends FunSuite {
                |}""".stripMargin
 
     val prog = parseString(p)
-    val evaluator = new CodeGenEvaluator(leonContext, prog)
+    val evaluator = new CodeGenEvaluator(leonContext, prog, CodeGenEvalParams(maxFunctionInvocations = 10000, checkContracts = true))
     val auxDef = prog.definedFunctions.find(_.id.name == "aux").get
     val toEval = FunctionInvocation(auxDef, Nil)
     val closure = evaluator.compile(toEval, Nil).get
-    //closure(Nil)
+
+    // The bug is that used to mysteriously get stuck...
+    closure(Nil) match {
+      case EvaluatorError(_) => assert(true)
+      case _ => assert(false, "Evaluation should be divergent, yet it terminated.")
+    }
   }
 }

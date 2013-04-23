@@ -17,6 +17,7 @@ import purescala.ScalaPrinter
 import scala.collection.mutable.{Map=>MutableMap}
 
 import evaluators._
+import codegen.CodeGenEvalParams
 
 import solvers.z3.FairZ3Solver
 
@@ -36,7 +37,7 @@ case object CEGIS extends Rule("CEGIS") {
     val testUpTo              = 5
     val useBssFiltering       = true
     val filterThreshold       = 1.0/2
-    val evaluator             = new CodeGenEvaluator(sctx.context, sctx.program)
+    val evaluator             = new CodeGenEvaluator(sctx.context, sctx.program, CodeGenEvalParams(checkContracts = true))
 
     case class Generator(tpe: TypeTree, altBuilder: () => List[(Expr, Set[Identifier])]);
 
