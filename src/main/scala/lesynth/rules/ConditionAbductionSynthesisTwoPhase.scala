@@ -13,6 +13,8 @@ import leon.evaluators.CodeGenEvaluator
 
 import InputExamples._
 
+import leon.StopwatchCollections
+
 case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abduction synthesis (two phase).") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
 
@@ -59,6 +61,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   case EmptyReport => RuleApplicationImpossible
                   case fr@FullReport(resFunDef, _) =>
                     println(fr.summaryString)
+                    println("Compilation time: " + StopwatchCollections.get("Compilation").getMillis)
                     RuleSuccess(Solution(resFunDef.getPrecondition, Set.empty, resFunDef.body.get))
                 }
               } catch {
