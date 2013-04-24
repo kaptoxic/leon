@@ -62,6 +62,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   case fr@FullReport(resFunDef, _) =>
                     println(fr.summaryString)
                     println("Compilation time: " + StopwatchCollections.get("Compilation").getMillis)
+                    println("CreateEvaluator time: " + StopwatchCollections.get("CreateEvaluator").getMillis)                    
                     RuleSuccess(Solution(resFunDef.getPrecondition, Set.empty, resFunDef.body.get))
                 }
               } catch {

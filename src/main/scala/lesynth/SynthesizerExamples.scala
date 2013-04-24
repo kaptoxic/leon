@@ -14,6 +14,7 @@ import leon.purescala.Definitions.{FunDef, Program}
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
 import leon.evaluators._
+import leon.codegen.CodeGenEvalParams
 
 import insynth.util.logging.HasLogger
 import insynth.interfaces.Declaration
@@ -36,6 +37,7 @@ import leon.synthesis.{ Problem, SynthesisContext }
 import leon.Main.processOptions
 
 import SynthesisInfo.Action._
+import leon.StopwatchCollections
 
 class SynthesizerForRuleExamples(    
   // some synthesis instance information
@@ -295,7 +297,9 @@ class SynthesizerForRuleExamples(
     //exampleRunner = new DefaultExampleRunner(program, holeFunDef)    
     exampleRunner = new CodeGenExampleRunner(null, holeFunDef)
     //val evaluator = new DefaultEvaluator(sctx.context, program)
-    val evaluator = new CodeGenEvaluator(sctx.context, program)
+    val evaluator = 
+      StopwatchCollections.get("CreateEvaluator").newStopwatch profile
+      new CodeGenEvaluator(sctx.context, program, CodeGenEvalParams(maxFunctionInvocations = 10000, checkContracts = true))
     //evaluator.maxSteps = 4000
     exampleRunner.evaluator = evaluator
     exampleRunner addExamples //examples
@@ -332,7 +336,9 @@ class SynthesizerForRuleExamples(
     fine("going to count passed for: " + holeFunDef)
     fine("going to count passed for: " + expressionToCheck)
 
-    exampleRunner.evaluator = new CodeGenEvaluator(sctx.context, program)
+    exampleRunner.evaluator = 
+      StopwatchCollections.get("CreateEvaluator").newStopwatch profile 
+      new CodeGenEvaluator(sctx.context, program, CodeGenEvalParams(maxFunctionInvocations = 500, checkContracts = true))
     val count = exampleRunner.countPassed(expressionToCheck)
 //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
 //      interactivePause
@@ -645,12 +651,12 @@ class SynthesizerForRuleExamples(
   def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, counterExamples: Seq[Map[Identifier, Expr]]): (Boolean, Option[Expr]) = {
 		
 		// trying some examples that cannot be verified
-    if (snippetTree.toString == "Cons(l.head, insert(e, l.tail))" //&&
-      //innerSnippetTree.toString.contains("aList.head < bList.head")
-) {
-      reporter.info("We are done")
-      interactivePause
-}
+//    if (snippetTree.toString == "Cons(l.head, insert(e, l.tail))" //&&
+//      //innerSnippetTree.toString.contains("aList.head < bList.head")
+//) {
+//      reporter.info("We are done")
+//      interactivePause
+//}
 
     // new condition together with existing precondition
     val newCondition = And(Seq(accumulatingPrecondition, innerSnippetTree))
