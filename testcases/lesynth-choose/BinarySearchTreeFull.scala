@@ -13,7 +13,38 @@ object BinarySearchTree {
     case Node(l, v, r) => contents(l) ++ Set(v) ++ contents(r)
   }
 
-//  def isSortedOneLevel(tree: Tree): Boolean = tree match {
+  def isSortedMinMax(t: Tree, min: Int, max: Int): Boolean = t match {
+    case Node(l, v, r) =>
+      isSortedMinMax(l, min, v) &&
+      isSortedMinMax(r, v, max) &&
+      v < max && v > min
+    case _ => true
+  }
+
+  def isSortedMin(t: Tree, min: Int): Boolean = t match {
+    case Node(l, v, r) =>
+      isSortedMinMax(l, min, v) &&
+      isSortedMin(r, v) &&
+      v > min
+    case _ => true
+  }
+
+  def isSortedMax(t: Tree, max: Int): Boolean = t match {
+    case Node(l, v, r) =>
+      isSortedMax(l, v) &&
+      isSortedMinMax(r, v, max) &&
+      v < max
+    case _ => true
+  }
+
+  def isSorted(t: Tree): Boolean = t match {
+    case Node(l, v, r) =>
+      isSortedMin(r, v) &&
+      isSortedMax(l, v)
+    case _ => true
+  }
+  
+//  def isSorted(tree: Tree): Boolean = tree match {
 //    case Leaf() => true
 //    case Node(Leaf(), v, Leaf()) => true
 //    case Node(l @ Node(_, vIn, _), v, Leaf()) => v > vIn && isSorted(l)
@@ -21,7 +52,7 @@ object BinarySearchTree {
 //    case Node(l @ Node(_, vInLeft, _), v, r @ Node(_, vInRight, _)) =>
 //      v > vInLeft && v < vInRight && isSorted(l) && isSorted(r)
 //  }
-  
+//  
 //  def isSorted(tree: Tree): Boolean = tree match {
 //    case Leaf() => true
 //    case Node(l, v, r) => isLowerThan(l, v) && isGreaterThan(r, v) && isSorted(l) && isSorted(r)   
@@ -36,12 +67,12 @@ object BinarySearchTree {
 //    case Leaf() => true
 //    case Node(l, v, r) => v > min && isGreaterThan(r, min) && isGreaterThan(l, min) 
 //  }
-  
-  def isSorted(tree: Tree): Boolean = tree match {
-    case Leaf() => true
-    case Node(l, v, r) => isSorted(l) && isSorted(r) &&
-    	contents(l).forall( v > _ ) && contents(r).forall( v < _ )
-  }
+//  
+//  def isSorted(tree: Tree): Boolean = tree match {
+//    case Leaf() => true
+//    case Node(l, v, r) => isSorted(l) && isSorted(r) &&
+//    	contents(l).forall( v > _ ) && contents(r).forall( v < _ )
+//  }
 
   def member(tree: Tree, value: Int): Boolean = {
     require(isSorted(tree))
