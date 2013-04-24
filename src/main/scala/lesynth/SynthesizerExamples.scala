@@ -13,6 +13,7 @@ import leon.purescala.Trees.{ Variable => LeonVariable, _ }
 import leon.purescala.Definitions.{FunDef, Program}
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
+import leon.evaluators._
 
 import insynth.util.logging.HasLogger
 import insynth.interfaces.Declaration
@@ -291,9 +292,13 @@ class SynthesizerForRuleExamples(
     refiner = new Refiner(program, hole, holeFunDef)
 
     // seems to have problems for <= 4000
-    exampleRunner = new DefaultExampleRunner(program, holeFunDef)
-    val evaluator = new DefaultEvaluator(sctx.context, program)
-    evaluator.maxSteps = 4000
+    //exampleRunner = new DefaultExampleRunner(program, holeFunDef)    
+    exampleRunner = new CodeGenExampleRunner(null, holeFunDef)
+    //val evaluator = new DefaultEvaluator(sctx.context, program)
+    val evaluator = 
+      StopwatchCollections.get("CreateEvaluator").newStopwatch profile
+      new CodeGenEvaluator(sctx.context, program, CodeGenEvalParams(maxFunctionInvocations = 10000, checkContracts = true))
+    //evaluator.maxSteps = 4000
     exampleRunner.evaluator = evaluator
     exampleRunner addExamples //examples
       introduceExamples(holeFunDef.args.map(_.id), loader)
@@ -329,6 +334,7 @@ class SynthesizerForRuleExamples(
     finest("going to count passed for: " + holeFunDef)
     finest("going to count passed for: " + expressionToCheck)
 
+    exampleRunner.evaluator = new CodeGenEvaluator(sctx.context, program)
     val count = exampleRunner.countPassed(expressionToCheck)
 //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
 //      interactivePause
