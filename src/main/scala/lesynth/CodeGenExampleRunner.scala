@@ -48,6 +48,19 @@ class CodeGenExampleRunner(val evaluatorIn: Evaluator, funDef: FunDef, maxSteps:
     evaluator.eval(expr, funDef.args.map(_.id).zip(args).toMap)
   }
   
+  def evaluateToResult(expr: Expr, mapping: Map[Identifier, Expr]): Result = {
+    fine("to evaluate: " + expr + " for mapping: " + mapping)
+    
+    val compilationResult = compile(expr, funDef.args.map(_.id))
+    
+    compilationResult match {
+      case Some(closure) =>    
+		    closure(funDef.args.map(arg => mapping(arg.id)))     
+      case None =>
+        throw new RuntimeException
+    }
+  }
+  
   def compile(expr: Expr, ids: Seq[Identifier]) = {
     StopwatchCollections.get("Compilation").newStopwatch profile evaluator.compile(expr, ids)
   }
