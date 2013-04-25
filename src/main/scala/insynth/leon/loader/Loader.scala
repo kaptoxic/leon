@@ -57,7 +57,7 @@ case class LeonLoader(program: Program, hole: Hole,
     
     list ++= extractCaseClasses
     
-    list ++= extractFields
+    //list ++= extractFields
     
     list ++= extractClassDependentDeclarations
     
