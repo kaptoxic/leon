@@ -82,7 +82,8 @@ class SynthesizerForRuleExamples(
   //private var solver: Solver = _
   private var ctx: LeonContext = _
   private var initialPrecondition: Expr = _
-  private var variableRefinements: MutableMap[Identifier, MutableSet[ClassType]] = _
+  
+  private var variableRefiner: VariableRefiner = _
   // can be used to unnecessary syntheses
   private var variableRefinedBranch = false
   private var variableRefinedCondition = true // assure initial synthesis
@@ -272,18 +273,9 @@ class SynthesizerForRuleExamples(
     //accumulatingExpressionMatch = accumulatingExpression
 
     // each variable of super type can actually have a subtype
-    // get sine declaration maps to be able to refine them
-    val directSubclassMap = loader.directSubclassesMap
-    val variableDeclarations = loader.variableDeclarations
-    // map from identifier into a set of possible subclasses
-    variableRefinements = MutableMap.empty
-    for (varDec <- variableDeclarations) {
-      varDec match {
-        case LeonDeclaration(_, _, typeOfVar: ClassType, ImmediateExpression(_, LeonVariable(id))) =>
-          variableRefinements += (id -> MutableSet(directSubclassMap(typeOfVar).toList: _*))
-        case _ =>
-      }
-    }
+    // get sine declaration maps to be able to refine them  
+    variableRefiner = new VariableRefiner(loader.directSubclassesMap,
+      loader.variableDeclarations, loader.classMap, reporter)
 
     // calculate cases that should not happen
     refiner = new Refiner(program, hole, holeFunDef)
@@ -709,41 +701,15 @@ class SynthesizerForRuleExamples(
               // set to set new precondition
               val preconditionToRestore = Some(accumulatingPrecondition)
 
-              // check for refinements
-              checkRefinements(innerSnippetTree) match {
-                case Some(refinementPair @ (id, classType)) =>
-                  fine("And now we have refinement type: " + refinementPair)
-                  fine("variableRefinements(id) before" + variableRefinements(id))
-                  variableRefinements(id) -= loader.classMap(classType.id)
-                  fine("variableRefinements(id) after" + variableRefinements(id))
-
-                  // if we have a single subclass possible to refine
-                  if (variableRefinements(id).size == 1) {
-                    reporter.info("We do variable refinement for " + id)
-
-                    val newType = variableRefinements(id).head
-                    fine("new type is: " + newType)
-
-                    // update declarations
-                    allDeclarations =
-                      for (dec <- allDeclarations)
-                        yield dec match {
-                        case LeonDeclaration(inSynthType, _, decClassType, imex @ ImmediateExpression(_, LeonVariable(`id`))) =>
-                          LeonDeclaration(
-                            imex, TypeTransformer(newType), newType)
-                        case _ =>
-                          dec
-                      }
-                    
-                    // the reason for two flags is for easier management of re-syntheses only if needed 
-                    variableRefinedBranch = true
-                    variableRefinedCondition = true
-
-                  } else
-                    fine("we cannot do variable refinement :(")
-                case _ =>
+              val variableRefinementResult = variableRefiner.checkRefinements(innerSnippetTree, allDeclarations)
+              if (variableRefinementResult._1) {
+                allDeclarations = variableRefinementResult._2
+                
+              	// the reason for two flags is for easier management of re-syntheses only if needed 
+                variableRefinedBranch = true
+            		variableRefinedCondition = true
               }
-
+              
               // found a boolean snippet, break
               (true, preconditionToRestore)
             } else {
@@ -758,14 +724,6 @@ class SynthesizerForRuleExamples(
             (false, None)
         } //solveReturn match { (for implying counterexamples)
     } // notFalseSolveReturn match {
-  }
-
-  // inspect the expression if some refinements can be done
-  def checkRefinements(expr: Expr) = expr match {
-    case CaseClassInstanceOf(classDef, LeonVariable(id)) =>
-      Some((id, classDef))
-    case _ =>
-      None
   }
 
 }
