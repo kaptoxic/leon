@@ -6,7 +6,7 @@ import scala.collection.mutable.{Set => MutableSet}
 import leon._
 import leon.purescala.Trees._
 import leon.purescala.TypeTrees._
-import leon.purescala.Definitions.{ Program, VarDecl, FunDef, VarDecls }
+import leon.purescala.Definitions._
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 
 import insynth.interfaces._
@@ -33,7 +33,7 @@ class VariableRefiner(directSubclassMap: Map[ClassType, Set[ClassType]], variabl
   def checkRefinements(expr: Expr, allDeclarations: List[Declaration]) =
 	  // check for refinements
 	  getIdAndClassDef(expr) match {
-	    case Some(refinementPair @ (id, classType)) =>
+	    case Some(refinementPair @ (id, classType)) if variableRefinements(id).size > 1 =>
 	      fine("And now we have refinement type: " + refinementPair)
 	      fine("variableRefinements(id) before" + variableRefinements(id))
 	      variableRefinements(id) -= classMap(classType.id)
@@ -50,14 +50,25 @@ class VariableRefiner(directSubclassMap: Map[ClassType, Set[ClassType]], variabl
 	        val newDeclarations =
 	          for (dec <- allDeclarations)
 	            yield dec match {
-	            case LeonDeclaration(inSynthType, _, decClassType, imex @ ImmediateExpression(_, Variable(`id`))) =>
-	              LeonDeclaration(
-	                imex, TypeTransformer(newType), newType)
-	            case _ =>
-	              dec
-	          }
+		            case LeonDeclaration(inSynthType, _, decClassType, imex @ ImmediateExpression(_, Variable(`id`))) =>	              
+					        ((
+				            newType.classDef match {
+				              case newTypeCaseClassDef@CaseClassDef(id, parent, fields) =>
+						            for (field <- fields)
+								          yield LeonDeclaration(
+										        ImmediateExpression( "Field(" + newTypeCaseClassDef + "." + field.id + ")",
+									            CaseClassSelector(newTypeCaseClassDef, imex.expr, field.id) ), 
+										        TypeTransformer(field.id.getType), field.id.getType
+									        )
+				              case _ =>
+				                Seq.empty
+				            }
+					        ): Seq[Declaration]) :+ LeonDeclaration(imex, TypeTransformer(newType), newType)
+		            case _ =>
+		              Seq(dec)
+		          }
 	        
-	        (true, newDeclarations)	
+	        (true, newDeclarations.flatten)	
 	      } else {
 	        fine("we cannot do variable refinement :(")
 	        (false, allDeclarations)
