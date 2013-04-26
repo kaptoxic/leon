@@ -446,8 +446,6 @@ class SynthesizerForRuleExamples(
 		          it1.take(batchSize).        
 		        	map(_.getSnippet).filterNot(
 		            snip => {
-		              if (snip.toString == "merge(sort(split(list).fst), sort(split(list).snd))") println("AAA")
-		              
 		              (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
 		            }
 		          ).toSeq
@@ -464,23 +462,27 @@ class SynthesizerForRuleExamples(
 			        info("maxCandidate is: " + maxCandidate)
 			        numberOfTested += batchSize
 			        
-//			        if (candidates.exists(_.toString == "merge(sort(split(list).fst), sort(split(list).snd))")) {
-//			          println(ranker.printTuples)
-//			          println("AAA2")
-//			          println("Candidates: " + candidates.zipWithIndex.map({
-//		              case (cand, ind) => "[" + ind + "]" + cand.toString
-//			          }).mkString(", "))
-//			          println("Examples: " + exampleRunner.counterExamples.zipWithIndex.map({
-//		              case (example, ind) => "[" + ind + "]" + example.toString
-//			          }).mkString(", "))
-//			          interactivePause
-//			        }
+			        if (candidates.exists(_.toString contains "balance(t.color, t.left, x, ins(t.value, t.right))") &&
+		            maxCandidate.toString != "balance(t.color, t.left, x, ins(t.value, t.right))"
+		            ) {
+			        	println("maxCandidate is: " + maxCandidate)
+			          println(ranker.printTuples)
+			          println("AAA2")
+			          println("Candidates: " + candidates.zipWithIndex.map({
+		              case (cand, ind) => "[" + ind + "]" + cand.toString
+			          }).mkString("\n"))
+			          println("Examples: " + exampleRunner.counterExamples.zipWithIndex.map({
+		              case (example, ind) => "[" + ind + "]" + example.toString
+			          }).mkString("\n"))
+			          interactivePause
+			        }
 			        
 			        //interactivePause
 			        if (tryToSynthesizeBranch(maxCandidate)) {
 			          noBranchFoundIteration = 0
 			          break
 			        }
+		          //interactivePause
 			        
 			        noBranchFoundIteration += 1
 		        }
