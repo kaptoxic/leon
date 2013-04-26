@@ -40,7 +40,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 val codeGenEval = new CodeGenEvaluator(sctx.context, sctx.program)
                 def getInputExamples = 
                   getDataGenInputExamples(codeGenEval, p, 
-                		40, 2000, Some(holeFunDef.args.map(_.id))
+                		100, 2000, Some(holeFunDef.args.map(_.id))
                 	) _
                 
                 holeFunDef.postcondition = Some(replace(
