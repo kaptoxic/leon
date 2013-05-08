@@ -25,7 +25,7 @@ import insynth.interfaces.Declaration
 import insynth.engine.InitialEnvironmentBuilder
 import insynth.leon.TypeTransformer
 import insynth.reconstruction.Output
-import leon.synthesis.Problem
+import leon.synthesis.{ Problem, SynthesisContext }
 import leon.Main.processOptions
 import leon.purescala.TypeTrees._
 
@@ -41,6 +41,7 @@ class SynthesizerForRuleExamples(
   val desiredType: LeonType,
   val holeFunDef: FunDef,
   val problem: Problem,
+  val synthesisContext: SynthesisContext,
   val freshResVar: LeonVariable,
   // number of condition expressions to try before giving up on that branch expression
   numberOfBooleanSnippets: Int = 5,
@@ -202,7 +203,8 @@ class SynthesizerForRuleExamples(
     // return found counterexamples and the formed precondition
     (maps, precondition)
   }
-
+  
+  
   def getCurrentBuilder = new InitialEnvironmentBuilder(allDeclarations)
 
   def synthesizeBranchExpressions =
@@ -353,6 +355,13 @@ class SynthesizerForRuleExamples(
       case Some(true) => false
       case _ => true
     }
+	  // update flag in case of time limit overdue
+	  def checkTimeout =
+	    if (synthesisContext.shouldStop.get) {
+	      keepGoing = false
+    		true
+	    } else
+	      false
 
     // initial snippets (will update in the loop)
     var snippets = synthesizeBranchExpressions
@@ -367,6 +376,7 @@ class SynthesizerForRuleExamples(
     var noBranchFoundIteration = 0
     breakable {
       while (keepGoing) {
+        if (checkTimeout) break
         // next iteration
         iteration += 1
         noBranchFoundIteration += 1
@@ -407,6 +417,7 @@ class SynthesizerForRuleExamples(
           ) {
             finest("snippetTree is: " + snippetTree)
             // note that we do not add snippets to the set of seen if enqueued 
+            if (checkTimeout) break
 
             // skip avoidable calls
             if (!refiner.isAvoidable(snippetTree, problem.as)) {
