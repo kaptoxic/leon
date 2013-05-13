@@ -1,3 +1,20 @@
+# project help files
+sbt
+java
+
+# project junk files
+dep/
+backup/
+
+# kate junk files
+**/*~
+
+# eclipse
+.classpath
+.project
+.settings/
+**/.cache
+
 # Vim
 *.swp
 
