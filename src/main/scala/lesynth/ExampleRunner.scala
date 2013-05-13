@@ -63,26 +63,21 @@ class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
   }
 
   /** count how many examples pass */
-  def countPassed(expressionToCheck: Expr) = {
-    // TODO body dont have set type in synthesizer
-//    val expressionToCheck =
-//      //Globals.bodyAndPostPlug(exp)
-//      {
-//        val resFresh = FreshIdentifier("result", true).setType(body.getType)
-//        Let(
-//          resFresh, body,
-//          replace(Map(ResultVariable() -> Variable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
-//      }
+  def countPassed(expressionToCheck: Expr, givenCounterExamples: Iterable[Map[Identifier, Expr]]):
+  	(List[Map[Identifier, Expr]], List[Map[Identifier, Expr]]) = {
     fine("expressionToCheck: " + expressionToCheck)
 
-    (0 /: counterExamples) {
-      (res, ce) =>
+    ((Nil: List[Map[Identifier, Expr]], Nil: List[Map[Identifier, Expr]]) /: givenCounterExamples) {
+      case ((passed, failed), ce) =>
         {
-          if (evaluate(expressionToCheck, ce)) res + 1
-          else res
+          if (evaluate(expressionToCheck, ce)) (passed :+ ce, failed)
+          else (passed, failed :+ ce)
         }
     }
   }
+  
+  def countPassed(expressionToCheck: Expr): (List[Map[Identifier, Expr]], List[Map[Identifier, Expr]]) =
+    countPassed(expressionToCheck, counterExamples)
 
 //  def countPassedAndTerminating(body: Expr): Int = {
 //    // TODO body dont have set type in synthesizer
