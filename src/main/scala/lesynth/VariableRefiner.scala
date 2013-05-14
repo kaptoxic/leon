@@ -47,28 +47,9 @@ class VariableRefiner(directSubclassMap: Map[ClassType, Set[ClassType]], variabl
 	        fine("new type is: " + newType)
 	
 	        // update declarations
-	        val newDeclarations =
-	          for (dec <- allDeclarations)
-	            yield dec match {
-		            case LeonDeclaration(inSynthType, _, decClassType, imex @ ImmediateExpression(_, Variable(`id`))) =>	              
-					        ((
-				            newType.classDef match {
-				              case newTypeCaseClassDef@CaseClassDef(id, parent, fields) =>
-						            for (field <- fields)
-								          yield LeonDeclaration(
-										        ImmediateExpression( "Field(" + newTypeCaseClassDef + "." + field.id + ")",
-									            CaseClassSelector(newTypeCaseClassDef, imex.expr, field.id) ), 
-										        TypeTransformer(field.id.getType), field.id.getType
-									        )
-				              case _ =>
-				                Seq.empty
-				            }
-					        ): Seq[Declaration]) :+ LeonDeclaration(imex, TypeTransformer(newType), newType)
-		            case _ =>
-		              Seq(dec)
-		          }
+	        val newDeclarations = updateDeclarations(id, newType, allDeclarations)
 	        
-	        (true, newDeclarations.flatten)	
+	        (true, newDeclarations)	
 	      } else {
 	        fine("we cannot do variable refinement :(")
 	        (false, allDeclarations)
@@ -76,6 +57,27 @@ class VariableRefiner(directSubclassMap: Map[ClassType, Set[ClassType]], variabl
 	    case _ =>
         (false, allDeclarations)
 	  }
+  
+  def updateDeclarations(id: Identifier, newType: ClassType, allDeclarations: List[Declaration]) = 
+    (for (dec <- allDeclarations)
+      yield dec match {
+        case LeonDeclaration(inSynthType, _, decClassType, imex @ ImmediateExpression(_, Variable(`id`))) =>	              
+	        ((
+            newType.classDef match {
+              case newTypeCaseClassDef@CaseClassDef(id, parent, fields) =>
+		            for (field <- fields)
+				          yield LeonDeclaration(
+						        ImmediateExpression( "Field(" + newTypeCaseClassDef + "." + field.id + ")",
+					            CaseClassSelector(newTypeCaseClassDef, imex.expr, field.id) ), 
+						        TypeTransformer(field.id.getType), field.id.getType
+					        )
+              case _ =>
+                Seq.empty
+            }
+	        ): Seq[Declaration]) :+ LeonDeclaration(imex, TypeTransformer(newType), newType)
+        case _ =>
+          Seq(dec)
+      }).flatten
 
   // inspect the expression if some refinements can be done
   def getIdAndClassDef(expr: Expr) = expr match {

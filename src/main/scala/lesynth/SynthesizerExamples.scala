@@ -4,13 +4,13 @@ import scala.collection.mutable.{ Map => MutableMap }
 import scala.collection.mutable.{ Set => MutableSet }
 import scala.collection.mutable.PriorityQueue
 
-import leon.{Reporter, DefaultReporter, SilentReporter, LeonContext}
+import leon.{ Reporter, DefaultReporter, SilentReporter, LeonContext }
 import leon.solvers.{ Solver, TimeoutSolver }
 import leon.solvers.z3.{ FairZ3Solver }
 import leon.verification.AnalysisPhase
 import leon.purescala.TypeTrees.{ TypeTree => LeonType, _ }
 import leon.purescala.Trees.{ Variable => LeonVariable, _ }
-import leon.purescala.Definitions.{FunDef, Program}
+import leon.purescala.Definitions.{ FunDef, Program }
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
 
@@ -29,12 +29,12 @@ import leon.synthesis.Problem
 import leon.Main.processOptions
 import leon.purescala.TypeTrees._
 
-import scala.collection.mutable.{Map => MutableMap}
-import scala.collection.mutable.{Set => MutableSet}
+import scala.collection.mutable.{ Map => MutableMap }
+import scala.collection.mutable.{ Set => MutableSet }
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 
-class SynthesizerForRuleExamples(    
+class SynthesizerForRuleExamples(
   // some synthesis instance information
   val program: Program,
   val desiredType: LeonType,
@@ -48,11 +48,10 @@ class SynthesizerForRuleExamples(
   // we need the holeDef to know the right ids
   introduceExamples: ((Seq[Identifier], LeonLoader) => List[Map[Identifier, Expr]]) = { (_, _) => Nil },
   filterOutAlreadySeenBranchExpressions: Boolean = true,
-  useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true,  
+  useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true,
   numberOfTestsInIteration: Int = 50,
-  numberOfCheckInIteration: Int = 5
-) extends HasLogger {
-  
+  numberOfCheckInIteration: Int = 5) extends HasLogger {
+
   val fileName: String = "noFileName"
 
   info("Synthesizer:")
@@ -72,13 +71,13 @@ class SynthesizerForRuleExamples(
   //private var solver: Solver = _
   private var ctx: LeonContext = _
   private var initialPrecondition: Expr = _
-  
+
   private var variableRefiner: VariableRefiner = _
   // can be used to unnecessary syntheses
   private var variableRefinedBranch = false
   private var variableRefinedCondition = true // assure initial synthesis
   private var booleanExpressionsSaved: Stream[Output] = _
-  
+
   private var seenBranchExpressions: Set[String] = Set.empty
 
   // flag denoting if a correct body has been synthesized
@@ -104,15 +103,15 @@ class SynthesizerForRuleExamples(
     inSynth.getExpressions(getCurrentBuilder)
 
   def synthesizeBooleanExpressions = {
-    if ( variableRefinedCondition ) {
+    if (variableRefinedCondition) {
       // store for later fetch (will memoize values)
-    	booleanExpressionsSaved = 
-  			inSynthBoolean.getExpressions(getCurrentBuilder) take numberOfBooleanSnippets
-			// reset flag
-  		variableRefinedCondition = false
+      booleanExpressionsSaved =
+        inSynthBoolean.getExpressions(getCurrentBuilder) take numberOfBooleanSnippets
+      // reset flag
+      variableRefinedCondition = false
     }
-  
-	  booleanExpressionsSaved
+
+    booleanExpressionsSaved
   }
 
   def interactivePause = {
@@ -203,8 +202,7 @@ class SynthesizerForRuleExamples(
 
     results
   }
-  
-  
+
   def evaluateCandidate(snippet: Expr, mapping: Map[Identifier, Expr]) = {
     val oldPreconditionSaved = holeFunDef.precondition
     val oldBodySaved = holeFunDef.body
@@ -216,18 +214,17 @@ class SynthesizerForRuleExamples(
     val accumulatedExpression = accumulatingExpression(snippet)
     // set appropriate body to the function for the correct evaluation
     holeFunDef.body = Some(accumulatedExpression)
-    
-    
+
     import TreeOps._
     val expressionToCheck =
       //Globals.bodyAndPostPlug(exp)
       {
-		    val resFresh = FreshIdentifier("result", true).setType(accumulatedExpression.getType)		 
+        val resFresh = FreshIdentifier("result", true).setType(accumulatedExpression.getType)
         Let(
           resFresh, accumulatedExpression,
           replace(Map(ResultVariable() -> LeonVariable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
       }
-    
+
     fine("going to evaluate candidate for: " + holeFunDef)
     fine("going to evaluate candidate for: " + expressionToCheck)
 
@@ -285,83 +282,84 @@ class SynthesizerForRuleExamples(
         var numberOfTested = 0
 
         // just printing of expressions and pass counts        
-        fine({
+        finer({
           val (it1, it2) = snippetsIterator.duplicate // we are dealing with iterators, need to duplicate
           val logString = ((it1 zip Iterator.range(0, numberOfTestsInIteration)) map {
             case ((snippet: Output, ind: Int)) => ind + ": snippet is " + snippet.getSnippet +
               " pass count is " + countPassedExamples(snippet.getSnippet)._1.size
           }).mkString("\n")
           snippetsIterator = it2
+          throw new RuntimeException
           logString
         })
         //interactivePause
 
         reporter.info("Going into a enumeration/testing phase.")
-        fine("evaluating examples: " + exampleRunner.counterExamples.mkString("\n"))
+        finer("evaluating examples: " + exampleRunner.counterExamples.mkString("\n"))
 
         // found precondition?
         found = false
         // try to find it
         breakable {
-          while(true) {
+          while (true) {
             val batchSize = numberOfTestsInIteration * (1 << noBranchFoundIteration)
-            
-          	reporter.info("numberOfTested: " + numberOfTested)
-		        // ranking of candidates        
-		        val candidates = {
-		          val (it1, it2) = snippetsIterator.duplicate
-		          snippetsIterator = it2.drop(batchSize)
-		          it1.take(batchSize).        
-		        	map(_.getSnippet).filterNot(
-		            snip => {
-		              (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
-		            }
-		          ).toSeq
-		        }
-		        info("got candidates of size: " + candidates.size)
-		        //interactivePause
-		          
-		        if (candidates.size > 0) {
-			        val ranker = new Ranker(candidates, 
-			          Evaluation(exampleRunner.counterExamples, this.evaluateCandidate _, candidates, exampleRunner),
-			          false)
-			        
-			        val maxCandidate = ranker.getMax
-			        info("maxCandidate is: " + maxCandidate)
-			        interactivePause
 
-			        numberOfTested += batchSize
-			        
-//			        if (candidates.exists(_.toString contains "balance(t.color, t.left, x, ins(t.value, t.right))") &&
-//		            maxCandidate.toString != "balance(t.color, t.left, x, ins(t.value, t.right))"
-//		            ) {
-//			        	println("maxCandidate is: " + maxCandidate)
-//			          println(ranker.printTuples)
-//			          println("AAA2")
-//			          println("Candidates: " + candidates.zipWithIndex.map({
-//		              case (cand, ind) => "[" + ind + "]" + cand.toString
-//			          }).mkString("\n"))
-//			          println("Examples: " + exampleRunner.counterExamples.zipWithIndex.map({
-//		              case (example, ind) => "[" + ind + "]" + example.toString
-//			          }).mkString("\n"))
-//			          interactivePause
-//			        }
-			        
-			        // if all remaining examples pass (with current expression as else branch) we are done
-			        val countPassedResults = countPassedExamples(maxCandidate)
-			        if (countPassedResults._1.size == exampleRunner.counterExamples.size) {
-			          found = true
-			          break
-			        }
-			        
-			        if (tryToSynthesizeBranch((maxCandidate, countPassedResults._1, countPassedResults._2))) {
-			          noBranchFoundIteration = 0
-			          break
-			        }
-		          interactivePause
-			        
-			        noBranchFoundIteration += 1
-		        }
+            reporter.info("numberOfTested: " + numberOfTested)
+            // ranking of candidates        
+            val candidates = {
+              val (it1, it2) = snippetsIterator.duplicate
+              snippetsIterator = it2.drop(batchSize)
+              it1.take(batchSize).
+                map(_.getSnippet).filterNot(
+                  snip => {
+                    (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
+                  }).toSeq
+            }
+            info("got candidates of size: " + candidates.size)
+            //interactivePause
+
+            if (candidates.size > 0) {
+              val ranker = new Ranker(candidates,
+                Evaluation(exampleRunner.counterExamples, this.evaluateCandidate _, candidates, exampleRunner),
+                false)
+
+              val maxCandidate = ranker.getMax
+
+              numberOfTested += batchSize
+
+              if (candidates.exists(_.toString contains
+                //		            "append(append(quickSort(smaller(list.head, list.tail)), Cons(list.head, equals(list.head, list.tail))), quickSort(greater(list.head, list.tail)))"
+                "append(append(quickSort(smaller(list.head, list.tail)), Cons(list.head, equals(list.head, list.tail)))")) {
+                println("maxCandidate is: " + maxCandidate)
+                println(ranker.printTuples)
+                println("AAA2")
+                //			          println("Candidates: " + candidates.zipWithIndex.map({
+                //		              case (cand, ind) => "[" + ind + "]" + cand.toString
+                //			          }).mkString("\n"))
+                //			          println("Examples: " + exampleRunner.counterExamples.zipWithIndex.map({
+                //		              case (example, ind) => "[" + ind + "]" + example.toString
+                //			          }).mkString("\n"))
+                interactivePause
+              }
+
+              // if all remaining examples pass (with current expression as else branch) we are done
+              val countPassedResults = countPassedExamples(maxCandidate)
+              info("maxCandidate is: " + maxCandidate)
+              fine("passed/failed: " + countPassedResults._1.size + "/" + countPassedResults._2.size)
+              //			        interactivePause
+              if (countPassedResults._1.size == exampleRunner.counterExamples.size) {
+                found = true
+                break
+              }
+
+              if (countPassedResults._1.size > 0 && tryToSynthesizeBranch((maxCandidate, countPassedResults._1, countPassedResults._2))) {
+                noBranchFoundIteration = 0
+                break
+              }
+              //		          interactivePause
+
+              noBranchFoundIteration += 1
+            }
           }
         }
 
@@ -372,6 +370,41 @@ class SynthesizerForRuleExamples(
           return new FullReport(holeFunDef, (endTime - startTime))
         }
 
+        fine("filtering based on: " + accumulatingPrecondition)
+        fine("counterexamples before filter: " + exampleRunner.counterExamples.size)
+        exampleRunner.filter(accumulatingPrecondition)
+        fine("counterexamples after filter: " + exampleRunner.counterExamples.size)
+        fine("counterexamples after filter: " + exampleRunner.counterExamples.mkString("\n"))
+
+        if (!variableRefinedBranch) {
+          // XXX very ad-hoc, change this with something smarter
+          // this has to be done if stronger condition filters out examples but variable refinement is not done (example:
+          // quick sort and first condition is_sorted)
+
+          breakable {
+            for (
+              booleanOutput <- booleanExpressionsSaved;
+              val booleanExpression = booleanOutput.getSnippet
+            ) {
+              val expressionToCheck = booleanExpression
+              fine("expression: " + booleanExpression + " passed: " + exampleRunner.countPassed(expressionToCheck)._1.size)
+              if (exampleRunner.countPassed(expressionToCheck)._1.size == exampleRunner.counterExamples.size)
+                expressionToCheck match {
+                  case CaseClassInstanceOf(classDef, LeonVariable(id)) =>
+                    allDeclarations = variableRefiner.updateDeclarations(id, loader.classMap(classDef.id), allDeclarations)
+                    fine("declaration : " + id + " updated to " + classDef)
+
+                    variableRefinedBranch = true
+                    variableRefinedCondition = true
+                    //					          interactivePause
+
+                    break
+                  case _ =>
+                }
+            }
+          }
+        }
+
         if (variableRefinedBranch) {
           fine("Variable refined, doing branch synthesis again")
           // get new snippets
@@ -380,41 +413,12 @@ class SynthesizerForRuleExamples(
 
           // reset flag
           variableRefinedBranch = false
-        } else {
-          // XXX very ad-hoc, change this with something smarter
-          // this has to be done if stronger condition filters out examples but variable refinement is not done (example:
-          // quick sort and first condition is_sorted)
-
-//          breakable {
-//            for (
-//              booleanOutput <- booleanExpressionsSaved;
-//              val booleanExpression = booleanOutput.getSnippet
-//            ) {
-//              val expressionToCheck = booleanExpression
-//              fine("expression: " + booleanExpression + " passed: " + exampleRunner.countPassed(expressionToCheck)._1.size)
-//              if (exampleRunner.countPassed(expressionToCheck)._1.size == exampleRunner.counterExamples.size)
-//                expressionToCheck match {
-//                  case CaseClassInstanceOf(classDef, LeonVariable(id)) =>
-//                    updateDeclaration(id, loader.classMap(classDef.id))
-//                    fine("declaration : " + id + " updated to " + classDef)
-//                    break
-//                  case _ =>
-//                }
-//            }
-//          }
-          //interactivePause
         }
 
         // reseting iterator needed because we may have some expressions that previously did not work
         snippetsIterator = snippets.iterator
         // reseting the queue
         pq = getNewExampleQueue
-
-        fine("filtering based on: " + accumulatingPrecondition)
-        fine("counterexamples before filter: " + exampleRunner.counterExamples.size)
-        exampleRunner.filter(accumulatingPrecondition)
-        fine("counterexamples after filter: " + exampleRunner.counterExamples.size)
-        fine("counterexamples after filter: " + exampleRunner.counterExamples.mkString("\n"))
       }
     } //breakable { while (!keepGoing) {
 
@@ -511,7 +515,7 @@ class SynthesizerForRuleExamples(
     fine("passed but disabled: " + enabledPassed._2.mkString(", "))
     fine("disabled failed/total: " + enabledFailed._1.size + "/" + failed.size +
       " enabled passed: " + enabledPassed._1.size + "/" + passed.size)
-    interactivePause
+    //    interactivePause
 
     // program is valid, we have a branch
     if (conditionAcceptable) {
@@ -538,12 +542,12 @@ class SynthesizerForRuleExamples(
       val variableRefinementResult = variableRefiner.checkRefinements(innerSnippetTree, allDeclarations)
       if (variableRefinementResult._1) {
         allDeclarations = variableRefinementResult._2
-        
-      	// the reason for two flags is for easier management of re-syntheses only if needed 
+
+        // the reason for two flags is for easier management of re-syntheses only if needed 
         variableRefinedBranch = true
         variableRefinedCondition = true
       }
-          
+
       // found a boolean snippet, break
       true
     } else {
