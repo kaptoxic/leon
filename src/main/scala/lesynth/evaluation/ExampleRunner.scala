@@ -18,13 +18,13 @@ import leon.purescala.TreeOps
 
 import insynth.util.logging.HasLogger
 
+import lesynth.examples.Example
+
 import EvaluationResults._
 
 class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
 
   import TreeOps._
-
-  var counterExamples = MutableList[Map[Identifier, Expr]]()
 
   val leonEmptyContext = LeonContext()
 
@@ -33,6 +33,19 @@ class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
     val ev = new DefaultEvaluator(leonEmptyContext, program)
     ev.maxSteps = maxSteps
     ev
+  }
+  
+  def evaluate(expr: Expr, example: Example) = {
+    val mapping = example.getMapping
+    fine("to evaluate: " + expr + " for mapping: " + mapping)
+    defaultEvaluator.eval(expr, mapping) match {
+      case Successful(BooleanLiteral(true)) =>
+        fine("Eval succeded: EvaluationSuccessful(true)")
+        true
+      case m =>
+        fine("Eval failed: " + m)
+        false
+    }
   }
 
   def evaluate(expr: Expr, mapping: Map[Identifier, Expr]) = {
@@ -53,21 +66,22 @@ class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
   }
 
   /** filter counterexamples according to an expression (precondition) */
-  def filter(prec: Expr) = {
+  def filter(prec: Expr, counterExamples: Seq[Example]) = {
     entering("filter(" + prec + ")")
     fine("Old counterExamples.size: " + counterExamples.size)
-    counterExamples = counterExamples filter {
+    val filteredCounterExamples = counterExamples filter {
       evaluate(prec, _)
     }
     fine("New counterExamples.size: " + counterExamples.size)
+    filteredCounterExamples
   }
 
   /** count how many examples pass */
-  def countPassed(expressionToCheck: Expr, givenCounterExamples: Iterable[Map[Identifier, Expr]]):
-  	(List[Map[Identifier, Expr]], List[Map[Identifier, Expr]]) = {
+  def countPassed(expressionToCheck: Expr, givenCounterExamples: Iterable[Example]):
+  	(List[Example], List[Example]) = {
     fine("expressionToCheck: " + expressionToCheck)
 
-    ((Nil: List[Map[Identifier, Expr]], Nil: List[Map[Identifier, Expr]]) /: givenCounterExamples) {
+    ((Nil: List[Example], Nil: List[Example]) /: givenCounterExamples) {
       case ((passed, failed), ce) =>
         {
           if (evaluate(expressionToCheck, ce)) (passed :+ ce, failed)
@@ -76,9 +90,6 @@ class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
     }
   }
   
-  def countPassed(expressionToCheck: Expr): (List[Map[Identifier, Expr]], List[Map[Identifier, Expr]]) =
-    countPassed(expressionToCheck, counterExamples)
-
 //  def countPassedAndTerminating(body: Expr): Int = {
 //    // TODO body dont have set type in synthesizer
 //    val expressionToCheck =

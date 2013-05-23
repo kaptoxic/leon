@@ -8,8 +8,11 @@ import leon.purescala.TreeOps._
 import leon.purescala.Extractors._
 import leon.purescala.Definitions._
 import leon.synthesis.{ Rule, RuleInstantiation, SynthesisContext, Problem, Solution }
-import InputExamples._
+
 import lesynth.SynthesizerForRuleExamples
+import lesynth.examples._
+
+import InputExamples._
 
 case object ConditionAbductionSynthesisImmediate extends Rule("Condition abduction synthesis (immediate).") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation]= {
@@ -36,7 +39,7 @@ case object ConditionAbductionSynthesisImmediate extends Rule("Condition abducti
 	        val synthesizer = new SynthesizerForRuleExamples(
 	          program, desiredType, holeFunDef, p, freshResVar,
 	          reporter = reporter,
-	          introduceExamples = introduceTwoListArgumentsExamples
+	          introduceExamples = introduceTwoListArgumentsExamples(_, _).map(maps => InputExample(maps))
 	        )
 	        
 	        synthesizer.synthesize match {

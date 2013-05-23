@@ -1,14 +1,13 @@
-package lesynth
+package lesynth.ranker
 
-import scala.util.Random
-
-import leon.purescala.Trees.{ Variable => LeonVariable, _ }
+import leon.purescala.Trees._
 import leon.purescala.Common.Identifier
 
-case class Evaluation(examples: Seq[Map[Identifier, Expr]], exampleFun: (Expr, Map[Identifier, Expr])=>Boolean, candidates: Seq[Expr],
+import lesynth.ExampleRunner
+import lesynth.examples.Example
+
+case class Evaluation(examples: Seq[Example], exampleFun: (Expr, Example)=>Boolean, candidates: Seq[Expr],
   exampleRunner: ExampleRunner) {
-  
-  val random: Random = new Random(System.currentTimeMillis)  
       
   // keep track of evaluations
   var nextExamples: Map[Int, Int] = Map() 

@@ -15,6 +15,8 @@ import leon.synthesis.Problem
 
 import insynth.leon.loader.{ HoleExtractor, LeonLoader }
 
+import lesynth.examples._
+
 object InputExamples {
 
   def getDataGenInputExamples(evaluator: Evaluator, p: Problem,
@@ -24,7 +26,7 @@ object InputExamples {
     val models = findModels(p.pc, evaluator, numOfModels, numOfTries,
       forcedFreeVars = _forcedFreeVars)
 
-    models.toList
+    models.toList.map(InputExample(_))
     
   }
 

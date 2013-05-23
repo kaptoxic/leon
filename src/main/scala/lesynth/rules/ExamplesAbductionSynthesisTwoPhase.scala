@@ -10,16 +10,15 @@ import leon.purescala.Definitions._
 import leon.synthesis._
 import leon.solvers.{ Solver, TimeoutSolver }
 import leon.evaluators.CodeGenEvaluator
-import InputExamples._
-import lesynth.examples._
-import lesynth.examples.InputExample
 
-case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abduction synthesis (two phase).") {
+import InputExamples._
+
+case object ExamplesAbductionSynthesisTwoPhase extends Rule("Examples abduction synthesis (two phase).") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
 
     p.xs match {
       case givenVariable :: Nil =>
-        List(new RuleInstantiation(p, this, SolutionBuilder.none, "Condition abduction") {
+        List(new RuleInstantiation(p, this, SolutionBuilder.none, "Examples abduction") {
           def apply(sctx: SynthesisContext): RuleApplicationResult = {
             try {
               val program = sctx.program
@@ -46,11 +45,11 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))
                 holeFunDef.precondition = Some(p.pc)
 
-                val synthesizer = new SynthesizerForRuleExamples(
+                val synthesizer = new SynthesizerJustExamples(
                   program, desiredType, holeFunDef, p, freshResVar,
                   20,
                   reporter = reporter,
-                  introduceExamples = getInputExamples,  
+                  // introduceExamples = getInputExamples,  
 								  numberOfTestsInIteration = 50,
 								  numberOfCheckInIteration = 5
 							  )

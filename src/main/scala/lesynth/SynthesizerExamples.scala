@@ -5,14 +5,14 @@ import scala.collection.mutable.{ Set => MutableSet }
 import scala.collection.mutable.PriorityQueue
 
 import leon.{ Reporter, DefaultReporter, SilentReporter, LeonContext }
-import leon.solvers.{ Solver, TimeoutSolver }
-import leon.solvers.z3.{ FairZ3Solver }
-import leon.verification.AnalysisPhase
 import leon.purescala.TypeTrees.{ TypeTree => LeonType, _ }
 import leon.purescala.Trees.{ Variable => LeonVariable, _ }
 import leon.purescala.Definitions.{ FunDef, Program }
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
+import leon.synthesis.Problem
+import leon.Main.processOptions
+import leon.purescala.TypeTrees._
 
 import insynth.util.logging.HasLogger
 import insynth.interfaces.Declaration
@@ -25,14 +25,14 @@ import insynth.interfaces.Declaration
 import insynth.engine.InitialEnvironmentBuilder
 import insynth.leon.TypeTransformer
 import insynth.reconstruction.Output
-import leon.synthesis.Problem
-import leon.Main.processOptions
-import leon.purescala.TypeTrees._
 
-import scala.collection.mutable.{ Map => MutableMap }
-import scala.collection.mutable.{ Set => MutableSet }
+
+import scala.collection.mutable.{ Map => MutableMap, LinkedList => MutableList, Set => MutableSet }
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
+
+import lesynth.examples.Example
+import lesynth.ranker._
 
 class SynthesizerForRuleExamples(
   // some synthesis instance information
@@ -46,7 +46,7 @@ class SynthesizerForRuleExamples(
   reporter: Reporter = new DefaultReporter,
   //examples: List[Map[Identifier, Expr]] = Nil,
   // we need the holeDef to know the right ids
-  introduceExamples: ((Seq[Identifier], LeonLoader) => List[Map[Identifier, Expr]]) = { (_, _) => Nil },
+  introduceExamples: ((Seq[Identifier], LeonLoader) => List[Example]) = { (_, _) => Nil },
   filterOutAlreadySeenBranchExpressions: Boolean = true,
   useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true,
   numberOfTestsInIteration: Int = 50,
@@ -96,6 +96,7 @@ class SynthesizerForRuleExamples(
 
   // filtering/ranking with examples support
   var exampleRunner: ExampleRunner = _
+  var counterExamples = Seq[Example]()
 
   def getCurrentBuilder = new InitialEnvironmentBuilder(allDeclarations)
 
@@ -119,7 +120,6 @@ class SynthesizerForRuleExamples(
     new java.util.Scanner(System.in).nextLine();
   }
 
-  type Example = Map[Identifier, Expr]
   type QueueValue = (Expr, List[Example], List[Example])
   def getNewExampleQueue = PriorityQueue[(QueueValue, Int)]()(
     new Ordering[(QueueValue, Int)] {
@@ -162,10 +162,10 @@ class SynthesizerForRuleExamples(
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
     exampleRunner = new ExampleRunner(program)
-    exampleRunner.counterExamples ++=
+    counterExamples ++=
       introduceExamples(holeFunDef.args.map(_.id), loader)
 
-    fine("Introduced examples: " + exampleRunner.counterExamples.mkString(", "))
+    fine("Introduced examples: " + counterExamples.mkString(", "))
   }
 
   def countPassedExamples(snippet: Expr) = {
@@ -182,18 +182,12 @@ class SynthesizerForRuleExamples(
 
     import TreeOps._
     val expressionToCheck =
-      //Globals.bodyAndPostPlug(exp)
-      {
-        val resFresh = FreshIdentifier("result", true).setType(accumulatedExpression.getType)
-        Let(
-          resFresh, accumulatedExpression,
-          replace(Map(ResultVariable() -> LeonVariable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
-      }
+      replace(Map(ResultVariable() -> accumulatedExpression), matchToIfThenElse(holeFunDef.getPostcondition))
 
     fine("going to count passed for: " + holeFunDef)
     fine("going to count passed for: " + expressionToCheck)
 
-    val results = exampleRunner.countPassed(expressionToCheck)
+    val results = exampleRunner.countPassed(expressionToCheck, counterExamples)
     //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
     //      interactivePause
 
@@ -203,7 +197,9 @@ class SynthesizerForRuleExamples(
     results
   }
 
-  def evaluateCandidate(snippet: Expr, mapping: Map[Identifier, Expr]) = {
+  def evaluateCandidate(snippet: Expr, example: Example) = {
+    val mapping = example.getMapping
+    
     val oldPreconditionSaved = holeFunDef.precondition
     val oldBodySaved = holeFunDef.body
 
@@ -217,13 +213,7 @@ class SynthesizerForRuleExamples(
 
     import TreeOps._
     val expressionToCheck =
-      //Globals.bodyAndPostPlug(exp)
-      {
-        val resFresh = FreshIdentifier("result", true).setType(accumulatedExpression.getType)
-        Let(
-          resFresh, accumulatedExpression,
-          replace(Map(ResultVariable() -> LeonVariable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
-      }
+      replace(Map(ResultVariable() -> accumulatedExpression), matchToIfThenElse(holeFunDef.getPostcondition))
 
     fine("going to evaluate candidate for: " + holeFunDef)
     fine("going to evaluate candidate for: " + expressionToCheck)
@@ -295,7 +285,7 @@ class SynthesizerForRuleExamples(
         //interactivePause
 
         reporter.info("Going into a enumeration/testing phase.")
-        finer("evaluating examples: " + exampleRunner.counterExamples.mkString("\n"))
+        finer("evaluating examples: " + counterExamples.mkString("\n"))
 
         // found precondition?
         found = false
@@ -319,11 +309,10 @@ class SynthesizerForRuleExamples(
             //interactivePause
 
             if (candidates.size > 0) {
-              val ranker = new Ranker(candidates,
-                Evaluation(exampleRunner.counterExamples, this.evaluateCandidate _, candidates, exampleRunner),
-                false)
+              val evaluation = Evaluation(counterExamples, this.evaluateCandidate _, candidates, exampleRunner)
+              val ranker = new Ranker(candidates.size, evaluation, false)
 
-              val maxCandidate = ranker.getMax
+              val maxCandidate = candidates(ranker.getMax)
 
               numberOfTested += batchSize
 
@@ -347,7 +336,7 @@ class SynthesizerForRuleExamples(
               info("maxCandidate is: " + maxCandidate)
               fine("passed/failed: " + countPassedResults._1.size + "/" + countPassedResults._2.size)
               //			        interactivePause
-              if (countPassedResults._1.size == exampleRunner.counterExamples.size) {
+              if (countPassedResults._1.size == counterExamples.size) {
                 found = true
                 break
               }
@@ -371,10 +360,10 @@ class SynthesizerForRuleExamples(
         }
 
         fine("filtering based on: " + accumulatingPrecondition)
-        fine("counterexamples before filter: " + exampleRunner.counterExamples.size)
-        exampleRunner.filter(accumulatingPrecondition)
-        fine("counterexamples after filter: " + exampleRunner.counterExamples.size)
-        fine("counterexamples after filter: " + exampleRunner.counterExamples.mkString("\n"))
+        fine("counterexamples before filter: " + counterExamples.size)
+        counterExamples = exampleRunner.filter(accumulatingPrecondition, counterExamples)
+        fine("counterexamples after filter: " + counterExamples.size)
+        fine("counterexamples after filter: " + counterExamples.mkString("\n"))
 
         if (!variableRefinedBranch) {
           // XXX very ad-hoc, change this with something smarter
@@ -387,8 +376,8 @@ class SynthesizerForRuleExamples(
               val booleanExpression = booleanOutput.getSnippet
             ) {
               val expressionToCheck = booleanExpression
-              fine("expression: " + booleanExpression + " passed: " + exampleRunner.countPassed(expressionToCheck)._1.size)
-              if (exampleRunner.countPassed(expressionToCheck)._1.size == exampleRunner.counterExamples.size)
+              fine("expression: " + booleanExpression + " passed: " + exampleRunner.countPassed(expressionToCheck, counterExamples)._1.size)
+              if (exampleRunner.countPassed(expressionToCheck, counterExamples)._1.size == counterExamples.size)
                 expressionToCheck match {
                   case CaseClassInstanceOf(classDef, LeonVariable(id)) =>
                     allDeclarations = variableRefiner.updateDeclarations(id, loader.classMap(classDef.id), allDeclarations)

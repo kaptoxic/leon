@@ -1,17 +1,13 @@
 package lesynth
+package ranker
 
-import util.control.Breaks._
-import scala.collection._
-
-import leon.purescala.Trees.{ Variable => LeonVariable, _ }
-
-class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean = false) {
+class Ranker(candidates: Int, evaluation: Evaluation, printStep: Boolean = false) {
   
-  var rankings: Array[Int] = (0 until candidates.size).toArray
+  var rankings: Array[Int] = (0 until candidates).toArray
   
   // keep track of intervals
   var tuples: Map[Int, (Int, Int)] =
-    (for (i <- 0 until candidates.size)
+    (for (i <- 0 until candidates)
       yield (i, (0, evaluation.getNumberOfExamples))) toMap
   
   def getKMax(k: Int) = {
@@ -43,16 +39,16 @@ class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean =
   def bubbleDown(ind: Int): Unit = {
     if (compare(rankings(ind), rankings(ind + 1))) {
     	swap(ind, ind + 1)
-    	if (ind < candidates.size-2)
+    	if (ind < candidates-2)
     		bubbleDown(ind + 1)
     }      
   }
     
-  var numberLeft = candidates.size
+  var numberLeft = candidates
   
   def getMax = {
     
-    numberLeft = candidates.size
+    numberLeft = candidates
     
     while (numberLeft > 1) {
       
@@ -81,12 +77,12 @@ class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean =
       println("***: " + numberLeft)
     }
     
-    candidates(rankings(0))
+    rankings(0)
     
   }
   
 //  def getVerifiedMax = {    
-//    val results = (for (candidate <- 0 until candidates.size)
+//    val results = (for (candidate <- 0 until candidates)
 //  		yield (candidate,
 //	  		(0 /: (0 until evaluation.getNumberOfExamples)) {
 //	      	(res, exampleInd) =>
@@ -97,7 +93,7 @@ class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean =
 //				    }
 //	    	}))
 //	    	
-//  	val maxPassed = results.sortWith((r1, r2) => r1._2 < r2._2)(candidates.size - 1)._2
+//  	val maxPassed = results.sortWith((r1, r2) => r1._2 < r2._2)(candidates - 1)._2
 //  	
 //  	(results.filter(_._2 == maxPassed).map(x => candidates(x._1)), results)//.map(x => candidates(x._1))
 //  }
