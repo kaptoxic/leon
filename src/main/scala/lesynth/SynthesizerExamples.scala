@@ -31,10 +31,10 @@ import scala.collection.mutable.{ Map => MutableMap, LinkedList => MutableList, 
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 
-import lesynth.examples.Example
+import lesynth.examples._
 import lesynth.ranker._
 
-class SynthesizerForRuleExamples(
+case class SynthesizerForRuleExamples(
   // some synthesis instance information
   val program: Program,
   val desiredType: LeonType,
@@ -50,7 +50,9 @@ class SynthesizerForRuleExamples(
   filterOutAlreadySeenBranchExpressions: Boolean = true,
   useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true,
   numberOfTestsInIteration: Int = 50,
-  numberOfCheckInIteration: Int = 5) extends HasLogger {
+  numberOfCheckInIteration: Int = 5,
+  generateInputExamples: Boolean = true
+  ) extends HasLogger {
 
   val fileName: String = "noFileName"
 
@@ -162,8 +164,11 @@ class SynthesizerForRuleExamples(
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
     exampleRunner = new ExampleRunner(program)
+    if (generateInputExamples)
+	  counterExamples ++= introduceExamples(holeFunDef.args.map(_.id), loader)
+    // add examples from passes      
     counterExamples ++=
-      introduceExamples(holeFunDef.args.map(_.id), loader)
+	  ExamplesExtraction.extract(problem.phi, holeFunDef.args.map(_.id).toSet)
 
     fine("Introduced examples: " + counterExamples.mkString(", "))
   }
@@ -180,14 +185,10 @@ class SynthesizerForRuleExamples(
     // set appropriate body to the function for the correct evaluation
     holeFunDef.body = Some(accumulatedExpression)
 
-    import TreeOps._
-    val expressionToCheck =
-      replace(Map(ResultVariable() -> accumulatedExpression), matchToIfThenElse(holeFunDef.getPostcondition))
-
     fine("going to count passed for: " + holeFunDef)
-    fine("going to count passed for: " + expressionToCheck)
+    fine("going to count passed for body: " + accumulatedExpression)
 
-    val results = exampleRunner.countPassed(expressionToCheck, counterExamples)
+    val results = exampleRunner.countPassedForBody(accumulatedExpression, holeFunDef.getPostcondition, counterExamples)
     //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
     //      interactivePause
 
@@ -211,9 +212,7 @@ class SynthesizerForRuleExamples(
     // set appropriate body to the function for the correct evaluation
     holeFunDef.body = Some(accumulatedExpression)
 
-    import TreeOps._
-    val expressionToCheck =
-      replace(Map(ResultVariable() -> accumulatedExpression), matchToIfThenElse(holeFunDef.getPostcondition))
+    val expressionToCheck = example.getExpression(accumulatedExpression, holeFunDef.getPostcondition)
 
     fine("going to evaluate candidate for: " + holeFunDef)
     fine("going to evaluate candidate for: " + expressionToCheck)
@@ -335,7 +334,7 @@ class SynthesizerForRuleExamples(
               val countPassedResults = countPassedExamples(maxCandidate)
               info("maxCandidate is: " + maxCandidate)
               fine("passed/failed: " + countPassedResults._1.size + "/" + countPassedResults._2.size)
-              //			        interactivePause
+              interactivePause
               if (countPassedResults._1.size == counterExamples.size) {
                 found = true
                 break

@@ -30,7 +30,8 @@ object Rules {
     ADTSplit,
     IntegerEquation,
     IntegerInequalities,    
-    ConditionAbductionSynthesisTwoPhase
+    ConditionAbductionSynthesisTwoPhase,
+    ExamplesAbductionSynthesisTwoPhase
   )
 }
 

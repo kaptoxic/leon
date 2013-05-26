@@ -90,6 +90,19 @@ class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
     }
   }
   
+  def countPassedForBody(body: Expr, postcondition: Expr, givenCounterExamples: Iterable[Example]):
+  	(List[Example], List[Example]) = {
+    fine("checking body: " + body)
+
+    ((Nil: List[Example], Nil: List[Example]) /: givenCounterExamples) {
+      case ((passed, failed), ce) =>
+        {
+          if (evaluate(ce.getExpression(body, postcondition), ce)) (passed :+ ce, failed)
+          else (passed, failed :+ ce)
+        }
+    }
+  }
+  
 //  def countPassedAndTerminating(body: Expr): Int = {
 //    // TODO body dont have set type in synthesizer
 //    val expressionToCheck =
