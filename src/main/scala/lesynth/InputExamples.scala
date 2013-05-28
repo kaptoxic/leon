@@ -13,7 +13,7 @@ import leon.evaluators.Evaluator
 import leon.purescala.DataGen.findModels
 import leon.synthesis.Problem
 
-import insynth.leon.loader.{ HoleExtractor, LeonLoader }
+import insynth.leon.loader.LeonLoader
 
 import lesynth.examples._
 

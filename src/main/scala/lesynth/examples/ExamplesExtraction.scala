@@ -26,7 +26,14 @@ object ExamplesExtraction extends HasLogger {
         (for (expr <- exprs)
           yield expr match {
 	          case Implies(Equals(f, Variable(id)), Equals(rout, t)) => InputOutputExample(Map(id -> f), t)
-	          //          	case Implies(Equals(f, Tuple(expr)), Equals(rout, t))
+	          case Implies(Equals(exprTuple@Tuple(valExpr), idType@Tuple(idExprs)), Equals(rout, t))
+	          	if valExpr.size == arguments.size && idExprs.forall(_.isInstanceOf[Variable]) => {
+	            val idMap =
+	              (for ((idExpr, valExpr) <- idExprs zip valExpr;
+            		  val id = idExpr.asInstanceOf[Variable].id) yield	                
+	                (id, valExpr)).toMap
+	            InputOutputExample(idMap, t)	            
+	          }
         	}) ++ otherSeq
       }
       case _ =>
