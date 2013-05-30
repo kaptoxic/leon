@@ -27,11 +27,16 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
               val reporter = sctx.reporter
 
               val desiredType = givenVariable.getType
-              val holeFunDef = sctx.functionContext.get
-
-              // temporary hack, should not mutate FunDef
-              val oldPostcondition = holeFunDef.postcondition
-              val oldPrecondition = holeFunDef.precondition
+              val contextFunDef = sctx.functionContext.get
+              val holeFunDef = new FunDef(FreshIdentifier(contextFunDef.id.name), givenVariable.getType,
+                p.as.map(id => VarDecl(id, id.getType)))
+//              val holeFunDef = new FunDef(contextFunDef.id, givenVariable.getType,
+//                p.as.map(id => VarDecl(id, id.getType)))
+              holeFunDef.precondition = Some(p.pc)      
+              holeFunDef.postcondition = Some(p.phi)
+              
+              // this is just because synthesizer expects body
+              holeFunDef.body = contextFunDef.body
               
               try {
                 val freshResID = FreshIdentifier("result").setType(holeFunDef.returnType)
@@ -47,8 +52,14 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))
                 holeFunDef.precondition = Some(p.pc)
 
+                val newDefs = 
+                  for (oldDef <- program.mainObject.defs) yield oldDef match {
+	                  case `contextFunDef` => holeFunDef
+	                  case _ => oldDef
+                  }	       
+                
                 val synthesizer = new SynthesizerForRuleExamples(
-                  solver, program, desiredType, holeFunDef, p, sctx, freshResVar,
+                  solver, program.copy(mainObject = program.mainObject.copy(defs = newDefs)), desiredType, holeFunDef, p, sctx, freshResVar,
                   20, 2, 1,
                   reporter = reporter,
                   introduceExamples = getInputExamples,  
@@ -67,8 +78,8 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   e.printStackTrace
                   RuleApplicationImpossible
               } finally {
-                holeFunDef.postcondition = oldPostcondition
-                holeFunDef.precondition = oldPrecondition
+//                holeFunDef.postcondition = oldPostcondition
+//                holeFunDef.precondition = oldPrecondition
               }
             }
           }
@@ -77,5 +88,46 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
         throw new RuntimeException("should not")
         Nil
     }
+  }
+  
+  def refineProblem(p: Problem, solver: Solver) = {
+
+    val newAs = p.as.map {
+      case oldId@IsTyped(id, AbstractClassType(cd)) =>
+
+        val optCases = for (dcd <- cd.knownDescendents.sortBy(_.id.name)) yield dcd match {
+          case ccd : CaseClassDef =>
+            val toSat = And(p.pc, CaseClassInstanceOf(ccd, Variable(id)))
+            	        
+            val isImplied = solver.solveSAT(toSat) match {
+              case (Some(false), _) => true
+              case _ => false
+            }
+            
+            println(isImplied)
+            
+            if (!isImplied) {
+              Some(ccd)
+            } else {
+              None
+            }
+          case _ =>
+            None
+        }
+
+        val cases = optCases.flatten
+		
+        println(id)
+        println(cases)
+        
+        if (cases.size == 1) {
+//          id.setType(CaseClassType(cases.head))
+          FreshIdentifier(oldId.name).setType(CaseClassType(cases.head))
+        } else oldId
+          
+      case id => id
+    }
+    
+    p.copy(as = newAs)
   }
 }
