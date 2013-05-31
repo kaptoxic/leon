@@ -268,6 +268,8 @@ class SynthesizerForRuleExamples(
 
     // funDef of the hole
     fine("postcondition is: " + holeFunDef.getPostcondition)
+    fine("declarations we see: " + allDeclarations.map(_.toString).mkString("\n"))
+    interactivePause
 
     // accumulate precondition for the remaining branch to synthesize 
     accumulatingPrecondition = holeFunDef.precondition.getOrElse(BooleanLiteral(true))
@@ -316,8 +318,8 @@ class SynthesizerForRuleExamples(
           replace(Map(ResultVariable() -> LeonVariable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
       }
     
-    fine("going to count passed for: " + holeFunDef)
-    fine("going to count passed for: " + expressionToCheck)
+    finest("going to count passed for: " + holeFunDef)
+    finest("going to count passed for: " + expressionToCheck)
 
     val count = exampleRunner.countPassed(expressionToCheck)
 //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
@@ -342,6 +344,8 @@ class SynthesizerForRuleExamples(
     // set appropriate body to the function for the correct evaluation
     holeFunDef.body = Some(accumulatedExpression)
     
+//    if(snippet.toString == "checkf(f2, reverse(r2))")
+//      interactivePause
     
     import TreeOps._
     val expressionToCheck =
@@ -353,16 +357,17 @@ class SynthesizerForRuleExamples(
           replace(Map(ResultVariable() -> LeonVariable(resFresh)), matchToIfThenElse(holeFunDef.getPostcondition)))
       }
     
-    fine("going to evaluate candidate for: " + holeFunDef)
-    fine("going to evaluate candidate for: " + expressionToCheck)
+    finest("going to evaluate candidate for: " + holeFunDef)
+    finest("going to evaluate candidate for: " + expressionToCheck)
 
     val count = exampleRunner.evaluate(expressionToCheck, mapping)
-//    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
-//      interactivePause
 
     holeFunDef.precondition = oldPreconditionSaved
     holeFunDef.body = oldBodySaved
 
+//    if(snippet.toString == "checkf(f2, reverse(r2))")
+//      interactivePause
+      
     count
   }
 
@@ -419,18 +424,6 @@ class SynthesizerForRuleExamples(
 
         var numberOfTested = 0
 
-        // just printing of expressions and pass counts        
-        fine( {
-          val (it1, it2) = snippetsIterator.duplicate // we are dealing with iterators, need to duplicate
-          val logString = ((it1 zip Iterator.range(0, numberOfTestsInIteration)) map {
-            case ((snippet: Output, ind: Int)) => ind + ": snippet is " + snippet.getSnippet +
-              " pass count is " + countPassedExamples(snippet.getSnippet)
-          }).mkString("\n")
-          snippetsIterator = it2
-          logString
-        })
-        //interactivePause
-
         reporter.info("Going into a enumeration/testing phase.")
         fine("evaluating examples: " + exampleRunner.counterExamples.mkString("\n"))
                 
@@ -452,6 +445,16 @@ class SynthesizerForRuleExamples(
 		        }
 		        info("got candidates of size: " + candidates.size)
 		        //interactivePause
+		        
+		        // printing candidates and pass counts        
+		        fine( {
+		          val logString = ((candidates.zipWithIndex) map {
+		            case ((snippet: Expr, ind: Int)) => ind + ": snippet is " + snippet.toString +
+		              " pass count is " + countPassedExamples(snippet)
+		          }).mkString("\n")
+		          logString
+		        })
+		        //interactivePause
 		          
 		        if (candidates.size > 0) {
 			        val ranker = new Ranker(candidates, 
@@ -462,8 +465,8 @@ class SynthesizerForRuleExamples(
 			        info("maxCandidate is: " + maxCandidate)
 			        numberOfTested += batchSize
 			        
-			        if (candidates.exists(_.toString contains "balance(t.color, t.left, x, ins(t.value, t.right))") &&
-		            maxCandidate.toString != "balance(t.color, t.left, x, ins(t.value, t.right))"
+			        if (
+	        		  candidates.exists(_.toString contains "checkf(f2, Cons(x, r2))")
 		            ) {
 			        	println("maxCandidate is: " + maxCandidate)
 			          println(ranker.printTuples)
@@ -477,12 +480,12 @@ class SynthesizerForRuleExamples(
 			          interactivePause
 			        }
 			        
-			        //interactivePause
+			        interactivePause
 			        if (tryToSynthesizeBranch(maxCandidate)) {
 			          noBranchFoundIteration = 0
 			          break
 			        }
-		          //interactivePause
+			        interactivePause
 			        
 			        noBranchFoundIteration += 1
 		        }
