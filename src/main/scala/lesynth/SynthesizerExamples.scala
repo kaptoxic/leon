@@ -146,7 +146,8 @@ class SynthesizerForRuleExamples(
         Array(fileName, "--timeout=" + leonTimeout)
     info("Leon context array: " + args.mkString(","))
     ctx = processOptions(reporter, args.toList)
-    val solver = new TimeoutSolver(new FairZ3Solver(ctx), 1000L)
+    val solver = new TimeoutSolver(new FairZ3Solver(ctx), 4000L)
+      //new TimeoutSolver(synthesisContext.solver.getNewSolver, 2000L)
     solver.setProgram(program)
     
     Globals.allSolved = solver.solve(theExpr)
@@ -215,7 +216,8 @@ class SynthesizerForRuleExamples(
     if ( variableRefinedCondition ) {
       // store for later fetch (will memoize values)
     	booleanExpressionsSaved = 
-  			inSynthBoolean.getExpressions(getCurrentBuilder) take numberOfBooleanSnippets
+  			inSynthBoolean.getExpressions(getCurrentBuilder).
+			  filterNot(expr => refiner.isAvoidable(expr.getSnippet, problem.as)) take numberOfBooleanSnippets
 			// reset flag
   		variableRefinedCondition = false
     }
@@ -343,10 +345,7 @@ class SynthesizerForRuleExamples(
     val accumulatedExpression = accumulatingExpression(snippet)
     // set appropriate body to the function for the correct evaluation
     holeFunDef.body = Some(accumulatedExpression)
-    
-//    if(snippet.toString == "checkf(f2, reverse(r2))")
-//      interactivePause
-    
+        
     import TreeOps._
     val expressionToCheck =
       //Globals.bodyAndPostPlug(exp)
@@ -542,7 +541,7 @@ class SynthesizerForRuleExamples(
     // TODO spare one analyzing step
     // analyze the program
     fine("analyzing program for funDef:" + holeFunDef)
-    solver.setProgram(program)
+//    solver.setProgram(program)
     analyzeProgram
 
     // check if solver could solved this instance
@@ -602,7 +601,7 @@ class SynthesizerForRuleExamples(
     try {
       { //if (!maps.isEmpty) {
         // proceed with synthesizing boolean expressions
-        //solver.setProgram(program)
+        solver.setProgram(program)
 
         // reconstruct (only defined number of boolean expressions)
         val innerSnippets = synthesizeBooleanExpressions
@@ -656,23 +655,6 @@ class SynthesizerForRuleExamples(
 
   def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, precondition: Expr): (Boolean, Option[Expr]) = {
 		
-		// trying some examples that cannot be verified
-    if (snippetTree.toString == "Cons(l.head, insert(e, l.tail))" //&&
-      //innerSnippetTree.toString.contains("aList.head < bList.head")
-) {
-          val endTime = System.currentTimeMillis
-          reporter.info("We are done, in time: " + (endTime - startTime))
-      interactivePause
-}
-
-    if (snippetTree.toString == "Cons(aList.head, merge(aList.tail, bList))" //&&
-      //innerSnippetTree.toString.contains("aList.head < bList.head")
-) {
-          val endTime = System.currentTimeMillis
-          reporter.info("We are done, in time: " + (endTime - startTime))
-      interactivePause
-}
-
     // new condition together with existing precondition
     val newCondition = And(Seq(accumulatingPrecondition, innerSnippetTree))
 
@@ -702,7 +684,7 @@ class SynthesizerForRuleExamples(
             // if expression implies counterexamples add it to the precondition and try to validate program
             holeFunDef.precondition = Some(newCondition)
             // do analysis
-            solver.setProgram(program)
+//            solver.setProgram(program)
             analyzeProgram
             // program is valid, we have a branch
             if (Globals.allSolved == Some(true)) {
