@@ -22,8 +22,6 @@ class ScalaPrinter(sb: StringBuffer = new StringBuffer) extends PrettyPrinter(sb
     case Variable(id) => sb.append(id)
     case DeBruijnIndex(idx) => sys.error("Not Valid Scala")
     case LetTuple(ids,d,e) =>
-      sb.append("locally {\n")
-      ind(lvl+1)
       sb.append("val (" )
       for (((id, tpe), i) <- ids.map(id => (id, id.getType)).zipWithIndex) {
           sb.append(id.toString+": ")
@@ -33,26 +31,20 @@ class ScalaPrinter(sb: StringBuffer = new StringBuffer) extends PrettyPrinter(sb
           }
       }
       sb.append(") = ")
-      pp(d, lvl+1)
-      sb.append("\n")
-      ind(lvl+1)
-      pp(e, lvl+1)
+      pp(d, lvl)
       sb.append("\n")
       ind(lvl)
-      sb.append("}\n")
+      pp(e, lvl)
+      sb.append("\n")
       ind(lvl)
 
     case Let(b,d,e) =>
-      sb.append("locally {\n")
-      ind(lvl+1)
       sb.append("val " + b + " = ")
-      pp(d, lvl+1)
-      sb.append("\n")
-      ind(lvl+1)
-      pp(e, lvl+1)
+      pp(d, lvl)
       sb.append("\n")
       ind(lvl)
-      sb.append("}\n")
+      pp(e, lvl)
+      sb.append("\n")
       ind(lvl)
 
     case And(exprs) => ppNary(exprs, "(", " && ", ")", lvl)            // \land
