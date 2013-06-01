@@ -287,7 +287,6 @@ class SynthesizerForRuleExamples(
 
     // calculate cases that should not happen
     refiner = new Refiner(program, hole, holeFunDef)
-    fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
     exampleRunner = new ExampleRunner(program, exampleRunnerSteps)
     exampleRunner.counterExamples ++= //examples
