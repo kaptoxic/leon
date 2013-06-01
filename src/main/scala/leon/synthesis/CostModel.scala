@@ -7,7 +7,9 @@ import purescala.Trees._
 import purescala.TreeOps._
 import leon.xlang.Trees.LetDef
 
-import synthesis.search.Cost
+import synthesis.search.{Cost,CostFixed}
+
+import lesynth.rules._
 
 abstract class CostModel(val name: String) {
   def solutionCost(s: Solution): Cost
@@ -27,12 +29,24 @@ abstract class CostModel(val name: String) {
 }
 
 object CostModel {
-  def default: CostModel = WeightedBranchesCostModel
+  def default: CostModel = NonAdbuctionFirst(WeightedBranchesCostModel)
 
   def all: Set[CostModel] = Set(
     NaiveCostModel,
-    WeightedBranchesCostModel
+    WeightedBranchesCostModel,
+    NonAdbuctionFirst(WeightedBranchesCostModel)
   )
+}
+
+case class NonAdbuctionFirst(cm: CostModel) extends CostModel("NonAdbuctionFirst") {
+  def solutionCost(s: Solution) = cm.solutionCost(s)
+
+  def problemCost(p: Problem) = cm.problemCost(p)
+
+  override def ruleAppCost(app: RuleInstantiation): Cost = app.rule match {
+    case ConditionAbductionSynthesisTwoPhase => cm.ruleAppCost(app) + CostFixed(1000)
+    case _ => cm.ruleAppCost(app)
+  }
 }
 
 case object NaiveCostModel extends CostModel("Naive") {
