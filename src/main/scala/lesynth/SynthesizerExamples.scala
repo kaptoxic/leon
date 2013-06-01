@@ -61,7 +61,8 @@ class SynthesizerForRuleExamples(
   filterOutAlreadySeenBranchExpressions: Boolean = true,
   useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true,  
   numberOfTestsInIteration: Int = 50,
-  numberOfCheckInIteration: Int = 5
+  numberOfCheckInIteration: Int = 5,
+  exampleRunnerSteps: Int = 4000
 ) extends HasLogger {
   
   val fileName: String = "noFileName"
@@ -288,7 +289,7 @@ class SynthesizerForRuleExamples(
     refiner = new Refiner(program, hole, holeFunDef)
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
-    exampleRunner = new ExampleRunner(program, 4000)
+    exampleRunner = new ExampleRunner(program, exampleRunnerSteps)
     exampleRunner.counterExamples ++= //examples
       introduceExamples(holeFunDef.args.map(_.id), loader)
       
@@ -440,12 +441,13 @@ class SynthesizerForRuleExamples(
 		          val (it1, it2) = snippetsIterator.duplicate
 		          snippetsIterator = it2.drop(batchSize)
 		          it1.take(batchSize).        
-		        	map(_.getSnippet).filterNot(
-		            snip => {
+		        	filterNot(
+		            out => {
+		              val snip = out.getSnippet
 	            	  fine("enumerated: " + snip)
 		              (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
 		            }
-		          ).toSeq
+		          ).map(out => (out.getSnippet, out.getWeight)).toArray
 		        }
 		        info("got candidates of size: " + candidates.size)
 		        //interactivePause
@@ -453,7 +455,7 @@ class SynthesizerForRuleExamples(
 		        // printing candidates and pass counts        
 		        fine( {
 		          val logString = ((candidates.zipWithIndex) map {
-		            case ((snippet: Expr, ind: Int)) => ind + ": snippet is " + snippet.toString +
+		            case (((snippet: Expr, _), ind: Int)) => ind + ": snippet is " + snippet.toString +
 		              " pass count is " + countPassedExamples(snippet)
 		          }).mkString("\n")
 		          logString
@@ -461,16 +463,18 @@ class SynthesizerForRuleExamples(
 		        //interactivePause
 		          
 		        if (candidates.size > 0) {
-			        val ranker = new Ranker(candidates, 
-			          Evaluation(exampleRunner.counterExamples, this.evaluateCandidate _, candidates, exampleRunner),
+			        val ranker = new Ranker(candidates.size, 
+			          Evaluation(
+		          		exampleRunner.counterExamples, this.evaluateCandidate _, candidates,
+		          		exampleRunner),
 			          false)
 			        
-			        val maxCandidate = ranker.getMax
+			        val maxCandidate = candidates(ranker.getMax)._1
 			        info("maxCandidate is: " + maxCandidate)
 			        numberOfTested += batchSize
 			        
 			        if (
-	        		  candidates.exists(_.toString contains "merge(sort(split(list")
+	        		  false//candidates.exists(_.toString contains "merge(sort(split(list")
 		            ) {
 			        	println("maxCandidate is: " + maxCandidate)
 			          println(ranker.printTuples)
