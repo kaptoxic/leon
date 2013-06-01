@@ -52,7 +52,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   20, 1, 1,
                   reporter = reporter,
                   introduceExamples = getInputExamples,  
-								  numberOfTestsInIteration = 50,
+								  numberOfTestsInIteration = 25,
 								  numberOfCheckInIteration = 2
 							  )
 
