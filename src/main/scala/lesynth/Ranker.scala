@@ -5,13 +5,13 @@ import scala.collection._
 
 import leon.purescala.Trees.{ Variable => LeonVariable, _ }
 
-class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean = false) {
+class Ranker(candidatesSize: Int, evaluation: Evaluation, printStep: Boolean = false) {
   
-  var rankings: Array[Int] = (0 until candidates.size).toArray
+  var rankings: Array[Int] = (0 until candidatesSize).toArray
   
   // keep track of intervals
   var tuples: Map[Int, (Int, Int)] =
-    (for (i <- 0 until candidates.size)
+    (for (i <- 0 until candidatesSize)
       yield (i, (0, evaluation.getNumberOfExamples))) toMap
   
   def getKMax(k: Int) = {
@@ -43,16 +43,16 @@ class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean =
   def bubbleDown(ind: Int): Unit = {
     if (compare(rankings(ind), rankings(ind + 1))) {
     	swap(ind, ind + 1)
-    	if (ind < candidates.size-2)
+    	if (ind < candidatesSize-2)
     		bubbleDown(ind + 1)
     }      
   }
     
-  var numberLeft = candidates.size
+  var numberLeft = candidatesSize
   
   def getMax = {
     
-    numberLeft = candidates.size
+    numberLeft = candidatesSize
     
     while (numberLeft > 1) {
       
@@ -81,7 +81,7 @@ class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean =
       println("***: " + numberLeft)
     }
     
-    candidates(rankings(0))
+    rankings(0)
     
   }
   
@@ -117,7 +117,8 @@ class Ranker(candidates: Seq[Expr], evaluation: Evaluation, printStep: Boolean =
     val median2 = (tuple2._1 + tuple2._2).toFloat/2
     
     /*median1 < median2 || median1 == median2 && */
-    tuple1._2 < tuple2._2 || tuple1._2 == tuple2._2 && median1 < median2
+    tuple1._2 < tuple2._2 || tuple1._2 == tuple2._2 &&
+    	(evaluation.heurCompare(x, y)  || median1 < median2)
   }
   
   def rankOf(expr: Int) =
