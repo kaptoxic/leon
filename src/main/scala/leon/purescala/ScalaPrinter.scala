@@ -71,8 +71,6 @@ object ScalaPrinter {
     case Variable(id) => sb.append(id)
     case DeBruijnIndex(idx) => sys.error("Not Valid Scala")
     case LetTuple(ids,d,e) => {
-      sb.append("locally {\n")
-      ind(sb, lvl+1)
       sb.append("val (" )
       for (((id, tpe), i) <- ids.map(id => (id, id.getType)).zipWithIndex) {
           sb.append(id.toString+": ")
@@ -82,26 +80,20 @@ object ScalaPrinter {
           }
       }
       sb.append(") = ")
-      pp(d, sb, lvl+1)
-      sb.append("\n")
-      ind(sb, lvl+1)
-      pp(e, sb, lvl+1)
+      pp(d, sb, lvl)
       sb.append("\n")
       ind(sb, lvl)
-      sb.append("}\n")
+      pp(e, sb, lvl)
+      sb.append("\n")
       ind(sb, lvl)
     }
     case Let(b,d,e) => {
-      sb.append("locally {\n")
-      ind(sb, lvl+1)
       sb.append("val " + b + " = ")
-      pp(d, sb, lvl+1)
-      sb.append("\n")
-      ind(sb, lvl+1)
-      pp(e, sb, lvl+1)
+      pp(d, sb, lvl)
       sb.append("\n")
       ind(sb, lvl)
-      sb.append("}\n")
+      pp(e, sb, lvl)
+      sb.append("\n")
       ind(sb, lvl)
     }
     case And(exprs) => ppNary(sb, exprs, "(", " && ", ")", lvl)            // \land
