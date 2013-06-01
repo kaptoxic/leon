@@ -16,36 +16,39 @@ class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogge
   def isAvoidable(expr: Expr, funDefArgs: List[Identifier]) = {
     fine(
       "Results for refining " + expr + ", are: " +
-      " ,recurentExpression == expr " + (recurentExpression == expr) +
       " ,isCallAvoidableBySize(expr) " + isCallAvoidableBySize(expr, funDefArgs) +
       " ,hasDoubleRecursion(expr) " + hasDoubleRecursion(expr) +
       " ,isOperatorAvoidable(expr) " + isOperatorAvoidable(expr)
     )
-    recurentExpression == expr || isCallAvoidableBySize(expr, funDefArgs) || hasDoubleRecursion(expr) || isOperatorAvoidable(expr)
+    isCallAvoidableBySize(expr, funDefArgs) || hasDoubleRecursion(expr) || isOperatorAvoidable(expr)
   }
   
   //val holeFunDef = Globals.holeFunDef
     
-  val recurentExpression: Expr = 
+  val pureRecurentExpression: Expr = 
 	  if (holeFunDef.hasBody) {
-	    FunctionInvocation(holeFunDef, holeFunDef.args map { varDecl => Variable(varDecl.id) })
+	    FunctionInvocation(holeFunDef, holeFunDef.args map { _.toVariable })
 	  } else
 	    Error("Hole FunDef should have a body")
+  fine("Refiner initialized. Recursive call: " + pureRecurentExpression)
     
+  def isBadInvocation(expr2: Expr) = expr2 match {
+    case `pureRecurentExpression` =>
+      fine("pure recurrent expression detected")
+      true
+    case FunctionInvocation(`holeFunDef`, args) =>
+      (0 /: (args zip holeFunDef.args.map(_.id))) {
+        case (res, (arg, par)) if res == 0 => isLess(arg, par)
+        case (res, _) => res
+      } >= 0
+    case _ => false
+  }
+  
   // check according to size
   // true - YES, false - NO or don't know
   // basically a lexicographic (well-founded) ordering
   def isCallAvoidableBySize(expr: Expr, funDefArgs: List[Identifier]) = {
-	    	
-    def isBadInvocation(expr2: Expr) = expr2 match {
-	    case FunctionInvocation(`holeFunDef`, args) =>
-	      (0 /: (args zip holeFunDef.args.map(_.id))) {
-	        case (res, (arg, par)) if res == 0 => isLess(arg, par)
-	        case (res, _) => res
-	      } >= 0
-	    case _ => false
-	  }
-	    
+	    		    
   	import TreeOps.treeCatamorphism
   	
   	treeCatamorphism(
@@ -73,7 +76,7 @@ class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogge
 	  
 	  getSize(arg, 0)
   }
-  
+    
   def hasDoubleRecursion(expr: Expr) = {      
     var found = false
     
