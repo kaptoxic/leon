@@ -35,11 +35,19 @@ object MergeSort {
         case Nil() => Pair(aList, bList)
         case Cons(x, xs) => splithelper(Cons(x, aList), xs, n - 1)
       }
-  } ensuring (res => contents(aList) ++ contents(bList) == contents(res.fst) ++ contents(res.snd))
+  } ensuring (res =>
+  	contents(aList) ++ contents(bList) == contents(res.fst) ++ contents(res.snd)
+  	&&
+  	size(aList) + size(bList) == size(res.fst) + size(res.snd)
+  )
 
   def split(list: List): Pair = {
     splithelper(Nil(), list, 2)
-  } ensuring (res => contents(list) == contents(res.fst) ++ contents(res.snd))
+  } ensuring (res =>
+  	contents(list) == contents(res.fst) ++ contents(res.snd)
+  	&&
+  	size(list) == size(res.fst) + size(res.snd)
+  )
 
   def merge(aList: List, bList: List): List = {
     require(isSorted(aList) && isSorted(bList))
@@ -55,7 +63,10 @@ object MergeSort {
               Cons(x, merge(aList, xs))
         }
     }
-  } ensuring (res => contents(res) == contents(aList) ++ contents(bList) && isSorted(res))
+  } ensuring (res => contents(res) ==
+    contents(aList) ++ contents(bList) && isSorted(res) &&
+    size(res) == size(aList) + size(bList)
+  )
 
   def isEmpty(list: List): Boolean = list match {
     case Nil() => true
@@ -64,7 +75,7 @@ object MergeSort {
 
   def sort(list: List): List = choose {
     (res: List) =>
-      contents(res) == contents(list) && isSorted(res)
+      contents(res) == contents(list) && isSorted(res) && size(res) == size(list)
   }
   //      list match {
   //    case Nil() => list
