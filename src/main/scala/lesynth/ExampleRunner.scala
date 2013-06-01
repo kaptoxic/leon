@@ -2,7 +2,7 @@ package lesynth
 
 import scala.collection.mutable.{ Map => MutableMap }
 import scala.collection.mutable.{ Set => MutableSet }
-import scala.collection.mutable.{ LinkedList => MutableList }
+import scala.collection.mutable.{ LinkedList => MutableList, ArrayBuffer }
 
 import leon.{ Main => LeonMain, DefaultReporter, Settings, LeonContext }
 import leon.evaluators._
@@ -24,7 +24,7 @@ class ExampleRunner(program: Program, maxSteps: Int = 2000) extends HasLogger {
 
   import TreeOps._
 
-  var counterExamples = MutableList[Map[Identifier, Expr]]()
+  var counterExamples = ArrayBuffer[Map[Identifier, Expr]]()
 
   val leonEmptyContext = LeonContext()
 
