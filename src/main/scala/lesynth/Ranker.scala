@@ -5,7 +5,7 @@ import scala.collection._
 
 import leon.purescala.Trees.{ Variable => LeonVariable, _ }
 
-class Ranker(candidatesSize: Int, evaluation: Evaluation, printStep: Boolean = false) {
+class Ranker(candidatesSize: Int, evaluation: Evaluation, checkTimeout: (() => Boolean), printStep: Boolean = false) {
   
   var rankings: Array[Int] = (0 until candidatesSize).toArray
   
@@ -54,7 +54,7 @@ class Ranker(candidatesSize: Int, evaluation: Evaluation, printStep: Boolean = f
     
     numberLeft = candidatesSize
     
-    while (numberLeft > 1) {
+    while (numberLeft > 1 && !checkTimeout()) {
       
       evaluate(rankings(0))
       

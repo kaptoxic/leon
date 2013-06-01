@@ -60,7 +60,7 @@ class SynthesizerForRuleExamples(
   collectCounterExamplesFromLeon: Boolean = false,
   filterOutAlreadySeenBranchExpressions: Boolean = true,
   useStringSetForFilterOutAlreadySeenBranchExpressions: Boolean = true,  
-  numberOfTestsInIteration: Int = 50,
+  numberOfTestsInIteration: Int = 25,
   numberOfCheckInIteration: Int = 5,
   exampleRunnerSteps: Int = 4000
 ) extends HasLogger {
@@ -434,6 +434,7 @@ class SynthesizerForRuleExamples(
                 
         breakable {
           while(true) {
+            if (checkTimeout) break
             val batchSize = numberOfTestsInIteration * (1 << noBranchFoundIteration)
             
           	reporter.info("numberOfTested: " + numberOfTested)
@@ -469,10 +470,12 @@ class SynthesizerForRuleExamples(
 			          Evaluation(
 		          		exampleRunner.counterExamples, this.evaluateCandidate _, candidates,
 		          		exampleRunner),
-			          false)
+			          checkTimeout _, false)
 			        
 			        info("Ranking candidates...")
 			        val maxCandidate = candidates(ranker.getMax)._1
+			        if (!keepGoing) break
+			        
 			        info("Candidate with the most successfull evaluations is: " + maxCandidate)
 			        numberOfTested += batchSize
 			        
@@ -507,6 +510,8 @@ class SynthesizerForRuleExamples(
 	      // add to seen if branch was not found for it
 	      //seenBranchExpressions += snippetTree.toString
 
+        if (!keepGoing) break
+        
         // if did not found for any of the branch expressions
         if (found) {
           synthInfo end Synthesis
