@@ -41,9 +41,7 @@ object InsertionSort {
    * list */
   def sort(l: List): List = {
     choose { (res: List) =>
-      contents(res) == contents(l)
-          && isSorted(res)
-          && size(res) == size(l)
+      contents(res) == contents(l) && isSorted(res) && size(res) == size(l)
     }
   }
 
