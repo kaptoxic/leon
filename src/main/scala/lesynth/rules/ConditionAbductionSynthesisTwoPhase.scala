@@ -11,7 +11,8 @@ import leon.synthesis._
 import leon.solvers.{ Solver, TimeoutSolver }
 import leon.evaluators.CodeGenEvaluator
 
-import InputExamples._
+import lesynth.examples.InputExamples._
+import lesynth.evaluation._
 
 import leon.StopwatchCollections
 
@@ -39,17 +40,20 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 val freshResVar = Variable(freshResID)
                 
                 val codeGenEval = new CodeGenEvaluator(sctx.context, sctx.program)
-                def getInputExamples = 
-                  getDataGenInputExamples(codeGenEval, p, 
-                		30, 2000, Some(p.as)
-                	) _
+                def getInputExamples = {
+                  () => getDataGenInputExamples(codeGenEval, p, 
+                		50, 2000, Some(p.as)
+                	)
+                }
                 
+            	val evaluationStrategy = new CodeGenEvaluationStrategy(program, holeFunDef, sctx.context, 100)
+                	
                 holeFunDef.postcondition = Some(replace(
                   Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))
                 holeFunDef.precondition = Some(p.pc)
 
                 val synthesizer = new SynthesizerForRuleExamples(
-                  solver, program, desiredType, holeFunDef, p, sctx, freshResVar,
+                  solver, program, desiredType, holeFunDef, p, sctx, freshResVar, evaluationStrategy,
                   20, 1, 1,
                   reporter = reporter,
                   introduceExamples = getInputExamples,  
