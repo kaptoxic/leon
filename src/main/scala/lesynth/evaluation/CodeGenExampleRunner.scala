@@ -10,6 +10,7 @@ import leon.purescala.Trees._
 import leon.purescala.Definitions.{ FunDef, VarDecl, Program, ObjectDef }
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
+import leon.codegen.CodeGenEvalParams
 
 import lesynth.examples._
 import lesynth.ranking._
@@ -18,13 +19,13 @@ import insynth.util.logging.HasLogger
 
 case class CodeGenExampleRunner(program: Program, funDef: FunDef, ctx: LeonContext,
   candidates: Seq[Candidate], inputExamples: Seq[Example],
-  maxSteps: Int = 2000) extends ExampleRunner(inputExamples) with HasLogger {
+  params: CodeGenEvalParams = CodeGenEvalParams(maxFunctionInvocations = 200, checkContracts = true)) extends ExampleRunner(inputExamples) with HasLogger {
 
   private var _examples = ArrayBuffer(transformExamples(inputExamples): _*)
 
   val evaluationContext = ctx.copy(reporter = new SilentReporter)
   
-  lazy val _evaluator = new CodeGenEvaluator(evaluationContext, program)
+  lazy val _evaluator = new CodeGenEvaluator(evaluationContext, program, params)
   override def getEvaluator = _evaluator
   
   def transformExamples(examples: Seq[Example]) =
@@ -46,7 +47,9 @@ case class CodeGenExampleRunner(program: Program, funDef: FunDef, ctx: LeonConte
   override def evaluate(candidateInd: Int, exampleInd: Int) = {
     val closure = candidateClosures(candidateInd)    
     
-    fine("to evaluate candidate #" + candidateInd + " (" + candidates(candidateInd) + ") for " + examples(exampleInd))
+    fine("Index evaluate candidate [%d]%s, for [%d]%s.".format(
+      candidateInd, candidates(candidateInd).prepareExpression, exampleInd, examples(exampleInd)
+	))
     
     evaluate(closure, _examples(exampleInd))
   } 
@@ -80,7 +83,6 @@ case class CodeGenExampleRunner(program: Program, funDef: FunDef, ctx: LeonConte
   }
 
   def evaluate(evalClosure: Seq[Expr] => Result, args: Seq[Expr]) = {
-    fine("To evaluate for: " + args.mkString(", "))
     try {
 	    evalClosure(args) match {
 	      case Successful(BooleanLiteral(true)) =>
