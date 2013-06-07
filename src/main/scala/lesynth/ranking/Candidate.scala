@@ -64,8 +64,8 @@ case class DefaultCandidate(expr: Expr, bodyExpr: Expr, weight: Weight, holeFunD
     // set appropriate body to the function for the correct evaluation due to recursive calls
     holeFunDef.body = Some(bodyExpr)
     
-    finest("going to evaluate candidate for: " + holeFunDef)
-    finest("going to evaluate candidate for: " + expressionToEvaluate)
+//    finest("going to evaluate candidate for: " + holeFunDef)
+//    finest("going to evaluate candidate for: " + expressionToEvaluate)
     expressionToEvaluate
   }
 }
@@ -105,8 +105,8 @@ case class CodeGenCandidate(expr: Expr, bodyExpr: Expr, weight: Weight, holeFunD
   }
   
   override def prepareExpression = {
-    finest("going to evaluate candidate for: " + holeFunDef)
-    finest("going to evaluate candidate for: " + expressionToEvaluate)
+//    finest("going to evaluate candidate for: " + holeFunDef)
+//    finest("going to evaluate candidate for: " + expressionToEvaluate)
     expressionToEvaluate
   }
 }
