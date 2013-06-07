@@ -443,6 +443,7 @@ class SynthesizerForRuleExamples(
         info("Filtering based on precondition: " + holeFunDef.precondition.get)
         fine("counterexamples before filter: " + gatheredExamples.size)
         exampleRunner.filter(holeFunDef.precondition.get)
+        gatheredExamples = exampleRunner.examples
         fine("counterexamples after filter: " + gatheredExamples.size)
         fine("counterexamples after filter: " + gatheredExamples.mkString("\n"))
       }

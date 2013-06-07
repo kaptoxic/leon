@@ -8,6 +8,7 @@ import leon.purescala.Trees._
 import leon.purescala.Definitions.{ FunDef, VarDecl, Program, ObjectDef }
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
+import leon.codegen.CodeGenEvalParams
 
 import insynth.reconstruction.Output
 import insynth.util.logging._
@@ -33,10 +34,14 @@ case class DefaultEvaluationStrategy(program: Program, funDef: FunDef, ctx: Leon
     exampleRunner = DefaultExampleRunner(program, funDef, ctx, candidates, inputExamples)
     
     // printing candidates and pass counts        
+    fine("Ranking with examples: " + inputExamples.mkString(", "))
     fine( {
       val logString = ((candidates.zipWithIndex) map {
-        case (cand: Candidate, ind: Int) => ind + ": snippet is " + cand.expr +
-          " pass count is " + exampleRunner.countPassed(cand.prepareExpression)._1
+        case (cand: Candidate, ind: Int) => {
+        	val result = exampleRunner.countPassed(cand.prepareExpression)
+          ind + ": snippet is " + cand.expr +
+          " pass count is " + result._1 + " (" + result._2.mkString(", ") + ")"
+        }
       }).mkString("\n")
       logString
     })
@@ -50,7 +55,7 @@ case class DefaultEvaluationStrategy(program: Program, funDef: FunDef, ctx: Leon
 }
 
 case class CodeGenEvaluationStrategy(program: Program, funDef: FunDef, ctx: LeonContext,  
-  maxSteps: Int = 2000) extends EvaluationStrategy with HasLogger {
+  maxSteps: Int = 200) extends EvaluationStrategy with HasLogger {
   
   var exampleRunner: ExampleRunner = _
   
@@ -59,14 +64,23 @@ case class CodeGenEvaluationStrategy(program: Program, funDef: FunDef, ctx: Leon
     val candidates = Candidate.makeCodeGenCandidates(candidatePairs, bodyBuilder, funDef) 
     
 	val newProgram = program.copy(mainObject = program.mainObject.copy(defs = program.mainObject.defs ++ candidates.map(_.newFunDef)))
+	
+	finest("New program looks like: " + newProgram)
+	finest("Candidates look like: " + candidates.map(_.prepareExpression).mkString("\n"))
         
-    exampleRunner = CodeGenExampleRunner(newProgram, funDef, ctx, candidates, inputExamples)
+		val params = CodeGenEvalParams(maxFunctionInvocations = maxSteps, checkContracts = true)
+	
+    exampleRunner = CodeGenExampleRunner(newProgram, funDef, ctx, candidates, inputExamples, params)
     
     // printing candidates and pass counts        
+    fine("Ranking with examples: " + inputExamples.mkString(", "))
     fine( {
       val logString = ((candidates.zipWithIndex) map {
-        case (cand: Candidate, ind: Int) => ind + ": snippet is " + cand.expr +
-          " pass count is " + exampleRunner.countPassed(cand.prepareExpression)._1
+        case (cand: Candidate, ind: Int) => {
+        	val result = exampleRunner.countPassed(cand.prepareExpression)
+          ind + ": snippet is " + cand.expr +
+          " pass count is " + result._1 + " (" + result._2.mkString(", ") + ")"
+        }
       }).mkString("\n")
       logString
     })
