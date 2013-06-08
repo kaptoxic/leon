@@ -35,6 +35,7 @@ import scala.util.control.Breaks._
 import lesynth.examples._
 import lesynth.evaluation._
 import lesynth.ranking._
+import lesynth.refinement._
 
 import SynthesisInfo._
 import SynthesisInfo.Action._
@@ -85,7 +86,7 @@ class SynthesizerForRuleExamples(
   private var loader: LeonLoader = _
   private var inSynth: InSynth = _
   private var inSynthBoolean: InSynth = _
-  private var refiner: Refiner = _
+  private var refiner: Filter = _
   //private var solver: Solver = _
   private var ctx: LeonContext = _
   private var initialPrecondition: Expr = _
@@ -272,7 +273,7 @@ class SynthesizerForRuleExamples(
       loader.variableDeclarations, loader.classMap, reporter)
 
     // calculate cases that should not happen
-    refiner = new Refiner(program, hole, holeFunDef)
+    refiner = new Filter(program, holeFunDef, variableRefiner)
 
     gatheredExamples = ArrayBuffer(introduceExamples().map(Example(_)): _*)
     info("Introduced examples: " + gatheredExamples.mkString("\t"))
