@@ -1,7 +1,9 @@
 package lesynth
+package refinement
 
 import leon.purescala.Trees._
-import leon.purescala.Definitions.{ Program, VarDecl, FunDef, VarDecls }
+import leon.purescala.TypeTrees._
+import leon.purescala.Definitions._
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.purescala.TreeOps
 import leon.plugin.ExtractionPhase
@@ -10,7 +12,7 @@ import insynth.leon.loader.LeonLoader
 
 import insynth.util.logging.HasLogger
 
-class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogger {      
+class Filter(program: Program, holeFunDef: FunDef, refiner: VariableRefiner) extends HasLogger {      
   import Globals._
   
   def isAvoidable(expr: Expr, funDefArgs: List[Identifier]) = {
@@ -18,9 +20,11 @@ class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogge
       "Results for refining " + expr + ", are: " +
       " ,isCallAvoidableBySize(expr) " + isCallAvoidableBySize(expr, funDefArgs) +
       " ,hasDoubleRecursion(expr) " + hasDoubleRecursion(expr) +
-      " ,isOperatorAvoidable(expr) " + isOperatorAvoidable(expr)
+      " ,isOperatorAvoidable(expr) " + isOperatorAvoidable(expr) +
+      " ,isUnecessaryInstanceOf(expr) " + isUnecessaryInstanceOf(expr)
     )
-    isCallAvoidableBySize(expr, funDefArgs) || hasDoubleRecursion(expr) || isOperatorAvoidable(expr)
+    isCallAvoidableBySize(expr, funDefArgs) || hasDoubleRecursion(expr) ||
+    isOperatorAvoidable(expr) || isUnecessaryInstanceOf(expr)
   }
   
   //val holeFunDef = Globals.holeFunDef
@@ -108,6 +112,27 @@ class Refiner(program: Program, hole: Hole, holeFunDef: FunDef) extends HasLogge
     case GreaterEquals(expr1, expr2) if expr1 == expr2 => true 
     case Equals(expr1, expr2) if expr1 == expr2 => true 
     case _ => false
+  }
+  
+  def isUnecessaryInstanceOf(expr: Expr) = {
+    def isOfClassType(exp: Expr, classDef: ClassTypeDef) =
+      expr.getType match {
+        case tpe: ClassType => tpe.classDef == classDef
+        case _ => false
+      }
+    expr match {
+	    case CaseClassInstanceOf(classDef, innerExpr)
+	    	if isOfClassType(innerExpr, classDef) =>
+	      true
+	    case CaseClassInstanceOf(classDef, v@Variable(id)) => {
+	      val possibleTypes = refiner.getPossibleTypes(id)
+	      if (possibleTypes.size == 1)
+	        possibleTypes.head.classDef == classDef
+	      else
+	        false
+	    }
+	    case _ => false
+    }
   }
   
 }
