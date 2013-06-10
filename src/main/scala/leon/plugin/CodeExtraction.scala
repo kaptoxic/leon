@@ -504,6 +504,7 @@ trait CodeExtraction extends Extractors {
                 unsupported(tr, "Cannot alias array")
             }
           }
+
           val restTree = rest match {
             case Some(rst) => {
               varSubsts(vs) = (() => Variable(newID))

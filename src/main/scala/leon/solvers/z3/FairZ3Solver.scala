@@ -171,9 +171,6 @@ class FairZ3Solver(context : LeonContext)
 
       val asMap = modelToMap(model, variables) ++ functionsAsMap ++ constantFunctionsAsMap
       
-      // lesynth
-      lesynth.Globals.asMap = asMap
-      
       lazy val modelAsString = asMap.toList.map(p => p._1 + " -> " + p._2).mkString("\n")
       val evalResult = evaluator.eval(formula, asMap)
 
@@ -525,8 +522,6 @@ class FairZ3Solver(context : LeonContext)
               scalaTime.start
               val model = modelToMap(z3model, varsInVC)
   
-              // lesynth
-              lesynth.Globals.asMap = model
               scalaTime.stop
 
               //lazy val modelAsString = model.toList.map(p => p._1 + " -> " + p._2).mkString("\n")
