@@ -1,8 +1,8 @@
 package lesynth
 
-import scala.collection.mutable.{ Map => MutableMap }
-import scala.collection.mutable.{ Set => MutableSet }
-import scala.collection.mutable.{ ArrayBuffer, PriorityQueue }
+import scala.collection.mutable.{ Map => MutableMap, Set => MutableSet }
+import scala.collection.mutable.{ PriorityQueue, ArrayBuffer, HashSet }
+import scala.util.control.Breaks._
 
 import leon.{ Reporter, DefaultReporter, SilentReporter, LeonContext }
 import leon.Main.processOptions
@@ -27,9 +27,6 @@ import insynth.leon._
 import insynth.engine._
 import insynth.reconstruction.Output
 import insynth.util.logging.HasLogger
-
-import scala.collection.mutable.{ Map => MutableMap, Set => MutableSet }
-import scala.util.control.Breaks._
 
 import lesynth.examples._
 import lesynth.evaluation._
@@ -93,7 +90,8 @@ class SynthesizerForRuleExamples(
   // heuristics that guide the search
   private var variableRefiner: VariableRefiner = _
   private var refiner: Filter = _
-  private var seenBranchExpressions: Set[String] = Set.empty
+  type FilterSet = HashSet[Expr]
+  private var seenBranchExpressions: FilterSet = new FilterSet()
 
   // filtering/ranking with examples support
   var exampleRunner: ExampleRunner = _
@@ -130,6 +128,7 @@ class SynthesizerForRuleExamples(
     // update flag in case of time limit overdue
     def checkTimeout =
       if (synthesisContext.shouldStop.get) {
+        reporter.info("Timeout occured, stopping this synthesis rules")
         keepGoing = false
         true
       } else
@@ -181,15 +180,13 @@ class SynthesizerForRuleExamples(
                   out => {
                     val snip = out.getSnippet
                     fine("enumerated: " + snip)
-                    (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
+      							(seenBranchExpressions contains snip) ||
+      								refiner.isAvoidable(snip, problem.as)
                   }).toIndexedSeq
             }
             info("Got candidates of size: " + candidates.size +
               " , first 10 of them are: " + candidates.take(10).map(_.getSnippet.toString).mkString(",\t"))
             //interactivePause
-
-
-            //		    val count = exampleRunner.evaluate(expressionToCheck, mapping)
 
             if (candidates.size > 0) {
               // save current precondition and the old body since it will can be mutated during evaluation
@@ -217,24 +214,17 @@ class SynthesizerForRuleExamples(
               interactivePause
               numberOfTested += batchSize
 
-              if (false //candidates.exists(_.toString contains "merge(sort(split(list")
-              ) {
-                println("maxCandidate is: " + maxCandidate)
-                println(ranker.printTuples)
-                println("AAA2")
-                println("Candidates: " + candidates.zipWithIndex.map({
-                  case (cand, ind) => "[" + ind + "]" + cand.toString
-                }).mkString("\n"))
-                println("Examples: " + gatheredExamples.zipWithIndex.map({
-                  case (example, ind) => "[" + ind + "]" + example.toString
-                }).mkString("\n"))
-                interactivePause
-              }
-
-              //			        interactivePause
-              if (tryToSynthesizeBranch(maxCandidate.getExpr)) {
+              val currentCandidateExpr = maxCandidate.getExpr
+              if (tryToSynthesizeBranch(currentCandidateExpr)) {
                 noBranchFoundIteration = 0
+                
+                // after a branch is synthesized it makes sense to consider candidates that previously failed
+                seenBranchExpressions = new FilterSet()
+                
                 break
+              } else {
+				        // add to seen if branch was not found for it
+				        seenBranchExpressions += currentCandidateExpr
               }
               			        interactivePause
 
@@ -243,9 +233,6 @@ class SynthesizerForRuleExamples(
             }
           } // while(true)          
         } //  breakable
-
-        // add to seen if branch was not found for it
-        //seenBranchExpressions += snippetTree.toString
 
         if (!keepGoing) break
 
