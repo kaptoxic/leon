@@ -86,7 +86,7 @@ case class CodeGenExampleRunner(program: Program, funDef: FunDef, ctx: LeonConte
     try {
 	    evalClosure(args) match {
 	      case Successful(BooleanLiteral(true)) =>
-	        fine("Eval succeded: EvaluationSuccessful(true)")
+	        fine("EvaluationSuccessful(true) for " + args)
 	        true
 	      case m =>
 	        fine("Eval failed: " + m)
