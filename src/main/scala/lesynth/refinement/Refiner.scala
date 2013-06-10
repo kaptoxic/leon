@@ -1,6 +1,8 @@
 package lesynth
 package refinement
 
+import scala.collection.mutable._
+
 import leon.purescala.Trees._
 import leon.purescala.TypeTrees._
 import leon.purescala.Definitions._
@@ -9,10 +11,13 @@ import leon.purescala.TreeOps
 import leon.plugin.ExtractionPhase
 
 import insynth.leon.loader.LeonLoader
-
 import insynth.util.logging.HasLogger
 
 class Filter(program: Program, holeFunDef: FunDef, refiner: VariableRefiner) extends HasLogger {      
+  
+  // caching of previously filtered expressions
+  type FilterSet = HashSet[Expr]
+  private var seenBranchExpressions: FilterSet = new FilterSet()
   
   def isAvoidable(expr: Expr, funDefArgs: List[Identifier]) = {
     finest(
@@ -22,8 +27,18 @@ class Filter(program: Program, holeFunDef: FunDef, refiner: VariableRefiner) ext
       " ,isOperatorAvoidable(expr) " + isOperatorAvoidable(expr) +
       " ,isUnecessaryInstanceOf(expr) " + isUnecessaryInstanceOf(expr)
     )
-    isCallAvoidableBySize(expr, funDefArgs) || hasDoubleRecursion(expr) ||
-    isOperatorAvoidable(expr) || isUnecessaryInstanceOf(expr)
+    if (seenBranchExpressions contains expr) {
+      true
+    } else {
+	    val result = isCallAvoidableBySize(expr, funDefArgs) || hasDoubleRecursion(expr) ||
+  									isOperatorAvoidable(expr) || isUnecessaryInstanceOf(expr)
+  									
+			// cache results
+			if (result) {
+			  seenBranchExpressions += expr			  
+			}
+		  result
+    }
   }
     
   val pureRecurentExpression: Expr = 
