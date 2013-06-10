@@ -13,10 +13,9 @@ import insynth.leon.loader.LeonLoader
 import insynth.util.logging.HasLogger
 
 class Filter(program: Program, holeFunDef: FunDef, refiner: VariableRefiner) extends HasLogger {      
-  import Globals._
   
   def isAvoidable(expr: Expr, funDefArgs: List[Identifier]) = {
-    fine(
+    finest(
       "Results for refining " + expr + ", are: " +
       " ,isCallAvoidableBySize(expr) " + isCallAvoidableBySize(expr, funDefArgs) +
       " ,hasDoubleRecursion(expr) " + hasDoubleRecursion(expr) +
@@ -26,8 +25,6 @@ class Filter(program: Program, holeFunDef: FunDef, refiner: VariableRefiner) ext
     isCallAvoidableBySize(expr, funDefArgs) || hasDoubleRecursion(expr) ||
     isOperatorAvoidable(expr) || isUnecessaryInstanceOf(expr)
   }
-  
-  //val holeFunDef = Globals.holeFunDef
     
   val pureRecurentExpression: Expr = 
 	  if (holeFunDef.hasBody) {
@@ -38,7 +35,7 @@ class Filter(program: Program, holeFunDef: FunDef, refiner: VariableRefiner) ext
     
   def isBadInvocation(expr2: Expr) = expr2 match {
     case `pureRecurentExpression` =>
-      fine("pure recurrent expression detected")
+      fine("Pure recurrent expression detected: " + pureRecurentExpression)
       true
     case FunctionInvocation(`holeFunDef`, args) =>
       (0 /: (args zip holeFunDef.args.map(_.id))) {
@@ -71,7 +68,7 @@ class Filter(program: Program, holeFunDef: FunDef, refiner: VariableRefiner) ext
 	    case CaseClass(caseClassDef, head :: tail :: Nil) => getSize(tail, size + 1)
 	    case CaseClass(caseClassDef, Nil) => 1
 	    case v: Variable => if (v.id == variable) size else {
-	      fine("variable IDs do not match: " + v.id.uniqueName + " and " + variable.uniqueName )
+//	      finest("Refiner: Variable IDs do not match: " + v.id.uniqueName + " and " + variable.uniqueName )
 	      1
 	    }
 	    case _ => //throw new RuntimeException("Could not match " + arg + " in getSize")

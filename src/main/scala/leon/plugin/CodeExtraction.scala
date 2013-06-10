@@ -688,17 +688,6 @@ trait CodeExtraction extends Extractors {
             }
           }
           
-          // lesynth
-          case ExHoleExpression(tpe, sym) => {            
-            println("found desired type: " + tpe)
-            
-            // make a hole tree
-            lesynth.Globals.hole =
-              Hole( scalaType2PureScala(unit, silent)(tpe) )
-              
-            lesynth.Globals.hole
-          }
-          
           case epsi@ExEpsilonExpression(tpe, varSym, predBody) => {
             val pstpe = scalaType2PureScala(unit, silent)(tpe)
             val previousVarSubst: Option[Function0[Expr]] = varSubsts.get(varSym) //save the previous in case of nested epsilon
