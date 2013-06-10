@@ -87,9 +87,6 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
           val t2 = System.nanoTime
           val dt = ((t2 - t1) / 1000000) / 1000.0
 
-          // lesynth
-      	  lesynth.Globals.allSolved = solverResult
-
           solverResult match {
             case _ if vctx.shouldStop.get() =>
               reporter.info("=== CANCELLED ===")
@@ -125,10 +122,6 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
       }) match {
         case None => {
           vcInfo.hasValue = true
-
-          // lesynth
-          lesynth.Globals.allSolved = None
-          lesynth.Globals.asMap = Map.empty
 
           reporter.warning("No solver could prove or disprove the verification condition.")
         }
