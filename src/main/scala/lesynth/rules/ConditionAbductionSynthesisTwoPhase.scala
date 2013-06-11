@@ -24,7 +24,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
         List(new RuleInstantiation(p, this, SolutionBuilder.none, "Condition abduction") {
           def apply(sctx: SynthesisContext): RuleApplicationResult = {
             try {
-              val solver = new TimeoutSolver(sctx.solver, 200L)
+              val solver = new TimeoutSolver(sctx.solver, 500L)
               val program = sctx.program
               val reporter = sctx.reporter
 
@@ -42,11 +42,11 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 val codeGenEval = new CodeGenEvaluator(sctx.context, sctx.program)
                 def getInputExamples = {
                   () => getDataGenInputExamples(codeGenEval, p, 
-                		20, 2000, Some(p.as)
+                		50, 2000, Some(p.as)
                 	)
                 }
                 
-            	val evaluationStrategy = new CodeGenEvaluationStrategy(program, holeFunDef, sctx.context, 500)
+            	val evaluationStrategy = new CodeGenEvaluationStrategy(program, holeFunDef, sctx.context, 1000)
                 	
                 holeFunDef.postcondition = Some(replace(
                   Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))
