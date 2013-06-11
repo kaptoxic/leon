@@ -200,7 +200,7 @@ class SynthesizerForRuleExamples(
               
               info("Ranking candidates...")
               synthInfo.start(Action.Evaluation)
-              val maxCandidate = ranker.getMax
+              val (maxCandidate, maxCandidateInd) = ranker.getMax
               synthInfo.end
 
               // restore original precondition and body
@@ -211,11 +211,26 @@ class SynthesizerForRuleExamples(
               if (!keepGoing) break
 
               info("Candidate with the most successfull evaluations is: " + maxCandidate)
-              interactivePause
+//              interactivePause
               numberOfTested += batchSize
 
+              // get all examples that failed evaluation to filter potential conditions
+              val evaluation = evaluationStrategy.getEvaluation
+              // evaluate all remaining examples
+              for (_ <- exampleRunner.examples.size until
+                  				evaluation.getNumberOfEvaluations(maxCandidateInd) by -1)
+              	evaluation.evaluate(maxCandidateInd)
+              val (evalArray, size) = evaluation.getEvaluationVector(maxCandidateInd)
+              assert(size == gatheredExamples.size)
+              val failedExamples = (gatheredExamples zip evalArray).filterNot {
+                case (ex, result) =>
+                  result
+              }.map(_._1)
+              fine("Failed examples for the maximum candidate: " + failedExamples.mkString(", "))
+//              interactivePause
+              
               val currentCandidateExpr = maxCandidate.getExpr
-              if (tryToSynthesizeBranch(currentCandidateExpr)) {
+              if (tryToSynthesizeBranch(currentCandidateExpr, failedExamples)) {
                 noBranchFoundIteration = 0
                 
                 // after a branch is synthesized it makes sense to consider candidates that previously failed
@@ -226,7 +241,7 @@ class SynthesizerForRuleExamples(
 				        // add to seen if branch was not found for it
 				        seenBranchExpressions += currentCandidateExpr
               }
-              			        interactivePause
+//              			        interactivePause
 
               totalExpressionsTested += numberOfTested
               noBranchFoundIteration += 1
@@ -377,7 +392,7 @@ class SynthesizerForRuleExamples(
     info("Introduced examples: " + gatheredExamples.mkString("\t"))
   }
 
-  def tryToSynthesizeBranch(snippetTree: Expr): Boolean = {
+  def tryToSynthesizeBranch(snippetTree: Expr, failedExamples: Seq[Example]): Boolean = {
     // replace hole in the body with the whole if-then-else structure, with current snippet tree
     val oldBody = holeFunDef.getBody
     val newBody = accumulatingExpression(snippetTree)
@@ -389,25 +404,28 @@ class SynthesizerForRuleExamples(
 
     snippetTree.setType(hole.desiredType)
     //holeFunDef.getBody.setType(hole.desiredType)
-
-    // analyze the program
     info("Current candidate solution is:\n" + holeFunDef)
-    fine("Analyzing program for funDef:" + holeFunDef)
-    val (result, map) = analyzeProgram
 
-    info("Solver returned: " + result)
-    // check if solver could solved this instance
-    if (result) {
-      // mark the branch found
-      found = true
-
-      reporter.info("Wooooooow we have a winner!")
-      reporter.info("************************************")
-      reporter.info("*********And the winner is**********")
-      reporter.info(accumulatingExpression(snippetTree).toString)
-      reporter.info("************************************")
-
-      return true
+    if (failedExamples.isEmpty) {
+    	// check if solver could solved this instance
+    	fine("Analyzing program for funDef:" + holeFunDef)
+    	val (result, map) = analyzeProgram
+			info("Solver returned: " + result)
+    	
+	    if (result) {
+	      // mark the branch found
+	      found = true
+	
+	      reporter.info("Wooooooow we have a winner!")
+	      reporter.info("************************************")
+	      reporter.info("*********And the winner is**********")
+	      reporter.info(accumulatingExpression(snippetTree).toString)
+	      reporter.info("************************************")
+	
+	      return true
+	    } else {
+	      gatheredExamples += Example(map)
+	    }
     }
 
     // store appropriate values here, will be update in a finally branch
@@ -423,7 +441,7 @@ class SynthesizerForRuleExamples(
 
     // collect (add) counterexamples from leon
     if (collectCounterExamplesFromLeon)
-      gatheredExamples ++= (map +: maps).map(Example(_))
+      gatheredExamples ++= maps.map(Example(_))
 
     // will modify funDef body and precondition, restore it later
     try {
@@ -448,7 +466,11 @@ class SynthesizerForRuleExamples(
         ) {
           fine("boolean snippet is: " + innerSnippetTree)
           info("Trying: " + innerSnippetTree + " as a condition.")
-          val (innerFound, innerPrec) = tryToSynthesizeBooleanCondition(snippetTree, innerSnippetTree, maps)
+          val (innerFound, innerPrec) = tryToSynthesizeBooleanCondition(
+            snippetTree, innerSnippetTree,
+            // counter examples represent those for which candidate fails
+            (failedExamples.map(_.map) ++ maps)
+          )
 
           // if precondition found
           if (innerFound) {

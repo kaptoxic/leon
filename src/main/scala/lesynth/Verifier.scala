@@ -11,8 +11,9 @@ import leon.synthesis._
 
 import insynth.util.logging._
 
-class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo: SynthesisInfo) extends HasLogger {
-  
+class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo: SynthesisInfo)
+	extends HasLogger {
+    
   import SynthesisInfo.Action._
   
   def analyzeProgram = {
@@ -89,7 +90,8 @@ class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo:
       case Some(false) =>
         true
       case None =>
-        false
+        warning("Interpreting None (timeout) as evidence for validity.")
+        true
     }
   }
   
@@ -106,7 +108,8 @@ class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo:
       case Some(false) =>
         true
       case None =>
-        false
+        warning("Interpreting None (timeout) as evidence for validity.")
+        true
     }
   }
   
@@ -125,5 +128,9 @@ class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo:
         false
     }
   }
+  
+//  private def checkSatisfiability = {
+//    
+//  }
   
 }
