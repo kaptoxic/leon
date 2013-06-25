@@ -290,6 +290,7 @@ class SynthesizerForRuleExamples(
 
     // save current precondition
     var precondition = funDef.precondition.getOrElse(BooleanLiteral(true))
+    val preconditionToRestore = funDef.precondition
     // accumulate counterexamples as sequence of maps
     var maps: Seq[Map[Identifier, Expr]] = Seq.empty
 
@@ -320,6 +321,7 @@ class SynthesizerForRuleExamples(
       ind += 1
     }
 
+    funDef.precondition = preconditionToRestore
     // return found counterexamples and the formed precondition
     (maps, precondition)
   }
