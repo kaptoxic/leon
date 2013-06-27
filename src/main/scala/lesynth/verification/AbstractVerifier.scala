@@ -11,16 +11,17 @@ import leon.synthesis._
 
 import insynth.util.logging._
 
-class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo: SynthesisInfo)
+abstract class AbstractVerifier(solver: IncrementalSolver, p: Problem,
+  synthInfo: SynthesisInfo)
 	extends HasLogger {
     
   import SynthesisInfo.Action._
   
-  def analyzeProgram = {
+  def analyzeFunction(funDef: FunDef) = {
     synthInfo.start(Verification)
 
     // create an expression to verify
-    val theExpr = generateVerificationCondition(funDef.getBody)
+    val theExpr = generateVerificationCondition(funDef, funDef.getBody)
      
     solver.push
     val valid = checkValidity(theExpr)
@@ -29,11 +30,28 @@ class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo:
 
     // measure time
     synthInfo.end
-    fine("Analysis took of theExpr: " + synthInfo.last)
+    fine("Analysis of " + theExpr + ",took :" + synthInfo.last)
+    (valid, map)
+  }
+  
+  def analyzeFunction(funDef: FunDef, body: Expr) = {
+    synthInfo.start(Verification)
+
+    // create an expression to verify
+    val theExpr = generateVerificationCondition(funDef, body)
+     
+    solver.push
+    val valid = checkValidity(theExpr)
+    val map = solver.getModel
+    solver.pop()
+
+    // measure time
+    synthInfo.end
+    fine("Analysis of " + theExpr + ",took :" + synthInfo.last)
     (valid, map)
   }
 
-  def generateVerificationCondition(body: Expr) = {
+  protected def generateVerificationCondition(funDef: FunDef, body: Expr) = {
         
     // replace recursive calls with fresh variables
     case class Replacement(id: Identifier, exprReplaced: FunctionInvocation) {
@@ -80,57 +98,10 @@ class Verifier(solver: IncrementalSolver, p: Problem, funDef: FunDef, synthInfo:
     withPrec
   }
   
-  def checkValidity(expression: Expr) = {
-    solver.assertCnstr(Not(expression))   
-    val solverCheckResult = solver.check
-    fine("Solver said " + solverCheckResult + " for " + expression)
-    solverCheckResult match {
-      case Some(true) =>
-        false
-      case Some(false) =>
-        true
-      case None =>
-        warning("Interpreting None (timeout) as evidence for validity.")
-        true
-    }
-  }
+  def checkValidity(expression: Expr): Boolean
   
-  def checkValidityNoMod(expression: Expr) = {
-    solver.push
-    solver.assertCnstr(Not(expression))   
-    val solverCheckResult = solver.check
-    fine("Solver said " + solverCheckResult + " for " + expression)
-    solver.pop()    
-    solverCheckResult match {
-      case Some(true) =>
-        fine("And the model is " + solver.getModel)
-        false
-      case Some(false) =>
-        true
-      case None =>
-        warning("Interpreting None (timeout) as evidence for validity.")
-        true
-    }
-  }
+  def checkValidityNoMod(expression: Expr): Boolean
   
-  def checkSatisfiabilityNoMod(expression: Expr) = {
-    solver.push
-    solver.assertCnstr(expression)   
-    val solverCheckResult = solver.check
-    fine("Solver said " + solverCheckResult + " for " + expression)
-    solver.pop()    
-    solverCheckResult match {
-      case Some(true) =>
-        true
-      case Some(false) =>
-        false
-      case None =>
-        false
-    }
-  }
-  
-//  private def checkSatisfiability = {
-//    
-//  }
+  def checkSatisfiabilityNoMod(expression: Expr): Boolean
   
 }
