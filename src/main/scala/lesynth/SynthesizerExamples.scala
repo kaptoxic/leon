@@ -107,7 +107,7 @@ class SynthesizerForRuleExamples(
   // information about the synthesis
   private val synthInfo = new SynthesisInfo
   
-  val verifier = new Verifier(solver, problem, holeFunDef, synthInfo)
+  val verifier = new Verifier(solver, problem, synthInfo)
   import verifier._
 
   def synthesize: Report = {
@@ -299,7 +299,7 @@ class SynthesizerForRuleExamples(
     var ind = 0
     while (ind < number && changed) {
       // analyze the program
-      val (solved, map) = analyzeProgram
+      val (solved, map) = analyzeFunction(holeFunDef)
 
       // check if solver could solved this instance
       if (solved == false && !map.isEmpty) {
@@ -411,7 +411,7 @@ class SynthesizerForRuleExamples(
     if (failedExamples.isEmpty) {
     	// check if solver could solved this instance
     	fine("Analyzing program for funDef:" + holeFunDef)
-    	val (result, map) = analyzeProgram
+    	val (result, map) = analyzeFunction(holeFunDef)
 			info("Solver returned: " + result)
     	
 	    if (result) {
@@ -533,7 +533,7 @@ class SynthesizerForRuleExamples(
         holeFunDef.precondition = Some(newCondition)
         
         // do analysis
-        val (valid, map) = analyzeProgram
+        val (valid, map) = analyzeFunction(holeFunDef)
         // program is valid, we have a branch
         if (valid) {
           // we found a branch
