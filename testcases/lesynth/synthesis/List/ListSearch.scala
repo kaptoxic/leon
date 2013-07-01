@@ -4,6 +4,10 @@ object ListOperations {
     sealed abstract class List
     case class Cons(head: Int, tail: List) extends List
     case class Nil() extends List
+    
+    sealed abstract class Option
+    case class Some(i: Int) extends Option
+    case object None extends Option
 
     def content(l: List) : Set[Int] = l match {
       case Nil() => Set.empty
@@ -21,14 +25,13 @@ object ListOperations {
 //    }
     
     
-    def linearSearch(l: List, c: Int): Int = {
+    def linearSearch(l: List, c: Int): Option = {
       l match {
-        case Nil() =>  -1
+        case Nil() => None
         case Cons(lHead, lTail) =>
-          if (lHead != c) linearSearch(lTail, c)
-          else size(l)
+          if (lHead == c) Some(size(l))
+          else Some(linearSearch(lTail, c))
       }
-
     } ensuring(res => if(res > -1) atInd(l, size(l) - res) == c else !content(l).contains(c))
 
     def atInd(l: List, ind: Int): Int = {

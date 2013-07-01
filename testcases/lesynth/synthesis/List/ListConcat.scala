@@ -12,11 +12,6 @@ object ListOperations {
 	    case Cons(head, tail) => Set(head) ++ content(tail)
 	  }
     
-//    def isEmpty(l: List) = l match {
-//	    case Nil() => true
-//	    case Cons(_, _) => false      
-//    }
-    
     def concat(l1: List, l2: List) : List = choose {
     (out : List) =>
       content(out) == content(l1) ++ content(l2)

@@ -1,4 +1,5 @@
-package testutil
+package lesynth
+package util
 
 import java.util.logging.FileHandler
 import java.util.logging.Level
@@ -22,7 +23,7 @@ object TestConfig {
     
   val synthesisTestDir = "testcases/insynth-synthesis-tests/" 
     
-  val lesynthTestDir = "testcases/lesynth/" 
+  val lesynthTestDir = "testcases/lesynth/test/" 
   
   val HOME_FOLDER = "/home/kuraj/"
     
