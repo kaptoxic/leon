@@ -34,18 +34,24 @@ object InsertionSort {
 				else Cons(e, l)
     } 
   } ensuring(res => contents(res) == contents(l) ++ Set(e) 
-                    && isSorted(res)
-                    && size(res) == size(l) + 1
-            )
+      && isSorted(res)
+      && size(res) == size(l) + 1
+)
 
   /* Insertion sort yields a sorted list of same size and content as the input
    * list */
-  def sort(l: List): List = (l match {
-    case Nil() => Nil()
-    case Cons(x,xs) => sortedIns(x, sort(xs))
-  }) ensuring(res => contents(res) == contents(l) 
-                     && isSorted(res)
-                     && size(res) == size(l)
-             )
+  def xxsort(l: List): List = choose {
+    (res : List) =>
+      contents(res) == contents(l) &&
+      isSorted(res) &&
+      size(res) == size(l)
+//    val cond: Boolean =  /*!*/
+//    case Nil() =>  /*!*/ // Nil()
+//    case Cons(x,xs) =>  /*!*/ // sortedIns(x, sort(xs))
+  }
+//  ensuring(res => contents(res) == contents(l) 
+//                     && isSorted(res)
+//                     && size(res) == size(l)
+//             )
 
 }

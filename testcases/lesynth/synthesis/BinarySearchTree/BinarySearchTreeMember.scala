@@ -12,21 +12,42 @@ object BinarySearchTree {
     case Leaf() => Set.empty[Int]
     case Node(l, v, r) => contents(l) ++ Set(v) ++ contents(r)
   }
+//  def isSorted(tree: Tree): Boolean = tree match {
+//    case Leaf() => true
+//    case Node(Leaf(), v, Leaf()) => true
+//    case Node(l@Node(_, vIn, _), v, Leaf()) => v > vIn && isSorted(l)
+//    case Node(Leaf(), v, r@Node(_, vIn, _)) => v < vIn && isSorted(r)
+//    case Node(l@Node(_, vInLeft, _), v, r@Node(_, vInRight, _)) =>
+//      v > vInLeft && v < vInRight && isSorted(l) && isSorted(r)
+//  }
+//  
 
-  def isSorted(tree: Tree): Boolean = tree match {
-    case Leaf() => true
-    case Node(Leaf(), v, Leaf()) => true
-    case Node(l@Node(_, vIn, _), v, Leaf()) => v > vIn && isSorted(l)
-    case Node(Leaf(), v, r@Node(_, vIn, _)) => v < vIn && isSorted(r)
-    case Node(l@Node(_, vInLeft, _), v, r@Node(_, vInRight, _)) =>
-      v > vInLeft && v < vInRight && isSorted(l) && isSorted(r)
+  def isSorted(tree: Tree): Boolean =
+    isSortedMaxMin(tree, Int.MinValue, Int.MaxValue)  
+    
+  def max(a: Int, b: Int) = if (a < b) b else a
+  
+  def min(a: Int, b: Int) = if (a > b) b else a
+  
+  def isSortedMaxMin(tree: Tree, minVal: Int, maxVal: Int): Boolean = tree match {
+    case Leaf() => true    
+    case Node(left, v, right) =>
+      minVal < v && v < maxVal &&
+      // go left, update upper bound
+      isSortedMaxMin(left, minVal, min(maxVal, v)) &&
+      isSortedMaxMin(right, max(minVal, v), maxVal)
   }
   
   def member(tree: Tree, value: Int): Boolean = {
     require(isSorted(tree))
-    tree.isInstanceOf[Node]
-  } ensuring (res => res && contents(tree).contains(value) ||
-      (!res && !contents(tree).contains(value)))
+    choose {
+      (res: Boolean) =>
+        (
+            if (res) (contents(tree) == contents(tree) ++ Set(value))
+            else !(contents(tree) == contents(tree) ++ Set(value))
+        )
+    }
+  }
 
 //  def member(tree: Tree, value: Int): Boolean = {
 //    require(isSorted(tree))
