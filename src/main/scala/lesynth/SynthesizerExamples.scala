@@ -184,8 +184,10 @@ class SynthesizerForRuleExamples(
       								refiner.isAvoidable(snip, problem.as)
                   }).toIndexedSeq
             }
-            info("Got candidates of size: " + candidates.size +
-              " , first 10 of them are: " + candidates.take(10).map(_.getSnippet.toString).mkString(",\t"))
+//            info("Got candidates of size: " + candidates.size +
+//              " , first 10 of them are: " + candidates.take(10).map(_.getSnippet.toString).mkString(",\t"))
+            info("Got candidates of size: " + candidates.size)            
+            fine("Got candidates: " + candidates.map(_.getSnippet.toString).mkString(",\t"))
             //interactivePause
 
             if (candidates.size > 0) {
@@ -210,8 +212,8 @@ class SynthesizerForRuleExamples(
               // check for timeouts
               if (!keepGoing) break
 
-              info("Candidate with the most successfull evaluations is: " + maxCandidate)
-//              interactivePause
+              info("candidate with the most successfull evaluations is: " + maxCandidate)
+              interactivePause
               numberOfTested += batchSize
 
               // get all examples that failed evaluation to filter potential conditions
@@ -236,6 +238,7 @@ class SynthesizerForRuleExamples(
                 // after a branch is synthesized it makes sense to consider candidates that previously failed
                 seenBranchExpressions = new FilterSet()
                 
+//              			        interactivePause
                 break
               } else {
 				        // add to seen if branch was not found for it
@@ -455,6 +458,7 @@ class SynthesizerForRuleExamples(
           ((innerSnippets zip Iterator.range(0, numberOfBooleanSnippets).toStream) map {
             case ((snippet: Output, ind: Int)) => ind + ": snippet is " + snippet.getSnippet
           }).mkString("\n"))
+        interactivePause
 
         // enumerate synthesized boolean expressions and filter out avoidable ones
         for (
@@ -521,13 +525,67 @@ class SynthesizerForRuleExamples(
           exampleRunner.evaluateToResult(newCondition, exMapping) match {
             case EvaluationResults.Successful(BooleanLiteral(false)) => false
             case r =>
-              fine("Evaluation result for " + newCondition + " on " + exMapping + " is " + r)
-              true
+              
+              
+				    val newFunId = FreshIdentifier("tempIntroducedFunction22")
+				    val newFun = new FunDef(newFunId, holeFunDef.returnType, holeFunDef.args)
+//				    newFun.precondition = Some(newCondition)
+				    newFun.precondition = holeFunDef.precondition
+				    newFun.postcondition = holeFunDef.postcondition
+				    
+				    def replaceFunDef(expr: Expr) = expr match {
+				      case FunctionInvocation(`holeFunDef`, args) =>
+				        Some(FunctionInvocation(newFun, args))
+				      case _ => None
+				    }
+				    
+				    val error = Error("Condition flow hit unknown path.")
+				    error.setType(snippetTree.getType)
+				    val ifInInnermostElse =
+				      IfExpr(innerSnippetTree, snippetTree, error)
+				    
+				    import TreeOps._
+				    val newBody = searchAndReplace(replaceFunDef)(accumulatingExpression(ifInInnermostElse))
+				    
+				    newFun.body = Some(newBody)
+				    
+				    assert(newBody.getType != Untyped)
+            val resFresh2 = FreshIdentifier("result22", true).setType(newBody.getType)
+				
+              val newCandidate = 
+				    Let(resFresh2, newBody,
+				      replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
+				        matchToIfThenElse(newFun.getPostcondition)))
+				    println("new fun: " + newFun)
+//				    println("new candidate: " + newBody)
+	
+			        val newProgram = program.copy(mainObject =
+			          program.mainObject.copy(defs = newFun +: program.mainObject.defs ))
+//				    println("new program: " + newProgram)
+			          
+		          val _evaluator = new CodeGenEvaluator(synthesisContext.context, newProgram,		              
+		              leon.codegen.CodeGenEvalParams(maxFunctionInvocations = 500, checkContracts = true))
+	
+				    	val res = _evaluator.eval(newCandidate, exMapping)
+				    	println(res)
+//				    	if (newCandidate.toString contains "tree.value < value")
+//				    		interactivePause
+				    		
+//				    interactivePause
+			    		res match {
+				    	  case EvaluationResults.RuntimeError("Condition flow hit unknown path.") => false
+				    	  case EvaluationResults.Successful(BooleanLiteral(innerRes)) => !innerRes
+				    	  case _ => true
+				    	}
+				    		
+//              fine("Evaluation result for " + newCondition + " on " + exMapping + " is " + r)
+//              true
           }
         case _ => true
       }
       fine("implyCounterExamples: " + implyCounterExamples)
-
+//      interactivePause
+      
       if (!implyCounterExamples) {
         // if expression implies counterexamples add it to the precondition and try to validate program
         holeFunDef.precondition = Some(newCondition)
