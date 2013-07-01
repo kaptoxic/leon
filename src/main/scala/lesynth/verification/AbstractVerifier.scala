@@ -21,7 +21,7 @@ abstract class AbstractVerifier(solver: IncrementalSolver, p: Problem,
     synthInfo.start(Verification)
 
     // create an expression to verify
-    val theExpr = generateVerificationCondition(funDef, funDef.getBody)
+    val theExpr = generateInductiveVerificationCondition(funDef, funDef.getBody)
      
     solver.push
     val valid = checkValidity(theExpr)
@@ -38,7 +38,7 @@ abstract class AbstractVerifier(solver: IncrementalSolver, p: Problem,
     synthInfo.start(Verification)
 
     // create an expression to verify
-    val theExpr = generateVerificationCondition(funDef, body)
+    val theExpr = generateInductiveVerificationCondition(funDef, body)
      
     solver.push
     val valid = checkValidity(theExpr)
@@ -51,7 +51,7 @@ abstract class AbstractVerifier(solver: IncrementalSolver, p: Problem,
     (valid, map)
   }
 
-  protected def generateVerificationCondition(funDef: FunDef, body: Expr) = {
+  protected def generateInductiveVerificationCondition(funDef: FunDef, body: Expr) = {
         
     // replace recursive calls with fresh variables
     case class Replacement(id: Identifier, exprReplaced: FunctionInvocation) {
@@ -63,10 +63,10 @@ abstract class AbstractVerifier(solver: IncrementalSolver, p: Problem,
       }
     }
     
+    // traverse the expression and check (and replace) recursive calls
     var isThereARecursiveCall = false
     var replacements = List[Replacement]() 
     
-    // traverse the expression and check for recursive calls
     def replaceRecursiveCalls(expr: Expr) = expr match {
       case funInv@FunctionInvocation(`funDef`, args) => {
         isThereARecursiveCall = true
@@ -79,17 +79,18 @@ abstract class AbstractVerifier(solver: IncrementalSolver, p: Problem,
     
     val newBody = searchAndReplace(replaceRecursiveCalls)(body)
        
+    // build the verification condition
     val resFresh = FreshIdentifier("result", true).setType(newBody.getType)
     val bodyAndPost = 		    
 	    Let(
     		resFresh, newBody,
-    		replace(Map(ResultVariable() -> resFresh.toVariable), matchToIfThenElse(funDef.getPostcondition))
+    		replace(Map(ResultVariable() -> resFresh.toVariable), matchToIfThenElse(p.pc))
   		)	
 
 		val precondition = if( isThereARecursiveCall ) {
-		  And( funDef.getPrecondition :: replacements.map( r => replace(r.getMapping, funDef.getPostcondition)) )
+		  And( p.phi :: replacements.map( r => replace(r.getMapping, p.pc)) )
 		} else
-		  funDef.getPrecondition
+		  p.phi
   		
     val withPrec = 
       Implies(matchToIfThenElse(precondition), bodyAndPost)
