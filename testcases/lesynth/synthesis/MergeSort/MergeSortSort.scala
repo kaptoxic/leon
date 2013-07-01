@@ -66,8 +66,11 @@ object MergeSort {
     case Cons(x,xs) => false
   }
   
-  def xxmergeSort(list : List) : List = ({
-      hole[List](list)
+  def sort(list : List) : List = choose {
+      
+    (res : List) =>
+      contents(res) == contents(list) && isSorted(res)
+      
 //      list match {
 //    case Nil() => list
 //    case Cons(x,Nil()) => list
@@ -76,6 +79,8 @@ object MergeSort {
 //   	 merge(mergeSort(p.fst), mergeSort(p.snd))
       
 //      merge(mergeSort(split(list).fst), mergeSort(split(list).snd))
-  }) ensuring(res => contents(res) == contents(list) && isSorted(res))
+  }
+  
+  //ensuring(res => contents(res) == contents(list) && isSorted(res))
  
 }
