@@ -30,10 +30,14 @@ object MergeSort {
 
   def merge(aList : List, bList : List) : List = {
     require(isSorted(aList) && isSorted(bList))
-    
-    choose { (res : List) =>
-      contents(res) == contents(aList) ++ contents(bList) && isSorted(res)
-    }
+    choose( (res: List) =>
+    	ensuring(res => contents(res) == contents(aList) ++ contents(bList) && isSorted(res))
+  	)
+  }
+
+//  def merge(aList : List, bList : List) : List = {
+//    require(isSorted(aList) && isSorted(bList))
+//    
 //    bList match {       
 //      case Nil() => aList
 //      case Cons(x,xs) =>
@@ -46,7 +50,6 @@ object MergeSort {
 //                  Cons(x,merge(aList, xs))               
 //        }   
 //    }
-  }
-  //ensuring(res => contents(res) == contents(aList) ++ contents(bList) && isSorted(res))
+//  } ensuring(res => contents(res) == contents(aList) ++ contents(bList) && isSorted(res))
 
 }
