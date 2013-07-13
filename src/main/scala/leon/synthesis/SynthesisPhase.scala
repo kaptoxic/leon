@@ -108,7 +108,7 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
 
             // p has been updated
             // we hoist potential functions
-            val newP = xlang.FunctionClosure(ctx, p)
+            val newP = purescala.FunctionClosure(ctx, p)
 
             synthesizeNext(newP)
         }
