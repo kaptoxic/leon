@@ -34,6 +34,9 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
       case LeonFlagOption("manual") =>
         options = options.copy(manualSearch = true)
 
+      case LeonFlagOption("batch") =>
+        options = options.copy(batch = true)
+
       case LeonFlagOption("inplace") =>
         options = options.copy(inPlace = true)
 
@@ -91,29 +94,50 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
       options.filterFuns.isEmpty || options.filterFuns.get.contains(ci.fd.id.toString)
     }
 
-    var chooses = ChooseInfo.extractFromProgram(ctx, p, options).filter(toProcess)
+    if (options.batch) {
+      def synthesizeNext(p: Program): Program = {
+        ChooseInfo.extractFromProgram(ctx, p, options).headOption match {
+          case None => p
 
-    val results = chooses.map { ci =>
-      val (sol, isComplete) = ci.synthesizer.synthesize()
+          case Some(ci) =>
+            val (sol, isComplete) = ci.synthesizer.synthesize()
 
-      ci -> sol.toSimplifiedExpr(ctx, p)
-    }.toMap
+            val term = sol.toSimplifiedExpr(ctx, p)
 
-    if (options.inPlace) {
-      for (file <- ctx.files) {
-        new FileInterface(ctx.reporter).updateFile(file, results)
+            ci.fd.body = ci.fd.body.map(b => replace(Map(ci.ch -> term), b))
+
+            // p has been updated
+            // we hoist potential functions
+            val newP = xlang.FunctionClosure(ctx, p)
+
+            synthesizeNext(newP)
+        }
       }
     } else {
-      for ((ci, ex) <- results) {
-        val middle = " In "+ci.fd.id.toString+", synthesis of: "
+      var chooses = ChooseInfo.extractFromProgram(ctx, p, options).filter(toProcess)
 
-        val remSize = (80-middle.length)
+      val results = chooses.map { ci =>
+        val (sol, isComplete) = ci.synthesizer.synthesize()
 
-        ctx.reporter.info("-"*math.floor(remSize/2).toInt+middle+"-"*math.ceil(remSize/2).toInt)
-        ctx.reporter.info(ci.ch)
-        ctx.reporter.info("-"*35+" Result: "+"-"*36)
-        ctx.reporter.info(ScalaPrinter(ex))
-        ctx.reporter.info("")
+        ci -> sol.toSimplifiedExpr(ctx, p)
+      }.toMap
+
+      if (options.inPlace) {
+        for (file <- ctx.files) {
+          new FileInterface(ctx.reporter).updateFile(file, results)
+        }
+      } else {
+        for ((ci, ex) <- results) {
+          val middle = " In "+ci.fd.id.toString+", synthesis of: "
+
+          val remSize = (80-middle.length)
+
+          ctx.reporter.info("-"*math.floor(remSize/2).toInt+middle+"-"*math.ceil(remSize/2).toInt)
+          ctx.reporter.info(ci.ch)
+          ctx.reporter.info("-"*35+" Result: "+"-"*36)
+          ctx.reporter.info(ScalaPrinter(ex))
+          ctx.reporter.info("")
+        }
       }
     }
 
