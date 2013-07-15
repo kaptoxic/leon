@@ -524,10 +524,10 @@ object CodeGeneration {
         val cName = defToJVMName(ccd)
         if (doInstrument) {
           ch << DUP << DUP
+          ch << GetField(cName, instrumentedField, "I")
           ch << Ldc(i+1)
           ch << Ldc(1)
           ch << ISHL
-          ch << GetField(cName, instrumentedField, "I")
           ch << IOR
           ch << PutField(cName, instrumentedField, "I")
         }
@@ -553,11 +553,12 @@ object CodeGeneration {
       cf.addInterface(CaseClassClass)
     }
 
+    val namesTypes = ccd.fields.map { vd => (vd.id.name, typeToJVM(vd.tpe)) }
+
     // definition of the constructor
-    if(false && ccd.fields.isEmpty) {
+    if(!doInstrument && ccd.fields.isEmpty) {
       cf.addDefaultConstructor
     } else {
-      val namesTypes = (instrumentedField -> "I") +: ccd.fields.map { vd => (vd.id.name, typeToJVM(vd.tpe)) }
 
       for((nme, jvmt) <- namesTypes) {
         val fh = cf.addField(jvmt, nme)
@@ -567,10 +568,21 @@ object CodeGeneration {
         ).asInstanceOf[U2])
       }
 
+      if (doInstrument) {
+        val fh = cf.addField("I", instrumentedField)
+        fh.setFlags(FIELD_ACC_PUBLIC)
+      }
+
       val cch = cf.addConstructor(namesTypes.map(_._2).toList).codeHandler
 
       cch << ALoad(0)
       cch << InvokeSpecial(pName.getOrElse("java/lang/Object"), constructorName, "()V")
+
+      if (doInstrument) {
+        cch << ALoad(0)
+        cch << Ldc(0)
+        cch << PutField(cName, instrumentedField, "I")
+      }
 
       var c = 1
       for((nme, jvmt) <- namesTypes) {
