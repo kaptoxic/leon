@@ -525,8 +525,8 @@ object CodeGeneration {
         if (doInstrument) {
           ch << DUP << DUP
           ch << GetField(cName, instrumentedField, "I")
-          ch << Ldc(i)
           ch << Ldc(1)
+          ch << Ldc(i)
           ch << ISHL
           ch << IOR
           ch << PutField(cName, instrumentedField, "I")

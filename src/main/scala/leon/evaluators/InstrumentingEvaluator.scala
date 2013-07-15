@@ -14,7 +14,7 @@ import vanuatoo.{Pattern => VPattern, _}
 
 class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
 
-  val ints = (for (i <- Set(0,1,2,3)) yield {
+  val ints = (for (i <- Set(0, 1, 2, 3)) yield {
     i -> Constructor[Expr, TypeTree](List(), Int32Type, s => IntLiteral(i), ""+i)
   }).toMap
 
@@ -165,6 +165,7 @@ class VanuatooModelFinder(ctx: LeonContext, p: Program) {
                 found += model.exprs
 
               case (_, Some(pattern)) =>
+                println("From model: "+model)
                 println("Got pattern to exclude "+pattern)
 
                 it.exclude(pattern)
