@@ -62,7 +62,7 @@ class VanuatooContext(ctx: LeonContext) {
 
       case CaseClassType(ccd) =>
         List(ccConstructors.getOrElse(ccd, {
-          val c = Constructor[Expr, TypeTree](ccd.fields.map(_.tpe), CaseClassType(ccd), s => CaseClass(ccd, s), ccd.toString)
+          val c = Constructor[Expr, TypeTree](ccd.fields.map(_.tpe), CaseClassType(ccd), s => CaseClass(ccd, s), ccd.id.name)
           ccConstructors += ccd -> c
           c
         }))
@@ -101,6 +101,7 @@ class VanuatooContext(ctx: LeonContext) {
   }
 
   def mkGenerator = {
+    println(allConstructors)
     new StubGenerator[Expr, TypeTree](allConstructors, Some(constrGenerator _))
   }
 }
