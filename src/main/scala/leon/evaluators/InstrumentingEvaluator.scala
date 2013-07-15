@@ -43,7 +43,7 @@ class VanuatooContext(ctx: LeonContext) {
     val res = t match {
       case tt @ TupleType(parts) =>
         List(tConstructors.getOrElse(tt, {
-          val c = Constructor[Expr, TypeTree](parts, tt, s => Tuple(s).setType(tt), "tt")
+          val c = Constructor[Expr, TypeTree](parts, tt, s => Tuple(s).setType(tt), tt.toString)
           tConstructors += tt -> c
           c
         }))
