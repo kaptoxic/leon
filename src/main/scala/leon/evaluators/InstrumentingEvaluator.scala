@@ -160,13 +160,13 @@ class VanuatooModelFinder(ctx: LeonContext, p: Program) {
           } else {
             runner(model) match {
               case (EvaluationResults.Successful(BooleanLiteral(true)), _) =>
-                println("Got model "+model)
+                //println("Got model "+model)
 
                 found += model.exprs
 
               case (_, Some(pattern)) =>
-                println("From model: "+model)
-                println("Got pattern to exclude "+pattern)
+                //println("From model: "+model)
+                //println("Got pattern to exclude "+pattern)
 
                 it.exclude(pattern)
 

@@ -30,6 +30,7 @@ case object CEGIS extends Rule("CEGIS") {
     val useOptTimeout         = true
     val useFunGenerators      = sctx.options.cegisGenerateFunCalls
     val useBPaths             = sctx.options.cegisUseBPaths
+    val useVanuatoo           = sctx.options.cegisUseVanuatoo
     val useCETests            = sctx.options.cegisUseCETests
     val useCEPruning          = sctx.options.cegisUseCEPruning
     // Limits the number of programs CEGIS will specifically test for instead of reasonning symbolically
@@ -476,11 +477,14 @@ case object CEGIS extends Rule("CEGIS") {
 
         }
 
-        val discoveredInputs = new VanuatooModelFinder(sctx.context, sctx.program).findModels(p.pc, p.as, 20, 1000)
+        val discoveredInputs = if (useVanuatoo) {
+          new VanuatooModelFinder(sctx.context, sctx.program).findModels(p.pc, p.as, 20, 500)
+        } else {
+          DataGen.findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(p.as)).map{
+            m => p.as.map(a => m(a))
+          }
+        }
 
-        //DataGen.findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(p.as)).map{
-        //  m => p.as.map(a => m(a))
-        //}
 
         def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
           for (prog <- programs) {
