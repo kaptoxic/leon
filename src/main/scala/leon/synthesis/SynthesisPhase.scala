@@ -19,6 +19,7 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
     LeonFlagOptionDef(    "inplace",         "--inplace",         "Debug level"),
     LeonOptValueOptionDef("parallel",        "--parallel[=N]",    "Parallel synthesis search using N workers"),
     LeonFlagOptionDef(    "manual",          "--manual",          "Manual search"),
+    LeonFlagOptionDef(    "batch",           "--batch",           "Batch synthesis of all chooses"),
     LeonFlagOptionDef(    "derivtrees",      "--derivtrees",      "Generate derivation trees"),
     LeonFlagOptionDef(    "firstonly",       "--firstonly",       "Stop as soon as one synthesis solution is found"),
     LeonValueOptionDef(   "timeout",         "--timeout=T",       "Timeout after T seconds when searching for synthesis solutions .."),
@@ -96,10 +97,16 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
 
     if (options.batch) {
       def synthesizeNext(p: Program): Program = {
-        ChooseInfo.extractFromProgram(ctx, p, options).headOption match {
+        ChooseInfo.extractFromProgram(ctx, p, options).sortBy(_.ch.posIntInfo).headOption match {
           case None => p
 
           case Some(ci) =>
+            val middle = " In "+ci.fd.id.toString+", synthesis of: "
+            val remSize = (80-middle.length)
+            ctx.reporter.info("-"*math.floor(remSize/2).toInt+middle+"-"*math.ceil(remSize/2).toInt)
+            ctx.reporter.info(ci.ch)
+            ctx.reporter.info("-"*80)
+
             val (sol, isComplete) = ci.synthesizer.synthesize()
 
             val term = sol.toSimplifiedExpr(ctx, p)
@@ -113,6 +120,9 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
             synthesizeNext(newP)
         }
       }
+
+      val res = synthesizeNext(p)
+      ctx.reporter.info(ScalaPrinter(res))
     } else {
       var chooses = ChooseInfo.extractFromProgram(ctx, p, options).filter(toProcess)
 
