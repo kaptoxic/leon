@@ -43,7 +43,12 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
     }).toMap
   }
 
-  val a = 42
+  private lazy val tupleConstructor: Constructor[_] = {
+    val tc = loader.loadClass("leon/codegen/runtime/Tuple")
+    val conss = tc.getConstructors().sortBy(_.getParameterTypes().length)
+    assert(!conss.isEmpty)
+    conss.last
+  }
 
   private def writeClassFiles() {
     for ((d, cl) <- classes) {
@@ -66,6 +71,9 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
 
     case BooleanLiteral(v) =>
       new java.lang.Boolean(v)
+
+    case Tuple(elems) =>
+      tupleConstructor.newInstance(elems.map(valueToJVM).toArray : _*).asInstanceOf[AnyRef]
 
     case CaseClass(ccd, args) =>
       val cons = caseClassConstructors(ccd)
