@@ -44,7 +44,7 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
   }
 
   private lazy val tupleConstructor: Constructor[_] = {
-    val tc = loader.loadClass("leon/codegen/runtime/Tuple")
+    val tc = loader.loadClass("leon.codegen.runtime.Tuple")
     val conss = tc.getConstructors().sortBy(_.getParameterTypes().length)
     assert(!conss.isEmpty)
     conss.last
@@ -73,7 +73,7 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
       new java.lang.Boolean(v)
 
     case Tuple(elems) =>
-      tupleConstructor.newInstance(elems.map(valueToJVM).toArray : _*).asInstanceOf[AnyRef]
+      tupleConstructor.newInstance(elems.map(valueToJVM).toArray).asInstanceOf[AnyRef]
 
     case CaseClass(ccd, args) =>
       val cons = caseClassConstructors(ccd)

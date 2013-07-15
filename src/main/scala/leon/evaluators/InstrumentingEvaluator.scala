@@ -12,7 +12,7 @@ import purescala.TypeTrees._
 import codegen.CompilationUnit
 import vanuatoo.{Pattern => VPattern, _}
 
-class VanuatooContext(ctx: LeonContext) {
+class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
 
   val ints = (for (i <- Set(0,1,2,3)) yield {
     i -> Constructor[Expr, TypeTree](List(), Int32Type, s => IntLiteral(i), ""+i)
@@ -38,41 +38,42 @@ class VanuatooContext(ctx: LeonContext) {
     (ints.values ++ booleans.values ++ ccConstructors.values ++ acConstructors.flatMap(_._2) ++ tConstructors.values).toList
   }
 
-  def constrGenerator(t: TypeTree): List[Constructor[Expr, TypeTree]] = {
-    println("I got asked for constructors for "+t)
-    val res = t match {
-      case tt @ TupleType(parts) =>
-        List(tConstructors.getOrElse(tt, {
-          val c = Constructor[Expr, TypeTree](parts, tt, s => Tuple(s).setType(tt), tt.toString)
-          tConstructors += tt -> c
-          c
-        }))
+  def getGeneratorFor(t: CaseClassType, act: AbstractClassType): Constructor[Expr, TypeTree] = {
+    // We "up-cast" the returnType of the specific caseclass generator to match its superclass
+    getGenerator(t)(0).copy(retType = act)
+  }
 
-      case AbstractClassType(acd) =>
-        acConstructors.getOrElse(acd, {
-          val cs = acd.knownDescendents.collect {
-            case ccd: CaseClassDef =>
-              constrGenerator(CaseClassType(ccd))(0)
-          }.toList
 
-          acConstructors += acd -> cs
+  def getGenerator(t: TypeTree): List[Constructor[Expr, TypeTree]] = t match {
+    case tt @ TupleType(parts) =>
+      List(tConstructors.getOrElse(tt, {
+        val c = Constructor[Expr, TypeTree](parts, tt, s => Tuple(s).setType(tt), tt.toString)
+        tConstructors += tt -> c
+        c
+      }))
 
-          cs
-        })
+    case act @ AbstractClassType(acd) =>
+      acConstructors.getOrElse(acd, {
+        val cs = acd.knownDescendents.collect {
+          case ccd: CaseClassDef =>
+            getGeneratorFor(CaseClassType(ccd), act)
+        }.toList
 
-      case CaseClassType(ccd) =>
-        List(ccConstructors.getOrElse(ccd, {
-          val c = Constructor[Expr, TypeTree](ccd.fields.map(_.tpe), CaseClassType(ccd), s => CaseClass(ccd, s), ccd.id.name)
-          ccConstructors += ccd -> c
-          c
-        }))
+        acConstructors += acd -> cs
 
-      case _ =>
-        ctx.reporter.error("Unknown type to generate constructor for: "+t)
-        Nil
-    }
-    println("I got "+res)
-    res
+        cs
+      })
+
+    case CaseClassType(ccd) =>
+      List(ccConstructors.getOrElse(ccd, {
+        val c = Constructor[Expr, TypeTree](ccd.fields.map(_.tpe), CaseClassType(ccd), s => CaseClass(ccd, s), ccd.id.name)
+        ccConstructors += ccd -> c
+        c
+      }))
+
+    case _ =>
+      ctx.reporter.error("Unknown type to generate constructor for: "+t)
+      Nil
   }
 
   def valueToPattern(v: AnyRef, expType: TypeTree): VPattern[Expr, TypeTree] = (v, expType) match {
@@ -82,67 +83,90 @@ class VanuatooContext(ctx: LeonContext) {
     case (b: java.lang.Boolean, BooleanType) =>
       cPattern(boolConstructor(b), List())
 
-    case (cc: codegen.runtime.CaseClass, _: ClassType) =>
+    case (cc: codegen.runtime.CaseClass, ct: ClassType) =>
       val r = cc.__getRead()
 
-      println("GOT READ: "+Integer.toBinaryString(r))
+      unit.jvmClassToDef.get(cc.getClass.getName) match {
+        case Some(ccd: CaseClassDef) =>
+          val c = ct match {
+            case act : AbstractClassType =>
+              getGeneratorFor(CaseClassType(ccd), act)
+            case cct : CaseClassType =>
+              getGenerator(CaseClassType(ccd))(0)
+          }
 
-      null
+          val fields = cc.productElements()
 
-    case (t: codegen.runtime.Tuple, TupleType(parts)) =>
+          val elems = for (i <- 0 until fields.length) yield {
+            if (((r >> i) & 1) == 1) {
+              // has been read
+              valueToPattern(fields(i), ccd.fieldsIds(i).getType)
+            } else {
+              AnyPattern[Expr, TypeTree]()
+            }
+          }
+
+          ConstructorPattern(c, elems)
+
+        case _ =>
+          sys.error("Could not retreive type for :"+cc.getClass.getName)
+      }
+
+    case (t: codegen.runtime.Tuple, tt @ TupleType(parts)) =>
       val r = t.__getRead()
 
-      println("GOT READ: "+Integer.toBinaryString(r))
+      val c = getGenerator(tt)(0)
 
-      null
+      val elems = for (i <- 0 until t.getArity) yield {
+        if (((r >> i) & 1) == 1) {
+          // has been read
+          valueToPattern(t.get(i), parts(i))
+        } else {
+          AnyPattern[Expr, TypeTree]()
+        }
+      }
+
+      ConstructorPattern(c, elems)
 
     case _ =>
       sys.error("Unsupported value, can't paternify : "+v+" : "+expType)
   }
 
   def mkGenerator = {
-    println(allConstructors)
-    new StubGenerator[Expr, TypeTree](allConstructors, Some(constrGenerator _))
+    new StubGenerator[Expr, TypeTree](allConstructors, Some(getGenerator _))
   }
 }
 
 class VanuatooModelFinder(ctx: LeonContext, p: Program) {
   def findModels(e: Expr, argorder: Seq[Identifier], maxValid: Int, maxEnumerated: Int): Seq[Seq[Expr]] = {
-    val vctx = new VanuatooContext(ctx)
-    val instrEval = new InstrumentingEvaluator(ctx, p, vctx)
+    val vctx = new VanuatooContext(CompilationUnit.compileProgram(p).get, ctx)
+    val instrEval = new InstrumentingEvaluator(vctx)
 
     instrEval.compile(e, argorder) match {
       case Some(runner) =>
-
-        println("Compiled, ready to run..")
-
         var found = Set[Seq[Expr]]()
 
-        println(argorder.map(_.getType))
-
         val gen = vctx.mkGenerator
-
-        println("I HAS A GENERATOAR!")
-
         val it  = gen.enumerate(TupleType(argorder.map(_.getType)))
-
-        println("I HAS AN ITERATOR!")
 
         var c = 0
 
         while (c < maxEnumerated && found.size < maxValid && it.hasNext) {
           val model = it.next.asInstanceOf[Tuple]
 
-          println("Got model "+model)
 
           if (model eq null) {
             c = maxEnumerated
           } else {
             runner(model) match {
               case (EvaluationResults.Successful(BooleanLiteral(true)), _) =>
+                println("Got model "+model)
+
                 found += model.exprs
 
               case (_, Some(pattern)) =>
+                println("Got pattern to exclude "+pattern)
+
                 it.exclude(pattern)
 
               case _ =>
@@ -160,11 +184,7 @@ class VanuatooModelFinder(ctx: LeonContext, p: Program) {
 }
 
 
-class InstrumentingEvaluator(ctx : LeonContext, val unit : CompilationUnit, vctx: VanuatooContext) {
-
-  def this(ctx : LeonContext, prog : Program, vctx: VanuatooContext) {
-    this(ctx, CompilationUnit.compileProgram(prog).get, vctx) // this .get is dubious...
-  }
+class InstrumentingEvaluator(vctx: VanuatooContext) {
 
   type InstrumentedResult = (EvaluationResults.Result, Option[vanuatoo.Pattern[Expr, TypeTree]])
 
@@ -180,7 +200,7 @@ class InstrumentingEvaluator(ctx : LeonContext, val unit : CompilationUnit, vctx
 
       val newExpr = replaceFromIDs(map, expression)
 
-      val ce = unit.compileExpression(newExpr, Seq(tid))
+      val ce = vctx.unit.compileExpression(newExpr, Seq(tid))
 
       Some((args : Tuple) => {
         try {
@@ -208,7 +228,7 @@ class InstrumentingEvaluator(ctx : LeonContext, val unit : CompilationUnit, vctx
       })
     } catch {
       case t: Throwable =>
-        ctx.reporter.warning("Error while compiling expression: "+t.getMessage)
+        vctx.ctx.reporter.warning("Error while compiling expression: "+t.getMessage)
         None
     }
   }

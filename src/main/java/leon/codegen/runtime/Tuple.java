@@ -24,7 +24,7 @@ public final class Tuple {
     if(index < 0 || index >= this.elements.length) {
         throw new IllegalArgumentException("Invalid tuple index : " + index);
     }
-    __read = (1 << (index+1)) | __read;
+    __read = (1 << (index)) | __read;
 
     return this.elements[index];
   }
