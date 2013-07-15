@@ -476,9 +476,11 @@ case object CEGIS extends Rule("CEGIS") {
 
         }
 
-        val discoveredInputs = DataGen.findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(p.as)).map{
-          m => p.as.map(a => m(a))
-        }
+        val discoveredInputs = new VanuatooModelFinder(sctx.context, sctx.program).findModels(p.pc, p.as, 20, 1000)
+
+        //DataGen.findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(p.as)).map{
+        //  m => p.as.map(a => m(a))
+        //}
 
         def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
           for (prog <- programs) {

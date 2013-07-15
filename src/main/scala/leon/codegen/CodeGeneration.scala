@@ -599,6 +599,20 @@ object CodeGeneration {
     }
 
     locally {
+      val pnm = cf.addMethod("I", "__getRead")
+      pnm.setFlags((
+        METHOD_ACC_PUBLIC |
+        METHOD_ACC_FINAL
+      ).asInstanceOf[U2])
+
+      val pnch = pnm.codeHandler
+
+      pnch << ALoad(0) << GetField(cName, instrumentedField, "I") << IRETURN
+
+      pnch.freeze
+    }
+
+    locally {
       val pnm = cf.addMethod("Ljava/lang/String;", "productName")
       pnm.setFlags((
         METHOD_ACC_PUBLIC |

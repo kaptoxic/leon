@@ -22,7 +22,7 @@ import CodeGeneration._
 
 class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFile], implicit val env: CompilationEnvironment) {
 
-  private val jvmClassToDef = classes.map {
+  val jvmClassToDef = classes.map {
     case (d, cf) => cf.className -> d
   }.toMap
 

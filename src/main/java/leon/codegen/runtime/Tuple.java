@@ -5,7 +5,11 @@ package leon.codegen.runtime;
 import java.util.Arrays;
 
 public final class Tuple {
-  public int __read = 0;
+  private int __read = 0;
+
+  public final int __getRead() {
+    return __read;
+  }
 
   private final Object[] elements;
 
