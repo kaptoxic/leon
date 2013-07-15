@@ -5,6 +5,8 @@ package leon.codegen.runtime;
 import java.util.Arrays;
 
 public final class Tuple {
+  public int __read = 0;
+
   private final Object[] elements;
 
   // You may think that using varargs here would show less of the internals,
@@ -18,6 +20,8 @@ public final class Tuple {
     if(index < 0 || index >= this.elements.length) {
         throw new IllegalArgumentException("Invalid tuple index : " + index);
     }
+    __read = (1 << (index+1)) | __read;
+
     return this.elements[index];
   }
 

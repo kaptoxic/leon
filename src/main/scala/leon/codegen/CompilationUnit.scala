@@ -185,18 +185,18 @@ object CompilationUnit {
     var classes = Map[Definition, ClassFile]()
 
     for((parent,children) <- p.algebraicDataTypes) {
-      classes += parent -> compileAbstractClassDef(p, parent)
+      classes += parent -> compileAbstractClassDef(parent)
 
       for (c <- children) {
-        classes += c -> compileCaseClassDef(p, c)
+        classes += c -> compileCaseClassDef(c)
       }
     }
 
     for(single <- p.singleCaseClasses) {
-      classes += single -> compileCaseClassDef(p, single)
+      classes += single -> compileCaseClassDef(single)
     }
 
-    val mainClassName = defToJVMName(p, p.mainObject)
+    val mainClassName = defToJVMName(p.mainObject)
     val cf = new ClassFile(mainClassName, None)
 
     classes += p.mainObject -> cf
