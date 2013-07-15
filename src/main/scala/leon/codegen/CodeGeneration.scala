@@ -19,14 +19,14 @@ object CodeGeneration {
   private val BoxedIntClass  = "java/lang/Integer"
   private val BoxedBoolClass = "java/lang/Boolean"
 
-  private val TupleClass     = "leon/codegen/runtime/Tuple"
-  private val SetClass       = "leon/codegen/runtime/Set"
-  private val MapClass       = "leon/codegen/runtime/Map"
-  private val CaseClassClass = "leon/codegen/runtime/CaseClass"
-  private val ErrorClass     = "leon/codegen/runtime/LeonCodeGenRuntimeException"
+  private val TupleClass      = "leon/codegen/runtime/Tuple"
+  private val SetClass        = "leon/codegen/runtime/Set"
+  private val MapClass        = "leon/codegen/runtime/Map"
+  private val CaseClassClass  = "leon/codegen/runtime/CaseClass"
+  private val ErrorClass      = "leon/codegen/runtime/LeonCodeGenRuntimeException"
   private val ImpossibleEvaluationClass = "leon/codegen/runtime/LeonCodeGenEvaluationException"
 
-  def defToJVMName(p : Program, d : Definition) : String = "Leon$CodeGen$" + d.id.uniqueName
+  def defToJVMName(d : Definition)(implicit env : CompilationEnvironment) : String = "Leon$CodeGen$" + d.id.uniqueName
 
   def typeToJVM(tpe : TypeTree)(implicit env : CompilationEnvironment) : String = tpe match {
     case Int32Type => "I"
@@ -163,7 +163,7 @@ object CodeGeneration {
           throw CompilationException("Unknown class : " + ccd.id)
         }
         ch << CheckCast(ccName)
-        ch << GetField(ccName, sid.name, typeToJVM(sid.getType))
+        instrumentedGetField(ch, ccd, sid)
 
       // Tuples (note that instanceOf checks are in mkBranch)
       case Tuple(es) =>
@@ -494,8 +494,8 @@ object CodeGeneration {
     }
   }
 
-  def compileAbstractClassDef(p : Program, acd : AbstractClassDef)(implicit env : CompilationEnvironment) : ClassFile = {
-    val cName = defToJVMName(p, acd)
+  def compileAbstractClassDef(acd : AbstractClassDef)(implicit env : CompilationEnvironment) : ClassFile = {
+    val cName = defToJVMName(acd)
 
     val cf  = new ClassFile(cName, None)
     cf.setFlags((
@@ -511,10 +511,36 @@ object CodeGeneration {
     cf
   }
 
-  def compileCaseClassDef(p : Program, ccd : CaseClassDef)(implicit env : CompilationEnvironment) : ClassFile = {
+  var doInstrument = true
 
-    val cName = defToJVMName(p, ccd)
-    val pName = ccd.parent.map(parent => defToJVMName(p, parent))
+  /**
+   * Instrument read operations
+   */
+  val instrumentedField = "__read"
+
+  def instrumentedGetField(ch: CodeHandler, ccd: CaseClassDef, id: Identifier)(implicit env : CompilationEnvironment): Unit = {
+    ccd.fields.zipWithIndex.find(_._1.id == id) match {
+      case Some((f, i)) =>
+        val cName = defToJVMName(ccd)
+        if (doInstrument) {
+          ch << DUP << DUP
+          ch << Ldc(i+1)
+          ch << Ldc(1)
+          ch << ISHL
+          ch << GetField(cName, instrumentedField, "I")
+          ch << IOR
+          ch << PutField(cName, instrumentedField, "I")
+        }
+        ch << GetField(cName, f.id.name, typeToJVM(f.tpe))
+      case None =>
+        throw CompilationException("Unknown field: "+ccd.id.name+"."+id)
+    }
+  }
+
+  def compileCaseClassDef(ccd : CaseClassDef)(implicit env : CompilationEnvironment) : ClassFile = {
+
+    val cName = defToJVMName(ccd)
+    val pName = ccd.parent.map(parent => defToJVMName(parent))
 
     val cf = new ClassFile(cName, pName)
     cf.setFlags((
@@ -528,10 +554,10 @@ object CodeGeneration {
     }
 
     // definition of the constructor
-    if(ccd.fields.isEmpty) {
+    if(false && ccd.fields.isEmpty) {
       cf.addDefaultConstructor
     } else {
-      val namesTypes = ccd.fields.map { vd => (vd.id.name, typeToJVM(vd.tpe)) }
+      val namesTypes = (instrumentedField -> "I") +: ccd.fields.map { vd => (vd.id.name, typeToJVM(vd.tpe)) }
 
       for((nme, jvmt) <- namesTypes) {
         val fh = cf.addField(jvmt, nme)
@@ -590,7 +616,7 @@ object CodeGeneration {
         pech << DUP
         pech << Ldc(i)
         pech << ALoad(0)
-        pech << GetField(cName, f.id.name, typeToJVM(f.tpe))
+        instrumentedGetField(pech, ccd, f.id)
         mkBox(f.tpe, pech)
         pech << AASTORE
       }
@@ -623,13 +649,13 @@ object CodeGeneration {
       if(!ccd.fields.isEmpty) {
         ech << ALoad(1) << CheckCast(cName) << AStore(castSlot)
 
-        val namesTypes = ccd.fields.map { vd => (vd.id.name, typeToJVM(vd.tpe)) }
-        
-        for((nme, jvmt) <- namesTypes) {
-          ech << ALoad(0) << GetField(cName, nme, jvmt)
-          ech << ALoad(castSlot) << GetField(cName, nme, jvmt)
+        for(vd <- ccd.fields) {
+          ech << ALoad(0)
+          instrumentedGetField(ech, ccd, vd.id)
+          ech << ALoad(castSlot)
+          instrumentedGetField(ech, ccd, vd.id)
 
-          jvmt match {
+          typeToJVM(vd.id.getType) match {
             case "I" | "Z" =>
               ech << If_ICmpNe(notEq)
 
