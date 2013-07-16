@@ -10,9 +10,9 @@ object Addresses {
   case class Cons(a: Address, tail:List) extends List
   case object Nil extends List
 
-  def content(l: List) : Set[Int] = l match {
-    case Nil => Set.empty[Int]
-    case Cons(a, l1) => Set(a.a, a.b) ++ content(l1)
+  def setA(l: List) : Set[Address] = l match {
+    case Nil => Set.empty[Address]
+    case Cons(a, l1) => Set(a) ++ setA(l1)
   }
   
 	def size(l: List) : Int = l match {
@@ -42,12 +42,6 @@ object Addresses {
   
   def size(ab: AddressBook): Int = size(ab.business) + size(ab.pers)
   
-  def isEmpty(ab: AddressBook) = size(ab) == 0
-  
-  def content(ab: AddressBook) : Set[Int] = content(ab.pers) ++ content(ab.business)
-  
-  def addressBookInvariant(ab: AddressBook) = allPrivate(ab.pers) && allBusiness(ab.business)
-  
   def makeAddressBook(l: List): AddressBook = (l match {
     case Nil => AddressBook(Nil, Nil)
     case Cons(a, l1) => {
@@ -57,7 +51,8 @@ object Addresses {
     }
   }) ensuring {
     (res: AddressBook) =>
-		  size(res) == size(l) && addressBookInvariant(res)
+		  size(res) == size(l) &&
+		  allPrivate(res.pers) && allBusiness(res.business)
   }
   
   def merge(l1: List, l2: List): List = l1 match {
@@ -65,12 +60,11 @@ object Addresses {
     case Cons(a, tail) => Cons(a, merge(tail, l2))
   }
   
-  def mergeAddressBooks(ab1: AddressBook, ab2: AddressBook) = { 
-    require(addressBookInvariant(ab1) && addressBookInvariant(ab2))
+  def mergeAddressBooks(ab1: AddressBook, ab2: AddressBook) = 
 		choose {
     (res: AddressBook) =>
-		  (size(res) == size(ab1) + size(ab2)) && addressBookInvariant(res)
+		  size(res) == size(ab1) + size(ab2) &&
+		  allPrivate(res.pers) && allBusiness(res.business)
   	}
-  }
   
 }
