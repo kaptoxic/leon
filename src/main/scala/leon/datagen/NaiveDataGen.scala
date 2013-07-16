@@ -115,7 +115,7 @@ class NaiveDataGen(ctx: LeonContext, p: Program, evaluator: Evaluator, _bounds :
   }
 
   //def findModels(expr : Expr, maxModels : Int, maxTries : Int, bounds : Map[TypeTree,Seq[Expr]] = defaultBounds, forcedFreeVars: Option[Seq[Identifier]] = None) : Stream[Map[Identifier,Expr]] = {
-  def generateFor(ins: Seq[Identifier], satisfying: Expr, maxValid : Int, maxEnumerated : Int) : Seq[Seq[Expr]] = {
+  def generateFor(ins: Seq[Identifier], satisfying: Expr, maxValid : Int, maxEnumerated : Int) : Iterable[Seq[Expr]] = {
     evaluator.compile(satisfying, ins).map { evalFun =>
       val sat = EvaluationResults.Successful(BooleanLiteral(true))
 
