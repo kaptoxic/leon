@@ -187,8 +187,8 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
 }
 
 object CompilationUnit {
-  def compileProgram(p: Program): Option[CompilationUnit] = {
-    implicit val env = CompilationEnvironment.fromProgram(p)
+  def compileProgram(p: Program, compileContracts: Boolean = true): Option[CompilationUnit] = {
+    implicit val env = CompilationEnvironment.fromProgram(p, compileContracts)
 
     var classes = Map[Definition, ClassFile]()
 
