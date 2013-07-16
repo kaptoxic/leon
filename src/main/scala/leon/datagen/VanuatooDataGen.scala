@@ -195,7 +195,10 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
     var found = Set[Seq[Expr]]()
 
+
     val it  = gen.enumerate(TupleType(ins.map(_.getType)))
+
+    it.skipIsomorphic()
 
     var c = 0
 
