@@ -231,6 +231,10 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
           found += model.exprs
         }
 
+        if (c % 1000 == 0) {
+          println("... "+c+" ...")
+        }
+
         c += 1
       }
     }
