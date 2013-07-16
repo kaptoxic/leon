@@ -1,7 +1,7 @@
 /* Copyright 2009-2013 EPFL, Lausanne */
 
 package leon
-package evaluators
+package datagen
 
 import purescala.Common._
 import purescala.Definitions._
@@ -12,7 +12,10 @@ import purescala.TypeTrees._
 import codegen.CompilationUnit
 import vanuatoo.{Pattern => VPattern, _}
 
-class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
+import evaluators._
+
+class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
+  val unit = CompilationUnit.compileProgram(p).get
 
   val ints = (for (i <- Set(0, 1, 2, 3)) yield {
     i -> Constructor[Expr, TypeTree](List(), Int32Type, s => IntLiteral(i), ""+i)
@@ -30,21 +33,17 @@ class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
     ConstructorPattern[Expr, TypeTree](c, args)
   }
 
-  var ccConstructors = Map[CaseClassDef, Constructor[Expr, TypeTree]]()
-  var acConstructors = Map[AbstractClassDef, List[Constructor[Expr, TypeTree]]]()
-  var tConstructors  = Map[TupleType, Constructor[Expr, TypeTree]]()
+  private var ccConstructors = Map[CaseClassDef, Constructor[Expr, TypeTree]]()
+  private var acConstructors = Map[AbstractClassDef, List[Constructor[Expr, TypeTree]]]()
+  private var tConstructors  = Map[TupleType, Constructor[Expr, TypeTree]]()
 
-  def allConstructors: List[Constructor[Expr, TypeTree]] = {
-    (ints.values ++ booleans.values ++ ccConstructors.values ++ acConstructors.flatMap(_._2) ++ tConstructors.values).toList
-  }
-
-  def getGeneratorFor(t: CaseClassType, act: AbstractClassType): Constructor[Expr, TypeTree] = {
+  private def getConstructorFor(t: CaseClassType, act: AbstractClassType): Constructor[Expr, TypeTree] = {
     // We "up-cast" the returnType of the specific caseclass generator to match its superclass
-    getGenerator(t)(0).copy(retType = act)
+    getConstructors(t)(0).copy(retType = act)
   }
 
 
-  def getGenerator(t: TypeTree): List[Constructor[Expr, TypeTree]] = t match {
+  private def getConstructors(t: TypeTree): List[Constructor[Expr, TypeTree]] = t match {
     case tt @ TupleType(parts) =>
       List(tConstructors.getOrElse(tt, {
         val c = Constructor[Expr, TypeTree](parts, tt, s => Tuple(s).setType(tt), tt.toString)
@@ -56,7 +55,7 @@ class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
       acConstructors.getOrElse(acd, {
         val cs = acd.knownDescendents.collect {
           case ccd: CaseClassDef =>
-            getGeneratorFor(CaseClassType(ccd), act)
+            getConstructorFor(CaseClassType(ccd), act)
         }.toList
 
         acConstructors += acd -> cs
@@ -76,7 +75,7 @@ class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
       Nil
   }
 
-  def valueToPattern(v: AnyRef, expType: TypeTree): VPattern[Expr, TypeTree] = (v, expType) match {
+  private def valueToPattern(v: AnyRef, expType: TypeTree): VPattern[Expr, TypeTree] = (v, expType) match {
     case (i: Integer, Int32Type) =>
       cPattern(intConstructor(i), List())
 
@@ -90,9 +89,9 @@ class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
         case Some(ccd: CaseClassDef) =>
           val c = ct match {
             case act : AbstractClassType =>
-              getGeneratorFor(CaseClassType(ccd), act)
+              getConstructorFor(CaseClassType(ccd), act)
             case cct : CaseClassType =>
-              getGenerator(CaseClassType(ccd))(0)
+              getConstructors(CaseClassType(ccd))(0)
           }
 
           val fields = cc.productElements()
@@ -115,7 +114,7 @@ class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
     case (t: codegen.runtime.Tuple, tt @ TupleType(parts)) =>
       val r = t.__getRead()
 
-      val c = getGenerator(tt)(0)
+      val c = getConstructors(tt)(0)
 
       val elems = for (i <- 0 until t.getArity) yield {
         if (((r >> i) & 1) == 1) {
@@ -132,22 +131,61 @@ class VanuatooContext(val unit : CompilationUnit, val ctx: LeonContext) {
       sys.error("Unsupported value, can't paternify : "+v+" : "+expType)
   }
 
-  def mkGenerator = {
-    new StubGenerator[Expr, TypeTree](allConstructors, Some(getGenerator _))
+  type InstrumentedResult = (EvaluationResults.Result, Option[vanuatoo.Pattern[Expr, TypeTree]])
+
+  def compile(expression : Expr, argorder : Seq[Identifier]) : Option[Tuple=>InstrumentedResult] = {
+    import leon.codegen.runtime.LeonCodeGenRuntimeException
+    import leon.codegen.runtime.LeonCodeGenEvaluationException
+
+    try {
+      val ttype = TupleType(argorder.map(_.getType))
+      val tid = FreshIdentifier("tup").setType(ttype)
+
+      val map = argorder.zipWithIndex.map{ case (id, i) => (id -> TupleSelect(Variable(tid), i+1)) }.toMap
+
+      val newExpr = replaceFromIDs(map, expression)
+
+      val ce = unit.compileExpression(newExpr, Seq(tid))
+
+      Some((args : Tuple) => {
+        try {
+          val jvmArgs = ce.argsToJVM(Seq(args))
+
+          val result  = ce.evalFromJVM(jvmArgs)
+
+          // jvmArgs is getting updated by evaluating
+          val pattern = valueToPattern(jvmArgs(0), ttype)
+
+          (EvaluationResults.Successful(result), Some(pattern))
+        } catch {
+          case e : ArithmeticException =>
+            (EvaluationResults.RuntimeError(e.getMessage), None)
+
+          case e : ArrayIndexOutOfBoundsException =>
+            (EvaluationResults.RuntimeError(e.getMessage), None)
+
+          case e : LeonCodeGenRuntimeException =>
+            (EvaluationResults.RuntimeError(e.getMessage), None)
+
+          case e : LeonCodeGenEvaluationException =>
+            (EvaluationResults.EvaluatorError(e.getMessage), None)
+        }
+      })
+    } catch {
+      case t: Throwable =>
+        ctx.reporter.warning("Error while compiling expression: "+t.getMessage)
+        None
+    }
   }
-}
 
-class VanuatooModelFinder(ctx: LeonContext, p: Program) {
-  def findModels(e: Expr, argorder: Seq[Identifier], maxValid: Int, maxEnumerated: Int): Seq[Seq[Expr]] = {
-    val vctx = new VanuatooContext(CompilationUnit.compileProgram(p).get, ctx)
-    val instrEval = new InstrumentingEvaluator(vctx)
-
-    instrEval.compile(e, argorder) match {
+  def generateFor(ins: Seq[Identifier], satisfying: Expr, maxValid: Int, maxEnumerated: Int): Seq[Seq[Expr]] = {
+    compile(satisfying, ins) match {
       case Some(runner) =>
         var found = Set[Seq[Expr]]()
 
-        val gen = vctx.mkGenerator
-        val it  = gen.enumerate(TupleType(argorder.map(_.getType)))
+        val gen = new StubGenerator[Expr, TypeTree]((ints.values ++ booleans.values).toSeq, Some(getConstructors _))
+
+        val it  = gen.enumerate(TupleType(ins.map(_.getType)))
 
         var c = 0
 
@@ -180,57 +218,6 @@ class VanuatooModelFinder(ctx: LeonContext, p: Program) {
         found.toSeq
       case None =>
         Seq()
-    }
-  }
-}
-
-
-class InstrumentingEvaluator(vctx: VanuatooContext) {
-
-  type InstrumentedResult = (EvaluationResults.Result, Option[vanuatoo.Pattern[Expr, TypeTree]])
-
-  def compile(expression : Expr, argorder : Seq[Identifier]) : Option[Tuple=>InstrumentedResult] = {
-    import leon.codegen.runtime.LeonCodeGenRuntimeException
-    import leon.codegen.runtime.LeonCodeGenEvaluationException
-
-    try {
-      val ttype = TupleType(argorder.map(_.getType))
-      val tid = FreshIdentifier("tup").setType(ttype)
-
-      val map = argorder.zipWithIndex.map{ case (id, i) => (id -> TupleSelect(Variable(tid), i+1)) }.toMap
-
-      val newExpr = replaceFromIDs(map, expression)
-
-      val ce = vctx.unit.compileExpression(newExpr, Seq(tid))
-
-      Some((args : Tuple) => {
-        try {
-          val jvmArgs = ce.argsToJVM(Seq(args))
-
-          val result  = ce.evalFromJVM(jvmArgs)
-
-          // jvmArgs is getting updated by evaluating
-          val pattern = vctx.valueToPattern(jvmArgs(0), ttype)
-
-          (EvaluationResults.Successful(result), Some(pattern))
-        } catch {
-          case e : ArithmeticException =>
-            (EvaluationResults.RuntimeError(e.getMessage), None)
-
-          case e : ArrayIndexOutOfBoundsException =>
-            (EvaluationResults.RuntimeError(e.getMessage), None)
-
-          case e : LeonCodeGenRuntimeException =>
-            (EvaluationResults.RuntimeError(e.getMessage), None)
-
-          case e : LeonCodeGenEvaluationException =>
-            (EvaluationResults.EvaluatorError(e.getMessage), None)
-        }
-      })
-    } catch {
-      case t: Throwable =>
-        vctx.ctx.reporter.warning("Error while compiling expression: "+t.getMessage)
-        None
     }
   }
 }

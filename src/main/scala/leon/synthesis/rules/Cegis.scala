@@ -6,7 +6,6 @@ package rules
 
 import solvers.TimeoutSolver
 import purescala.Trees._
-import purescala.DataGen
 import purescala.Common._
 import purescala.Definitions._
 import purescala.TypeTrees._
@@ -17,6 +16,7 @@ import purescala.ScalaPrinter
 import scala.collection.mutable.{Map=>MutableMap}
 
 import evaluators._
+import datagen._
 
 import solvers.z3.FairZ3Solver
 
@@ -477,12 +477,10 @@ case object CEGIS extends Rule("CEGIS") {
 
         }
 
-        val discoveredInputs = if (useVanuatoo) {
-          new VanuatooModelFinder(sctx.context, sctx.program).findModels(p.pc, p.as, 20, 500)
+        val discoveredInputs: Seq[Seq[Expr]] = if (useVanuatoo) {
+          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 500)
         } else {
-          DataGen.findModels(p.pc, evaluator, 20, 1000, forcedFreeVars = Some(p.as)).map{
-            m => p.as.map(a => m(a))
-          }
+          new NaiveDataGen(sctx.context, sctx.program, evaluator).generateFor(p.as, p.pc, 20, 1000)
         }
 
 
