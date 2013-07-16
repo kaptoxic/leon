@@ -17,11 +17,11 @@ trait HasLogger {
   lazy val loggingCondition = true
   
   protected[this] lazy val (logger, formatter) =
-    if (loggingCondition)
-    	ZeroLoggerFactory.newLogger(getMyClass.toString)
-  	else
-    	(Filter.Off, new SimpleFormatter(getMyClass.toString) with ConsoleLogger)
-//    (new DummyLogger, null)
+//    if (loggingCondition)
+//    	ZeroLoggerFactory.newLogger(getMyClass.toString)
+//  	else
+//    	(Filter.Off, new SimpleFormatter(getMyClass.toString) with ConsoleLogger)
+    (new DummyLogger, null)
   
   import formatter._
   

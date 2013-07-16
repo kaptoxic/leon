@@ -15,9 +15,9 @@ trait HasDefferLogger {
   protected[this] def getMyClass = this.getClass
       
   protected[this] lazy val (logger, formatter) =
-  	StringLoggerFactory.newLogger(getMyClass.toString)
+//  	StringLoggerFactory.newLogger(getMyClass.toString)
 //    	(Filter.Off, new SimpleFormatter(getMyClass.toString) with ConsoleLogger)
-//    (new DummyLogger, null)
+    (new DummyLogger, null)
   
 	import HasDefferLogger._
   import formatter._

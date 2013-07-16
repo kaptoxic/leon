@@ -481,15 +481,6 @@ trait CodeExtraction extends Extractors {
           rest = None
           LetDef(funDefWithBody, restTree)
 
-        case ExHoleExpression(tpe, sym) =>
-          println("found desired type: " + tpe)
-
-          // make a hole tree
-          lesynth.Globals.hole =
-            Hole( scalaType2PureScala(unit, silent)(tpe) )
-
-          lesynth.Globals.hole
-
         case ExVarDef(vs, tpt, bdy) => {
           val binderTpe = extractType(tpt.tpe)
           val newID = FreshIdentifier(vs.name.toString).setType(binderTpe)
