@@ -1,0 +1,4 @@
+[[34m Info  [0m] 48: error: not found: value tail
+[[34m Info  [0m] else content(tail(res)) ++ Set(x) == content(tail(res)))
+[[34m Info  [0m] ^
+[[31m Fatal [0m] Error while compiling.

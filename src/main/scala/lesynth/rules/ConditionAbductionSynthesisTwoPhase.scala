@@ -43,15 +43,14 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 def getInputExamples = {
                   () =>
                     getDataGenInputExamples(codeGenEval, p, 
-                		200, 6000, Some(p.as)) ++
+                		100, 6000, Some(p.as)) ++
                     getDataGenInputExamplesRandomIntegers(codeGenEval, p, 
-                		200, 6000, Some(p.as)
+                		100, 6000, Some(p.as)
                 		// bound the random geenerator
-                		,5
-                	)
+                		,10)
                 }
                 
-            	val evaluationStrategy = new CodeGenEvaluationStrategy(program, holeFunDef, sctx.context, 1000)
+            	val evaluationStrategy = new CodeGenEvaluationStrategy(program, holeFunDef, sctx.context, 5000)
                 	
                 holeFunDef.postcondition = Some(replace(
                   Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))

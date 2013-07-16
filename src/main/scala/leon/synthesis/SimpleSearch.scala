@@ -72,7 +72,7 @@ class SimpleSearch(synth: Synthesizer,
   }
 
   def expandOrTask(t: TaskTryRules): ExpandResult[TaskRunRule] = {
-    val (normRules, otherRules) = rules.partition(_.isInstanceOf[NormalizingRule])
+    val (normRules, otherRules) = (Seq[Rule](), rules)//.partition(r => r.isInstanceOf[NormalizingRule] || r.name.contains("abduction"))
 
     val normApplications = normRules.flatMap(_.instantiateOn(sctx, t.p))
 
