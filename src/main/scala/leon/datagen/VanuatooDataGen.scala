@@ -76,12 +76,12 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
       Nil
   }
 
-  private def valueToPattern(v: AnyRef, expType: TypeTree): VPattern[Expr, TypeTree] = (v, expType) match {
+  private def valueToPattern(v: AnyRef, expType: TypeTree): (VPattern[Expr, TypeTree], Boolean) = (v, expType) match {
     case (i: Integer, Int32Type) =>
-      cPattern(intConstructor(i), List())
+      (cPattern(intConstructor(i), List()), true)
 
     case (b: java.lang.Boolean, BooleanType) =>
-      cPattern(boolConstructor(b), List())
+      (cPattern(boolConstructor(b), List()), true)
 
     case (cc: codegen.runtime.CaseClass, ct: ClassType) =>
       val r = cc.__getRead()
@@ -102,11 +102,11 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
               // has been read
               valueToPattern(fields(i), ccd.fieldsIds(i).getType)
             } else {
-              AnyPattern[Expr, TypeTree]()
+              (AnyPattern[Expr, TypeTree](), false)
             }
           }
 
-          ConstructorPattern(c, elems)
+          (ConstructorPattern(c, elems.map(_._1)), elems.forall(_._2))
 
         case _ =>
           sys.error("Could not retreive type for :"+cc.getClass.getName)
@@ -122,11 +122,11 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
           // has been read
           valueToPattern(t.get(i), parts(i))
         } else {
-          AnyPattern[Expr, TypeTree]()
+          (AnyPattern[Expr, TypeTree](), false)
         }
       }
 
-      ConstructorPattern(c, elems)
+      (ConstructorPattern(c, elems.map(_._1)), elems.forall(_._2))
 
     case _ =>
       sys.error("Unsupported value, can't paternify : "+v+" : "+expType)
@@ -157,7 +157,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
           // jvmArgs is getting updated by evaluating
           val pattern = valueToPattern(jvmArgs(0), ttype)
 
-          (EvaluationResults.Successful(result), Some(pattern))
+          (EvaluationResults.Successful(result), if (!pattern._2) Some(pattern._1) else None)
         } catch {
           case e : ArithmeticException =>
             (EvaluationResults.RuntimeError(e.getMessage), None)
@@ -219,6 +219,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
           case (EvaluationResults.Successful(BooleanLiteral(true)), _) =>
 
           case (_, Some(pattern)) =>
+
             failed = true;
 
             //println("From model: "+model)
@@ -226,7 +227,8 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
             it.exclude(pattern)
 
-          case _ =>
+          case (_, None) =>
+            failed = true;
         }
 
         if (!failed) {
