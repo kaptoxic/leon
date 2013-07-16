@@ -478,10 +478,12 @@ case object CEGIS extends Rule("CEGIS") {
         }
 
         val discoveredInputs: Seq[Seq[Expr]] = if (useVanuatoo) {
-          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 500)
+          println("Generating for "+p.pc+"...")
+          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 200)
         } else {
           new NaiveDataGen(sctx.context, sctx.program, evaluator).generateFor(p.as, p.pc, 20, 1000)
         }
+        println("Done..")
 
 
         def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
