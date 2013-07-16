@@ -195,10 +195,15 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
     var found = Set[Seq[Expr]]()
 
+    /**
+     * Gather at most <n> isomoprhic models  before skipping them
+     * - Too little means skipping many excluding patterns
+     * - Too large means repetitive (and not useful models) before reaching maxEnumerated
+     */
+
+    val maxIsomorphicModels = maxValid+1;
 
     val it  = gen.enumerate(TupleType(ins.map(_.getType)))
-
-    it.skipIsomorphic()
 
     var c = 0
 
@@ -232,6 +237,10 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
 
           found += model.exprs
+
+          if (found.size % maxIsomorphicModels == 0) {
+            it.skipIsomorphic()
+          }
         }
 
         if (c % 1000 == 0) {
