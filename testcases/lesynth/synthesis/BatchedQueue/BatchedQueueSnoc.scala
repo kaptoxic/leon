@@ -32,22 +32,6 @@ object BatchedQueue {
   }) ensuring {
     res => content(res) == content(f) ++ content(r)
   }
-
-  def head(p: Queue): Set[Int] = (
-    p.f match {
-      case Nil => Set[Int]()
-      case Cons(x, xs) => Set(x)
-    }) ensuring (
-      res =>
-        if (isEmpty(p)) true
-        else content(p) == res ++ content(tail(p)))
-
-  def tail(p: Queue): Queue = {
-    p.f match {
-      case Nil => p
-      case Cons(_, xs) => checkf(xs, p.r)
-    }
-  }
   //	  
   //	  def last(p: Queue): Int = {
   //	    require(!isEmpty(p))
@@ -63,13 +47,4 @@ object BatchedQueue {
         (if (isEmpty(p)) true
         else content(tail(res)) ++ Set(x) == content(tail(res)))
     }
-
-  def main(args: Array[String]): Unit = {
-    val pair = Queue(Cons(4, Nil), Cons(3, Nil))
-
-    println(head(pair))
-    println(content(pair) == head(pair) ++ content(tail(pair)))
-
-    println(head(Queue(Nil, Nil)))
-  }
 }

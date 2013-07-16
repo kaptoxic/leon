@@ -231,15 +231,18 @@ class SynthesizerForRuleExamples(
               	evaluation.evaluate(maxCandidateInd)
               val (evalArray, size) = evaluation.getEvaluationVector(maxCandidateInd)
               assert(size == gatheredExamples.size)
-              val failedExamples = (gatheredExamples zip evalArray).filterNot {
+              val (passedExamplesPairs, failedExamplesPairs) = (gatheredExamples zip evalArray).partition {
                 case (ex, result) =>
                   result
-              }.map(_._1)
-              fine("Failed examples for the maximum candidate: " + failedExamples.mkString(", "))
+              }
+              val examplesPartition =
+                (passedExamplesPairs.map(_._1), failedExamplesPairs.map(_._1))
+              
+              fine("Failed examples for the maximum candidate: " + examplesPartition)
 //              interactivePause
               
               val currentCandidateExpr = maxCandidate.getExpr
-              if (tryToSynthesizeBranch(currentCandidateExpr, failedExamples)) {
+              if (tryToSynthesizeBranch(currentCandidateExpr, examplesPartition)) {
                 //noBranchFoundIteration = 0
                 
                 // after a branch is synthesized it makes sense to consider candidates that previously failed
@@ -412,7 +415,8 @@ class SynthesizerForRuleExamples(
     fine("Introduced examples: " + gatheredExamples.mkString("\t"))
   }
 
-  def tryToSynthesizeBranch(snippetTree: Expr, failedExamples: Seq[Example]): Boolean = {
+  def tryToSynthesizeBranch(snippetTree: Expr, examplesPartition: (Seq[Example], Seq[Example])): Boolean = {
+    val (succeededExamples, failedExamples) = examplesPartition
     // replace hole in the body with the whole if-then-else structure, with current snippet tree
     val oldBody = holeFunDef.getBody
     val newBody = accumulatingExpression(snippetTree)
@@ -490,7 +494,7 @@ class SynthesizerForRuleExamples(
           val (innerFound, innerPrec) = tryToSynthesizeBooleanCondition(
             snippetTree, innerSnippetTree,
             // counter examples represent those for which candidate fails
-            (failedExamples.map(_.map) ++ maps)
+            (failedExamples.map(_.map) ++ maps), succeededExamples.map(_.map)
           )
 
           // if precondition found
@@ -522,7 +526,8 @@ class SynthesizerForRuleExamples(
     }
   }
 
-  def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr, counterExamples: Seq[Map[Identifier, Expr]]): (Boolean, Option[Expr]) = {
+  def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr,
+    counterExamples: Seq[Map[Identifier, Expr]], succExamples: Seq[Map[Identifier, Expr]]): (Boolean, Option[Expr]) = {
     // new condition together with existing precondition
     val newCondition = And(Seq(accumulatingPrecondition, innerSnippetTree))
 
@@ -535,7 +540,8 @@ class SynthesizerForRuleExamples(
     // continue if our expression is not contradictory
     if (isSatisfiable) {
       // check if synthesized boolean expression implies precondition (counterexamples)        
-      val implyCounterExamples = (false /: counterExamples) {
+      var hadRuntimeError = false
+      val implyCounterExamplesPre = (false /: counterExamples) {
         case (false, exMapping) =>
           exampleRunner.evaluateToResult(newCondition, exMapping) match {
             case EvaluationResults.Successful(BooleanLiteral(false)) => false
@@ -545,7 +551,7 @@ class SynthesizerForRuleExamples(
 				    val newFunId = FreshIdentifier("tempIntroducedFunction22")
 				    val newFun = new FunDef(newFunId, holeFunDef.returnType, holeFunDef.args)
 //				    newFun.precondition = Some(newCondition)
-				    newFun.precondition = holeFunDef.precondition
+				    newFun.precondition = Some(initialPrecondition)
 				    newFun.postcondition = holeFunDef.postcondition
 				    
 				    def replaceFunDef(expr: Expr) = expr match {
@@ -588,9 +594,14 @@ class SynthesizerForRuleExamples(
 				    		
 //				    interactivePause
 			    		res match {
-				    	  case EvaluationResults.RuntimeError("Condition flow hit unknown path.") => false
+				    	  case EvaluationResults.RuntimeError("Condition flow hit unknown path.") =>
+				    	    hadRuntimeError = true
+				    	    false
 				    	  case EvaluationResults.Successful(BooleanLiteral(innerRes)) => !innerRes
-				    	  case _ => true
+				    	  case _ =>
+				    	    // TODO think about this
+				    	    // I put condition into precondition so some examples will be violated?
+				    	    true//throw new RuntimeException("new evalution got: " + res)
 				    	}
 				    		
 //              fine("Evaluation result for " + newCondition + " on " + exMapping + " is " + r)
@@ -598,6 +609,68 @@ class SynthesizerForRuleExamples(
           }
         case _ => true
       }
+      
+      fine("implyCounterExamplesPre: " + implyCounterExamplesPre)
+      
+      val implyCounterExamples = if (!implyCounterExamplesPre && hadRuntimeError) {
+        ! succExamples.exists( exMapping => {
+             // TODO take care of this mess 
+				    val newFunId = FreshIdentifier("tempIntroducedFunction22")
+				    val newFun = new FunDef(newFunId, holeFunDef.returnType, holeFunDef.args)
+//				    newFun.precondition = Some(newCondition)
+				    newFun.precondition = Some(initialPrecondition)
+				    newFun.postcondition = holeFunDef.postcondition
+				    
+				    def replaceFunDef(expr: Expr) = expr match {
+				      case FunctionInvocation(`holeFunDef`, args) =>
+				        Some(FunctionInvocation(newFun, args))
+				      case _ => None
+				    }
+				    
+				    val error = Error("Condition flow hit unknown path.")
+				    error.setType(snippetTree.getType)
+				    val ifInInnermostElse =
+				      IfExpr(innerSnippetTree, snippetTree, error)
+				    
+				    import TreeOps._
+				    val newBody = searchAndReplace(replaceFunDef)(accumulatingExpression(ifInInnermostElse))
+				    
+				    newFun.body = Some(newBody)
+				    
+				    assert(newBody.getType != Untyped)
+            val resFresh2 = FreshIdentifier("result22", true).setType(newBody.getType)
+				
+              val newCandidate = 
+				    Let(resFresh2, newBody,
+				      replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
+				        matchToIfThenElse(newFun.getPostcondition)))
+				    finest("New fun for Error evaluation: " + newFun)
+//				    println("new candidate: " + newBody)
+	
+			        val newProgram = program.copy(mainObject =
+			          program.mainObject.copy(defs = newFun +: program.mainObject.defs ))
+//				    println("new program: " + newProgram)
+			          
+		          val _evaluator = new CodeGenEvaluator(synthesisContext.context, newProgram,		              
+		              _root_.leon.codegen.CodeGenEvalParams(maxFunctionInvocations = 500, checkContracts = true))
+	
+				    	val res = _evaluator.eval(newCandidate, exMapping)
+				    	println("for mapping: " + exMapping + "res is: " + res)
+//				    	if (newCandidate.toString contains "tree.value < value")
+//				    		interactivePause
+				    		
+				    interactivePause
+			    		res match {
+				    	  case EvaluationResults.RuntimeError("Condition flow hit unknown path.") =>				    	    
+				    	    false
+				    	  case EvaluationResults.Successful(BooleanLiteral(innerRes)) => innerRes
+				    	  case _ => false
+				    	}
+      	})
+      } else
+        implyCounterExamplesPre
+      
+      
       fine("implyCounterExamples: " + implyCounterExamples)
 //      interactivePause
       

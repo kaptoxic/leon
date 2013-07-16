@@ -11,7 +11,7 @@ class CareRoundRobbin[T] protected[streams] (override val streams: Seq[Streamabl
   
   assert(streams.exists(! _.isInfinite), "streams.exists(! _.isInfinite)")
   val (infStreams, finStreams) = streams.partition(_.isInfinite)
-  
+    
   override def isInfinite = false
   
 //  var innerRoundRobbin: RoundRobbin[T] = _

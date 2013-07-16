@@ -42,6 +42,14 @@ object Addresses {
   
   def size(ab: AddressBook): Int = size(ab.business) + size(ab.pers)
   
+  def addressBookInvariant(ab: AddressBook) = allPrivate(ab.pers) && allBusiness(ab.business)
+  
+  def merge(l1: List, l2: List): List = l1 match {
+    case Nil => l2
+    case Cons(a, tail) => Cons(a, merge(tail, l2))
+  }
+  
+  def addressBookInvariant(ab: AddressBook) = allPrivate(ab.pers) && allBusiness(ab.business)
 //  def makeAddressBook(l: List): AddressBook = (l match {
 //    case Nil => AddressBook(Nil, Nil)
 //    case Cons(a, l1) => {
