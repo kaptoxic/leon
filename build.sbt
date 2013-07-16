@@ -29,6 +29,7 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-compiler" % "2.10.2",
     "org.scalatest" %% "scalatest" % "1.9.1" excludeAll(ExclusionRule(organization="org.scala-lang")),
+    "com.dongxiguo" %% "zero-log" % "0.3.3",
     "com.typesafe.akka" %% "akka-actor" % "2.1.4"
 )
 
@@ -40,4 +41,4 @@ EclipseKeys.skipParents in ThisBuild := false
 
 libraryDependencies += "com.dongxiguo" %% "zero-log" % "0.1.2"
 
-sound.play(compile in Compile, Sounds.Basso) // play the 'Basso' sound whenever compile completes (successful or not)
+// sound.play(compile in Compile, Sounds.Basso) // play the 'Basso' sound whenever compile completes (successful or not)

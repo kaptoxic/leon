@@ -280,7 +280,7 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
 
     case Hole(desireType) =>
       sb.append("Hole[")
-      sb = pp(desireType, lvl)
+      pp(desireType, lvl)
       sb.append("]")
 
     case (expr: PrettyPrintable) => expr.printWith(lvl, this)
