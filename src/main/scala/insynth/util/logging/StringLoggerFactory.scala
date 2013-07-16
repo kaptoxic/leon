@@ -15,12 +15,12 @@ object StringLoggerFactory {
   
   val loggerMap: MutableMap[String, Logged] = MutableMap.empty
   
-  final def newLogger(className: String) =
+//  final def newLogger(className: String) =
 //	if (className.contains("insynth.reconstruction.stream.DebugOrderedStreamFactory"))
 //    	(Filter.Info, new SimpleFormatter(className) with StringLogger)
 //    else
 //    if (className.contains("insynth.util.streams"))
-    	(Filter.Finest, new SimpleFormatter(className) with StringLogger)
+//    	(Filter.Finest, new SimpleFormatter(className) with StringLogger)
 //  	else
 //    if (className.contains("Reconstructor"))
 //    	(Filter.Fine, new SimpleFormatter(className) with StringLogger)
