@@ -477,27 +477,25 @@ case object CEGIS extends Rule("CEGIS") {
 
         }
 
-        val inputGenerator: Iterable[Seq[Expr]] = if (useVanuatoo) {
+        val inputIterator: Iterator[Seq[Expr]] = if (useVanuatoo) {
           new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 3000)
         } else {
           new NaiveDataGen(sctx.context, sctx.program, evaluator).generateFor(p.as, p.pc, 20, 1000)
         }
 
-        val extraInputsIterator = new Iterator[Seq[Expr]] {
-          val it = inputGenerator.iterator
-
+        val cachedInputIterator = new Iterator[Seq[Expr]] {
           def next() = {
-            val i = it.next()
+            val i = inputIterator.next()
             baseExampleInputs = i +: baseExampleInputs
             i
           }
 
-          def hasNext() = it.hasNext
+          def hasNext() = inputIterator.hasNext
         }
 
-        def hasInputExamples() = baseExampleInputs.size > 0 || extraInputsIterator.hasNext
+        def hasInputExamples() = baseExampleInputs.size > 0 || cachedInputIterator.hasNext
 
-        def allInputExamples() = baseExampleInputs.iterator ++ extraInputsIterator
+        def allInputExamples() = baseExampleInputs.iterator ++ cachedInputIterator
 
         def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
           for (prog <- programs) {
