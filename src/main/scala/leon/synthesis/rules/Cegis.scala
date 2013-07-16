@@ -477,13 +477,15 @@ case object CEGIS extends Rule("CEGIS") {
 
         }
 
+        println("Generating for "+p.pc+"...")
+        val ts = System.currentTimeMillis()
+
         val discoveredInputs: Seq[Seq[Expr]] = if (useVanuatoo) {
-          println("Generating for "+p.pc+"...")
-          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 2000)
+          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 200, 10000)
         } else {
           new NaiveDataGen(sctx.context, sctx.program, evaluator).generateFor(p.as, p.pc, 20, 1000)
         }
-        println("Done... "+discoveredInputs.size+" inputs found")
+        println("Done... "+discoveredInputs.size+" inputs found in "+(System.currentTimeMillis()-ts)+" ms")
 
 
         def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
