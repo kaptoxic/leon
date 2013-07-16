@@ -481,7 +481,7 @@ case object CEGIS extends Rule("CEGIS") {
         val ts = System.currentTimeMillis()
 
         val discoveredInputs: Seq[Seq[Expr]] = if (useVanuatoo) {
-          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 200, 10000)
+          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 1000)
         } else {
           new NaiveDataGen(sctx.context, sctx.program, evaluator).generateFor(p.as, p.pc, 20, 1000)
         }
