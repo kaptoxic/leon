@@ -17,27 +17,34 @@ object BinaryTree {
   case object NoPair extends OptPair
   
   def isSortedX(t : Tree) : (Boolean, OptPair) = (t match {
-    case Leaf => (true, NoPair)
-       
+    case Leaf                => (true, NoPair)
+    case Node(Leaf, v, Leaf) => (true, Pair(v, v))
+    case Node(Node(_, lv, _), v, _) if lv >= v => (false, NoPair)
+    case Node(_, v, Node(_, rv, _)) if rv <= v => (false, NoPair)
+      
     case Node(l, v, r) =>
       val (ls,lb) = isSortedX(l)
-      val (rs,rb) = isSortedX(r)
                
       val (lOK,newMin) = lb match {
         case NoPair => (ls, v)
         case Pair(ll, lh) => (ls && lh < v, ll)
       }
          
-      val (rOK,newMax) = rb match {
-        case NoPair => (rs, v)
-        case Pair(rl, rh) => (rs && v < rl, rh)
-      }
+      if(lOK) {
+        val (rs,rb) = isSortedX(r)
+        val (rOK,newMax) = rb match {
+          case NoPair => (rs, v)
+          case Pair(rl, rh) => (rs && v < rl, rh)
+        }
 
-    if(lOK && rOK) {
-      (true, Pair(newMin, newMax))
-    } else {
-      (false, NoPair)
-    }
+        if(rOK) {
+          (true, Pair(newMin, newMax))
+        } else {
+          (false, NoPair)
+        }
+      } else {
+        (false, NoPair)
+      }
   }) ensuring((res : (Boolean,OptPair)) => res match {
     case (s, Pair(l,u)) => s && (l <= u)
     case _ => true  
