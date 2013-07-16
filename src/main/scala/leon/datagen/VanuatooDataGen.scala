@@ -8,6 +8,7 @@ import purescala.Definitions._
 import purescala.TreeOps._
 import purescala.Trees._
 import purescala.TypeTrees._
+import purescala.Extractors.TopLevelAnds
 
 import codegen.CompilationUnit
 import vanuatoo.{Pattern => VPattern, _}
@@ -179,45 +180,61 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
   }
 
   def generateFor(ins: Seq[Identifier], satisfying: Expr, maxValid: Int, maxEnumerated: Int): Seq[Seq[Expr]] = {
-    compile(satisfying, ins) match {
-      case Some(runner) =>
-        var found = Set[Seq[Expr]]()
+    // Split conjunctions
+    val TopLevelAnds(ands) = satisfying
 
-        val gen = new StubGenerator[Expr, TypeTree]((ints.values ++ booleans.values).toSeq, Some(getConstructors _))
-
-        val it  = gen.enumerate(TupleType(ins.map(_.getType)))
-
-        var c = 0
-
-        while (c < maxEnumerated && found.size < maxValid && it.hasNext) {
-          val model = it.next.asInstanceOf[Tuple]
+    val runners = ands.map(a => compile(a, ins) match {
+      case Some(runner) => Some(runner)
+      case None =>
+        ctx.reporter.error("Could not compile predicate "+a)
+        None
+    }).flatten
 
 
-          if (model eq null) {
-            c = maxEnumerated
-          } else {
-            runner(model) match {
-              case (EvaluationResults.Successful(BooleanLiteral(true)), _) =>
-                //println("Got model "+model)
+    val gen = new StubGenerator[Expr, TypeTree]((ints.values ++ booleans.values).toSeq, Some(getConstructors _))
 
-                found += model.exprs
+    var found = Set[Seq[Expr]]()
 
-              case (_, Some(pattern)) =>
-                //println("From model: "+model)
-                //println("Got pattern to exclude "+pattern)
+    val it  = gen.enumerate(TupleType(ins.map(_.getType)))
 
-                it.exclude(pattern)
+    var c = 0
 
-              case _ =>
-            }
+    while (c < maxEnumerated && found.size < maxValid && it.hasNext) {
+      val model = it.next.asInstanceOf[Tuple]
 
-            c += 1
-          }
+      if (model eq null) {
+        c = maxEnumerated
+      } else {
+        var failed = false;
+
+        for (r <- runners) r(model) match {
+          case (EvaluationResults.Successful(BooleanLiteral(true)), _) =>
+
+          case (_, Some(pattern)) =>
+            failed = true;
+
+            //println("From model: "+model)
+            //println("Got pattern to exclude "+pattern)
+
+            it.exclude(pattern)
+
+          case _ =>
         }
 
-        found.toSeq
-      case None =>
-        Seq()
+        if (!failed) {
+          println("Got model:")
+          for ((i, v) <- (ins zip model.exprs)) {
+            println(" - "+i+" -> "+v)
+          }
+
+
+          found += model.exprs
+        }
+
+        c += 1
+      }
     }
+
+    found.toSeq
   }
 }

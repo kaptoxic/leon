@@ -11,37 +11,32 @@ object BinaryTree {
     case Leaf() => Set.empty[Int]
     case Node(l, v, r) => content(l) ++ Set(v) ++ content(r)
   }
-
-  def isSortedMinMax(t: Tree, min: Int, max: Int): Boolean = t match {
+  
+  sealed abstract class OptInt
+  case class Some(value : Int) extends OptInt
+  case object None extends OptInt
+  
+  def isSortedX(t : Tree) : (Boolean, OptInt, OptInt) = (t match {
+    case Leaf() => (true, None, None)
+    
     case Node(l, v, r) =>
-      isSortedMinMax(l, min, v) &&
-      isSortedMinMax(r, v, max) &&
-      v < max && v > min
-    case _ => true
-  }
+      val (ls,ll,lu) = isSortedX(l)
+      val (rs,rl,ru) = isSortedX(r)
+            
+      val (lOK,newMin) = lu match {
+        case None => (ls, v)
+        case Some(v2) => (ls && v2 < v, v2)
+      }
+      
+      val (rOK,newMax) = rl match {
+        case None => (rs,v)
+        case Some(v2) => (rs && v < v2, v2)
+      }
+      
+      (lOK && rOK, Some(newMin), Some(newMax))
+  })
 
-  def isSortedMin(t: Tree, min: Int): Boolean = t match {
-    case Node(l, v, r) =>
-      isSortedMinMax(l, min, v) &&
-      isSortedMin(r, v) &&
-      v > min
-    case _ => true
-  }
-
-  def isSortedMax(t: Tree, max: Int): Boolean = t match {
-    case Node(l, v, r) =>
-      isSortedMax(l, v) &&
-      isSortedMinMax(r, v, max) &&
-      v < max
-    case _ => true
-  }
-
-  def isSorted(t: Tree): Boolean = t match {
-    case Node(l, v, r) =>
-      isSortedMin(r, v) &&
-      isSortedMax(l, v)
-    case _ => true
-  }
+  def isSorted(t: Tree): Boolean = isSortedX(t)._1
 
   def deleteSynth(in : Tree, v : Int) = choose {
     (out : Tree) => content(out) == (content(in) -- Set(v))
