@@ -179,7 +179,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
     }
   }
 
-  def generateFor(ins: Seq[Identifier], satisfying: Expr, maxValid: Int, maxEnumerated: Int): Seq[Seq[Expr]] = {
+  def generateFor(ins: Seq[Identifier], satisfying: Expr, maxValid: Int, maxEnumerated: Int): Iterator[Seq[Expr]] = {
     // Split conjunctions
     val TopLevelAnds(ands) = satisfying
 
@@ -205,54 +205,58 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
     val it  = gen.enumerate(TupleType(ins.map(_.getType)))
 
-    var c = 0
+    return new Iterator[Seq[Expr]] {
+      var total = 0
+      var found = 0;
 
-    while (c < maxEnumerated && found.size < maxValid && it.hasNext) {
-      val model = it.next.asInstanceOf[Tuple]
+      def hasNext() = {
+        (total < maxEnumerated && found < maxValid && it.hasNext)
+      }
 
-      if (model eq null) {
-        c = maxEnumerated
-      } else {
-        var failed = false;
+      def next(): Seq[Expr] = {
+        while(hasNext()) {
+          val model = it.next.asInstanceOf[Tuple]
 
-        for (r <- runners) r(model) match {
-          case (EvaluationResults.Successful(BooleanLiteral(true)), _) =>
+          if (model eq null) {
+            total = maxEnumerated
+          } else {
+            total += 1
 
-          case (_, Some(pattern)) =>
+            var failed = false;
 
-            failed = true;
+            for (r <- runners) r(model) match {
+              case (EvaluationResults.Successful(BooleanLiteral(true)), _) =>
 
-            //println("From model: "+model)
-            //println("Got pattern to exclude "+pattern)
+              case (_, Some(pattern)) =>
+                failed = true;
+                it.exclude(pattern)
 
-            it.exclude(pattern)
+              case (_, None) =>
+                failed = true;
+            }
 
-          case (_, None) =>
-            failed = true;
-        }
+            if (!failed) {
+              println("Got model:")
+              for ((i, v) <- (ins zip model.exprs)) {
+                println(" - "+i+" -> "+v)
+              }
 
-        if (!failed) {
-          println("Got model:")
-          for ((i, v) <- (ins zip model.exprs)) {
-            println(" - "+i+" -> "+v)
+              found += 1
+
+              if (found % maxIsomorphicModels == 0) {
+                it.skipIsomorphic()
+              }
+
+              return model.exprs;
+            }
+
+            if (total % 1000 == 0) {
+              println("... "+total+" ...")
+            }
           }
-
-
-          found += model.exprs
-
-          if (found.size % maxIsomorphicModels == 0) {
-            it.skipIsomorphic()
-          }
         }
-
-        if (c % 1000 == 0) {
-          println("... "+c+" ...")
-        }
-
-        c += 1
+        null
       }
     }
-
-    found.toSeq
   }
 }
