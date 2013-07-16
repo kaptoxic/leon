@@ -25,7 +25,9 @@ class LazyOnlyRoundRobbin[T](name: String = "nebitnoLaz")
   
   override def isInitialized = initialized
   
-  override def isInfinite = true
+  var isInfiniteFlag = true
+  
+  override def isInfinite = isInfiniteFlag
           
   private def produceRoundRobbin = {
     if (innerRoundRobbin == null)
@@ -42,9 +44,11 @@ class LazyOnlyRoundRobbin[T](name: String = "nebitnoLaz")
   
   override def getStream = {
     fine("getStream LazyOnlyRoundRobbin")
-    if (initialized) innerRoundRobbin.getStream
+    val res = if (initialized) innerRoundRobbin.getStream
     else
       throw new RuntimeException
+    isInfiniteFlag = false
+    res
   }
   
   

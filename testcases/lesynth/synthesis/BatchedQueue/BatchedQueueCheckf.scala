@@ -14,14 +14,6 @@ object BatchedQueue {
 
   def content(p: Queue): Set[Int] =
     content(p.f) ++ content(p.r)
-
-    def size(l: List) : Int = l match {
-      case Nil => 0
-      case Cons(head, tail) => 1 + size(tail)
-    }
-  
-    def size(q: Queue) : Int = 
-      size(q.f) + size(q.r)
   
   def isEmpty(p: Queue): Boolean = p.f == Nil
 
@@ -32,13 +24,12 @@ object BatchedQueue {
     case Cons(x, xs) => rev_append(xs, Cons(x, bList))
   }) ensuring (
     res =>
-      content(res) == content(aList) ++ content(bList) &&
-      size(res) == size(aList) + size(bList)
+      content(res) == content(aList) ++ content(bList)
   )
 
   def reverse(list: List) = rev_append(list, Nil) ensuring (
     res =>
-      content(res) == content(list) && size(res) == size(list)
+      content(res) == content(list)
   )
   
   def invariantList(q:Queue, f: List, r: List): Boolean = {

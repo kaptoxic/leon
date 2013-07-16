@@ -8,6 +8,7 @@ import insynth.reconstruction.codegen.CodeGenerator
 import insynth.Config
 import insynth.util.format.{ FormatSuccinctNode, FormatIntermediate, FormatStreamUtils }
 import insynth.util.logging.HasLogger
+import insynth.util._
 
 /**
  * Object for reconstruction of proof trees into output(s)
@@ -17,13 +18,15 @@ object Reconstructor extends ( (SimpleNode, CodeGenerator, Boolean) => Stream[Ou
   def apply(tree: SimpleNode, codeGenerator: CodeGenerator, streamOrdered: Boolean = false) = {		    
     // logging
     entering("apply", FormatSuccinctNode(tree, 8).toString)
+    fine("reconstructor got proof tree size: " + ProofTreeOperations.size(tree))
     
     // transform the trees (first two steps of the code generation phase)
     val transformedTree = IntermediateTransformer(tree)
          
     // logging
     info("intermediate transform phase done")    
-    fine("after intermediate " + FormatIntermediate(transformedTree))
+    finest("after intermediate " + FormatIntermediate(transformedTree))
+    fine("intermediate tree size " + IntermediateTreeOperations.size(transformedTree))
     
     // create an ordered/unordered extractor
     val extractor = 
@@ -37,7 +40,7 @@ object Reconstructor extends ( (SimpleNode, CodeGenerator, Boolean) => Stream[Ou
     
     // logging
     info("extractor phase done")
-    fine("got streamable " + FormatStreamUtils(extractor.transformedStreamable))
+    finest("got streamable " + FormatStreamUtils(extractor.transformedStreamable))
     
     // for each tree, generate the code for it
     val generatedCode = extractedTrees map {
