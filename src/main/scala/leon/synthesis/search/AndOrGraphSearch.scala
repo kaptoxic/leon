@@ -6,39 +6,13 @@ abstract class AndOrGraphSearch[AT <: AOAndTask[S],
                                 OT <: AOOrTask[S],
                                 S](val g: AndOrGraph[AT, OT, S]) {
 
-  def nextLeaves(): Stream[g.Leaf] = {
-
-    def streamFromAnd(at: g.AndTree): Stream[g.Leaf] = {
-      if (!at.isSolved && !at.isUnsolvable) {
-        at match {
-          case l: g.Leaf =>
-            Stream(l)
-          case a: g.AndNode =>
-            val subTrees = a.subTasks.filterNot(a.subSolutions.keySet).map(a.subProblems)
-            subTrees.sortBy(_.minCost).map(streamFromOr _).reduceRight(_ ++ _)
-        }
-      } else {
-        Stream()
-      }
-    }
-
-    def streamFromOr(ot: g.OrTree): Stream[g.Leaf] = {
-      if (!ot.isSolved && !ot.isUnsolvable) {
-        ot match {
-          case l: g.Leaf =>
-            Stream(l)
-          case o: g.OrNode =>
-            o.alternatives.values.toSeq.sortBy(_.minCost).map(streamFromAnd).reduceRight(_ ++ _)
-        }
-      } else {
-        Stream()
-      }
-    }
-
-    streamFromOr(g.tree)
+  def nextLeaves(): Iterable[g.Leaf] = {
+    g.leaves
   }
 
-  def nextLeaf(): Option[g.Leaf] = nextLeaves().headOption
+  def nextLeaf(): Option[g.Leaf] = {
+    nextLeaves().headOption
+  }
 
   abstract class ExpandResult[T <: AOTask[S]]
   case class Expanded[T <: AOTask[S]](sub: List[T]) extends ExpandResult[T]

@@ -70,10 +70,14 @@ abstract class AndOrGraphParallelSearch[WC,
   def getNextLeaves(idleWorkers: Map[ActorRef, Option[g.Leaf]], workingWorkers: Map[ActorRef, Option[g.Leaf]]): List[g.Leaf] = {
     val processing = workingWorkers.values.flatten.toSet
 
-    nextLeaves()
+    val ts = System.currentTimeMillis();
+
+    val str = nextLeaves()
       .filterNot(processing)
       .take(idleWorkers.size)
       .toList
+
+    str
   }
 
   class Master extends Actor {
