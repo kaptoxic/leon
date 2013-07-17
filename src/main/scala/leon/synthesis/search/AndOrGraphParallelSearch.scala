@@ -149,9 +149,9 @@ abstract class AndOrGraphParallelSearch[WC,
         }
 
       case ReceiveTimeout =>
-        println("Worker status:")
+        println("@ Worker status:")
         for ((w, t) <- workers if t.isDefined) {
-          println(" - "+w.toString+": "+t.get)
+          println("@  - "+w.toString+": "+t.get.task)
         }
 
 
