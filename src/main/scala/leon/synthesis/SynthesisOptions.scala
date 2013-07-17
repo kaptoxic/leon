@@ -19,5 +19,6 @@ case class SynthesisOptions(
   cegisGenerateFunCalls: Boolean      = false,
   cegisUseCETests: Boolean            = true,
   cegisUseCEPruning: Boolean          = true,
-  cegisUseBPaths: Boolean             = true
+  cegisUseBPaths: Boolean             = true,
+  cegisUseVanuatoo: Boolean           = false
 )
