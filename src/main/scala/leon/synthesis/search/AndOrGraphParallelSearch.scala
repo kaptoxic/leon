@@ -114,6 +114,8 @@ abstract class AndOrGraphParallelSearch[WC,
       }
     }
 
+    context.setReceiveTimeout(10.seconds)
+
     def receive = {
       case BeginSearch =>
         outer = sender
@@ -145,6 +147,13 @@ abstract class AndOrGraphParallelSearch[WC,
         if (workers contains w) {
           workers -= w
         }
+
+      case ReceiveTimeout =>
+        println("Worker status:")
+        for ((w, t) <- workers if t.isDefined) {
+          println(" - "+w.toString+": "+t.get)
+        }
+
 
     }
   }
