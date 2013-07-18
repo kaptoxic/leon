@@ -38,6 +38,6 @@ fork in test := true
 
 EclipseKeys.skipParents in ThisBuild := false
 
-libraryDependencies += "com.dongxiguo" %% "zero-log" % "0.1.2"
+libraryDependencies += "com.dongxiguo" %% "zero-log" % "0.3.3"
 
 sound.play(compile in Compile, Sounds.Basso) // play the 'Basso' sound whenever compile completes (successful or not)
