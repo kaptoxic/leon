@@ -451,7 +451,7 @@ case object CEGIS extends Rule("CEGIS") {
         val maxUnrolings = 3
 
         val exSolver  = new TimeoutSolver(sctx.solver, 3000L) // 3sec
-        val cexSolver = new TimeoutSolver(sctx.solver, 3000L) // 3sec
+        val cexSolver = new TimeoutSolver(sctx.solver, 6000L) // 3sec
 
         var baseExampleInputs: Seq[Seq[Expr]] = Seq()
 
@@ -752,7 +752,7 @@ case object CEGIS extends Rule("CEGIS") {
                         result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr)))
 
                       case _ =>
-                        if (useOptTimeout) {
+                        if (useOptTimeout && !sctx.shouldStop.get) {
                           // Interpret timeout in CE search as "the candidate is valid"
                           sctx.reporter.info("CEGIS could not prove the validity of the resulting expression")
                           val expr = ndProgram.determinize(satModel.filter(_._2 == BooleanLiteral(true)).keySet)
