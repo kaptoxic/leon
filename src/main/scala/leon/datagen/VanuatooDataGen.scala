@@ -251,10 +251,10 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
             }
 
             if (!failed) {
-              println("Got model:")
-              for ((i, v) <- (ins zip model.exprs)) {
-                println(" - "+i+" -> "+v)
-              }
+              //println("Got model:")
+              //for ((i, v) <- (ins zip model.exprs)) {
+              //  println(" - "+i+" -> "+v)
+              //}
 
               found += 1
 
@@ -265,9 +265,9 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
               return Some(model.exprs);
             }
 
-            if (total % 1000 == 0) {
-              println("... "+total+" ...")
-            }
+            //if (total % 1000 == 0) {
+            //  println("... "+total+" ...")
+            //}
           }
         }
         None

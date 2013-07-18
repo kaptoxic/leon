@@ -485,9 +485,9 @@ case object CEGIS extends Rule("CEGIS") {
 
         val cachedInputIterator = new Iterator[Seq[Expr]] {
           def next() = {
-            println("Getting next input... for "+p.as+" ON "+p.pc)
+            //println("Getting next input... for "+p.as+" ON "+p.pc)
             val i = inputIterator.next()
-            println("Done")
+            //println("Done")
             baseExampleInputs = i +: baseExampleInputs
             i
           }
