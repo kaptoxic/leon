@@ -149,14 +149,16 @@ class AndOrGraph[AT <: AOAndTask[S], OT <: AOOrTask[S], S](val root: OT, val cos
       //  println("-> "+i.minReachCost+" == "+i.task)
       //}
 
-      l.removeLeaves()
+      if (!l.removedLeaf) {
+        l.removeLeaves()
 
-      val orNode = new OrNode(this, succ, l.task)
-      subProblems += l.task -> orNode
+        val orNode = new OrNode(this, succ, l.task)
+        subProblems += l.task -> orNode
 
-      updateMin()
+        updateMin()
 
-      leaves ++= orNode.andLeaves.values
+        leaves ++= orNode.andLeaves.values
+      }
 
       //println("AFTER: In leaves we have: ")
       //for (i <- leaves.iterator) {
@@ -294,20 +296,22 @@ class AndOrGraph[AT <: AOAndTask[S], OT <: AOOrTask[S], S](val root: OT, val cos
       //  println("-> "+i.minReachCost+" == "+i.task)
       //}
 
-      l.removeLeaves()
+      if (!l.removedLeaf) {
+        l.removeLeaves()
 
-      val n = new AndNode(this, succ, l.task)
+        val n = new AndNode(this, succ, l.task)
 
-      val newLeaves = succ.map(t => t -> new OrLeaf(n, t)).toMap
-      n.subProblems = newLeaves
+        val newLeaves = succ.map(t => t -> new OrLeaf(n, t)).toMap
+        n.subProblems = newLeaves
 
-      alternatives += l.task -> n
+        alternatives += l.task -> n
 
-      n.updateMin()
+        n.updateMin()
 
-      updateMin()
+        updateMin()
 
-      leaves  ++= newLeaves.values
+        leaves  ++= newLeaves.values
+      }
 
 
       //println("AFTER: In leaves we have: ")
