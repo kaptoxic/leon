@@ -13,6 +13,10 @@ import insynth.util.logging._
 
 class RelaxedVerifier(solver: IncrementalSolver, p: Problem, synthInfo: SynthesisInfo = new SynthesisInfo)
 	extends AbstractVerifier(solver, p, synthInfo) with HasLogger {
+  
+  var _isTimeoutUsed = false
+  
+  def isTimeoutUsed = _isTimeoutUsed
     
   override def checkValidity(expression: Expr) = {
     fine("Checking validity - assertCnstr: " + Not(expression))
@@ -25,6 +29,7 @@ class RelaxedVerifier(solver: IncrementalSolver, p: Problem, synthInfo: Synthesi
       case Some(false) =>
         true
       case None =>
+        _isTimeoutUsed = true
         warning("Interpreting None (timeout) as evidence for validity.")
         true
     }
@@ -44,6 +49,7 @@ class RelaxedVerifier(solver: IncrementalSolver, p: Problem, synthInfo: Synthesi
       case Some(false) =>
         true
       case None =>
+        _isTimeoutUsed = true
         warning("Interpreting None (timeout) as evidence for validity.")
         true
     }
