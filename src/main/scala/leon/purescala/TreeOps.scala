@@ -5,6 +5,8 @@ package purescala
 
 import leon.solvers.Solver
 
+import scala.collection.concurrent.TrieMap
+
 object TreeOps {
   import Common._
   import TypeTrees._
@@ -670,8 +672,17 @@ object TreeOps {
   /** Rewrites all pattern-matching expressions into if-then-else expressions,
    * with additional error conditions. Does not introduce additional variables.
    */
+  val cacheMtITE = new TrieMap[Expr, Expr]()
+
   def matchToIfThenElse(expr: Expr) : Expr = {
-    convertMatchToIfThenElse(expr)
+    cacheMtITE.get(expr) match {
+      case Some(res) =>
+        res
+      case None =>
+        val r = convertMatchToIfThenElse(expr)
+        cacheMtITE += expr -> r
+        r
+    }
   }
 
   def conditionForPattern(in: Expr, pattern: Pattern, includeBinders: Boolean = false) : Expr = {
@@ -776,8 +787,17 @@ object TreeOps {
   }
 
   /** Rewrites all map accesses with additional error conditions. */
+  val cacheMGWC = new TrieMap[Expr, Expr]()
+
   def mapGetWithChecks(expr: Expr) : Expr = {
-    convertMapGet(expr)
+    cacheMGWC.get(expr) match {
+      case Some(res) =>
+        res
+      case None =>
+        val r = convertMapGet(expr)
+        cacheMGWC += expr -> r
+        r
+    }
   }
 
   private def convertMapGet(expr: Expr) : Expr = {
