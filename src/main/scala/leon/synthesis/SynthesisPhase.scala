@@ -11,6 +11,8 @@ import purescala.Trees._
 import purescala.ScalaPrinter
 import purescala.Definitions.{Program, FunDef}
 
+import lesynth.rules._
+
 object SynthesisPhase extends LeonPhase[Program, Program] {
   val name        = "Synthesis"
   val description = "Synthesis"
@@ -87,6 +89,10 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
         options = options.copy(generateDerivationTrees = true)
 
       case _ =>
+    }
+
+    if (options.manualSearch || options.searchWorkers > 1) {
+      options = options.copy(rules = ConditionAbductionSynthesisTwoPhase +: options.rules)
     }
 
     options
