@@ -122,6 +122,7 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
       }) match {
         case None => {
           vcInfo.hasValue = true
+
           reporter.warning("No solver could prove or disprove the verification condition.")
         }
         case _ =>

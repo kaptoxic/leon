@@ -22,8 +22,6 @@ class ScalaPrinter(sb: StringBuffer = new StringBuffer) extends PrettyPrinter(sb
     case Variable(id) => sb.append(id)
     case DeBruijnIndex(idx) => sys.error("Not Valid Scala")
     case LetTuple(ids,d,e) =>
-      sb.append("locally {\n")
-      ind(lvl+1)
       sb.append("val (" )
       for (((id, tpe), i) <- ids.map(id => (id, id.getType)).zipWithIndex) {
           sb.append(id.toString+": ")
@@ -33,26 +31,20 @@ class ScalaPrinter(sb: StringBuffer = new StringBuffer) extends PrettyPrinter(sb
           }
       }
       sb.append(") = ")
-      pp(d, lvl+1)
-      sb.append("\n")
-      ind(lvl+1)
-      pp(e, lvl+1)
+      pp(d, lvl)
       sb.append("\n")
       ind(lvl)
-      sb.append("}\n")
+      pp(e, lvl)
+      sb.append("\n")
       ind(lvl)
 
     case Let(b,d,e) =>
-      sb.append("locally {\n")
-      ind(lvl+1)
       sb.append("val " + b + " = ")
-      pp(d, lvl+1)
-      sb.append("\n")
-      ind(lvl+1)
-      pp(e, lvl+1)
+      pp(d, lvl)
       sb.append("\n")
       ind(lvl)
-      sb.append("}\n")
+      pp(e, lvl)
+      sb.append("\n")
       ind(lvl)
 
     case LetDef(fd, body) =>
@@ -326,6 +318,14 @@ class ScalaPrinter(sb: StringBuffer = new StringBuffer) extends PrettyPrinter(sb
       pp(bt, lvl)
       sb.append("]")
     case TupleType(tpes) => ppNaryType(tpes, "(", ", ", ")", lvl)
+    case FunctionType(fts, tt) =>
+      if (fts.size > 1) {
+        ppNaryType(fts, "(", ", ", ")", lvl)
+      } else if (fts.size == 1) {
+        pp(fts.head, lvl)
+      }
+      sb.append(" => ")
+      pp(tt, lvl)
     case c: ClassType => sb.append(c.classDef.id)
     case _ => sb.append("Type?")
   }

@@ -476,6 +476,7 @@ trait CodeExtraction extends Extractors {
             case Some(rst) => extractTree(rst)
             case None => UnitLiteral
           }
+
           defsToDefs.remove(dd.symbol)
           rest = None
           LetDef(funDefWithBody, restTree)
@@ -494,6 +495,7 @@ trait CodeExtraction extends Extractors {
                 unsupported(tr, "Cannot alias array")
             }
           }
+
           val restTree = rest match {
             case Some(rst) => {
               varSubsts(vs) = (() => Variable(newID))

@@ -24,6 +24,11 @@ object Trees {
    * empty set, division by zero, etc.). It should always be typed according to
    * the expected type. */
   case class Error(description: String) extends Expr with Terminal with ScalacPositional
+  
+  case class Hole(desiredType: TypeTree) extends Expr with Terminal with ScalacPositional {
+    if (desiredType != Untyped)
+      setType(desiredType)
+  }  
 
   case class Choose(vars: List[Identifier], pred: Expr) extends Expr with FixedType with ScalacPositional with UnaryExtractable {
 

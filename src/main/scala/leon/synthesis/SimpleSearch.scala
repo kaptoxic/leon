@@ -72,7 +72,7 @@ class SimpleSearch(synth: Synthesizer,
   }
 
   def expandOrTask(t: TaskTryRules): ExpandResult[TaskRunRule] = {
-    val (normRules, otherRules) = rules.partition(_.isInstanceOf[NormalizingRule])
+    val (normRules, otherRules) = (Seq[Rule](), rules)//.partition(r => r.isInstanceOf[NormalizingRule] || r.name.contains("abduction"))
 
     val normApplications = normRules.flatMap(_.instantiateOn(sctx, t.p))
 
@@ -186,8 +186,6 @@ class SimpleSearch(synth: Synthesizer,
   }
 
 
-  var shouldStop = false
-
   def searchStep() {
     nextLeaf() match {
       case Some(l)  =>
@@ -207,9 +205,7 @@ class SimpleSearch(synth: Synthesizer,
   def search(): Option[(Solution, Boolean)] = {
     sctx.solver.init()
 
-    shouldStop = false
-
-    while (!g.tree.isSolved && !shouldStop) {
+    while (!g.tree.isSolved && !synth.shouldStop.get) {
       searchStep()
     }
     g.tree.solution.map(s => (s, g.tree.isTrustworthy))
@@ -217,7 +213,6 @@ class SimpleSearch(synth: Synthesizer,
 
   override def stop() {
     super.stop()
-    shouldStop = true
     sctx.solver.halt()
   }
 }

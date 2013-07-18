@@ -19,7 +19,9 @@ class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx,
   private case class EvalError(msg : String) extends Exception
   private case class RuntimeError(msg : String) extends Exception
 
-  private val maxSteps = 50000
+  private var _maxSteps = 50000
+  def maxSteps_=(maxSteps: Int) = _maxSteps = maxSteps
+  def maxSteps = _maxSteps
 
   def eval(expression: Expr, mapping : Map[Identifier,Expr]) : EvaluationResults.Result = {
     var left: Int = maxSteps
@@ -39,8 +41,8 @@ class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx,
             } else {
               res
             }
-          } else {
-            throw EvalError("No value for identifier " + id.name + " in mapping.")
+          } else {            
+            throw EvalError("No value for identifier " + id + " in mapping." + "\n" + ctx)
           }
         }
         case Tuple(ts) => {

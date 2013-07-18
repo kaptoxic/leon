@@ -26,6 +26,8 @@ object CodeGeneration {
   private val ErrorClass      = "leon/codegen/runtime/LeonCodeGenRuntimeException"
   private val ImpossibleEvaluationClass = "leon/codegen/runtime/LeonCodeGenEvaluationException"
   private val HashingClass   = "leon/codegen/runtime/LeonCodeGenRuntimeHashing"
+  protected[codegen] val TickerClass    = "leon/codegen/runtime/Ticker"
+  protected[codegen] val MonitorClass = "leon/codegen/runtime/RuntimeMonitor"
 
   def defToJVMName(d : Definition)(implicit env : CompilationEnvironment) : String = "Leon$CodeGen$" + d.id.uniqueName
 
@@ -56,26 +58,53 @@ object CodeGeneration {
 
   // Assumes the CodeHandler has never received any bytecode.
   // Generates method body, and freezes the handler at the end.
+  // Each function takes a 'RuntimeMonitor' as a first argument.
   def compileFunDef(funDef : FunDef, ch : CodeHandler)(implicit env : CompilationEnvironment) {
-    val newMapping = funDef.args.map(_.id).zipWithIndex.toMap
+    import purescala.TreeOps._
 
-    val bodyWithPre = if(funDef.hasPrecondition && env.compileContracts) {
-      IfExpr(funDef.precondition.get, funDef.getBody, Error("Precondition failed"))
-    } else {
-      funDef.getBody
+    // Note the offset of 1 to account for the RuntimeMonitor...
+    val newMapping = funDef.args.map(_.id).zipWithIndex.toMap.mapValues(_ + 1)
+    val newEnv = env.withVars(newMapping)
+
+    val postTick = ch.getFreshLabel("postTick")
+    ch << ALoad(0) << IfNull(postTick)
+    ch << ALoad(0) << InvokeVirtual(MonitorClass, "tick", "()V")
+    ch << Label(postTick)
+
+    funDef.precondition.foreach { prec =>
+      val prePass = ch.getFreshLabel("prePass")
+      val preFail = ch.getFreshLabel("preFail")
+      // The default is *not* to check contracts.
+      ch << ALoad(0) << IfNull(prePass)
+      ch << ALoad(0) << InvokeVirtual(MonitorClass, "shouldEvaluateContracts", "()Z") << IfEq(prePass)
+      mkBranch(matchToIfThenElse(prec), prePass, preFail, ch)(newEnv)
+      ch << Label(preFail)
+      mkExpr(Error("Precondition failed"), ch)(newEnv)
+      ch << Label(prePass)
     }
 
-    val bodyWithPost = if(funDef.hasPostcondition && env.compileContracts) {
-      val freshResID = FreshIdentifier("result").setType(funDef.returnType)
-      val post = purescala.TreeOps.replace(Map(ResultVariable() -> Variable(freshResID)), funDef.postcondition.get)
-      Let(freshResID, bodyWithPre, IfExpr(post, Variable(freshResID), Error("Postcondition failed")) )
-    } else {
-      bodyWithPre
+    mkExpr(matchToIfThenElse(funDef.getBody), ch)(newEnv)
+
+    funDef.postcondition.foreach { post =>
+      val resSlot = ch.getFreshVar
+      val resID = FreshIdentifier("result").setType(funDef.returnType)
+      val subst = replace(Map(ResultVariable() -> Variable(resID)), post)
+
+      val postPass = ch.getFreshLabel("postPass")
+      val postFail = ch.getFreshLabel("postFail")
+      // The default is *not* to check contracts.
+      ch << ALoad(0) << IfNull(postPass)
+      ch << ALoad(0) << InvokeVirtual(MonitorClass, "shouldEvaluateContracts", "()Z") << IfEq(postPass)
+      ch << DUP
+      ch << (funDef.returnType match {
+        case Int32Type | BooleanType | UnitType => IStore(resSlot)
+        case _ => AStore(resSlot)
+      })
+      mkBranch(matchToIfThenElse(subst), postPass, postFail, ch)(newEnv.withVars(Map(resID -> resSlot)))
+      ch << Label(postFail)
+      mkExpr(Error("Postcondition failed"), ch)(newEnv)
+      ch << Label(postPass)
     }
-
-    val exprToCompile = purescala.TreeOps.matchToIfThenElse(bodyWithPost)
-
-    mkExpr(exprToCompile, ch)(env.withVars(newMapping))
 
     funDef.returnType match {
       case Int32Type | BooleanType | UnitType =>
@@ -263,10 +292,12 @@ object CodeGeneration {
         mkExpr(e, ch)
         ch << Label(al)
 
+      // Function invocations
       case FunctionInvocation(fd, as) =>
         val (cn, mn, ms) = env.funDefToMethod(fd).getOrElse {
           throw CompilationException("Unknown method : " + fd.id)
         }
+        ch << ALoad(0) // loads up the monitor
         for(a <- as) {
           mkExpr(a, ch)
         }

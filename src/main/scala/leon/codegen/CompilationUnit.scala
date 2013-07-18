@@ -128,7 +128,7 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
       throw CompilationException("Unsupported return value : " + e.getClass)
   }
 
-  def compileExpression(e: Expr, args: Seq[Identifier]): CompiledExpression = {
+  def compileExpression(e: Expr, args: Seq[Identifier]) : CompiledExpression = {
     if(e.getType == Untyped) {
       throw new IllegalArgumentException("Cannot compile untyped expression [%s].".format(e))
     }
@@ -148,7 +148,8 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
     val m = cf.addMethod(
       typeToJVM(e.getType),
       "eval",
-      args.map(a => typeToJVM(a.getType)) : _*
+      (("L" + CodeGeneration.MonitorClass + ";") +:
+       args.map(a => typeToJVM(a.getType))) : _*
     )
 
     m.setFlags((
@@ -159,7 +160,7 @@ class CompilationUnit(val program: Program, val classes: Map[Definition, ClassFi
 
     val ch = m.codeHandler
 
-    val newMapping    = args.zipWithIndex.toMap
+    val newMapping    = args.zipWithIndex.toMap.mapValues(_ + 1)
 
     val exprToCompile = purescala.TreeOps.matchToIfThenElse(e)
 
@@ -225,7 +226,8 @@ object CompilationUnit {
       val m = cf.addMethod(
         typeToJVM(funDef.returnType),
         mn,
-        funDef.args.map(a => typeToJVM(a.tpe)) : _*
+        (("L" + CodeGeneration.MonitorClass + ";") +:
+         funDef.args.map(a => typeToJVM(a.tpe))) : _*
       )
       m.setFlags((
         METHOD_ACC_PUBLIC |

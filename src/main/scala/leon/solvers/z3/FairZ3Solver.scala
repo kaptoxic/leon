@@ -28,7 +28,7 @@ class FairZ3Solver(context : LeonContext)
      with LeonComponent {
 
   enclosing =>
-
+    
   val name = "Z3-f"
   val description = "Fair Z3 Solver"
 
@@ -170,6 +170,7 @@ class FairZ3Solver(context : LeonContext)
       }).toMap
 
       val asMap = modelToMap(model, variables) ++ functionsAsMap ++ constantFunctionsAsMap
+      
       lazy val modelAsString = asMap.toList.map(p => p._1 + " -> " + p._2).mkString("\n")
       val evalResult = evaluator.eval(formula, asMap)
 
@@ -520,6 +521,7 @@ class FairZ3Solver(context : LeonContext)
             } else {
               scalaTime.start
               val model = modelToMap(z3model, varsInVC)
+  
               scalaTime.stop
 
               //lazy val modelAsString = model.toList.map(p => p._1 + " -> " + p._2).mkString("\n")
