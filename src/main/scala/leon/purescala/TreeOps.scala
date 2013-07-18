@@ -666,20 +666,11 @@ object TreeOps {
     rec(expr, Map.empty)
   }
 
-  private var matchConverterCache = new scala.collection.mutable.HashMap[Expr,Expr]()
   /** Rewrites all pattern-matching expressions into if-then-else expressions,
    * with additional error conditions. Does not introduce additional variables.
-   * We use a cache because we can. */
+   */
   def matchToIfThenElse(expr: Expr) : Expr = {
-    val toRet = if(matchConverterCache.isDefinedAt(expr)) {
-      matchConverterCache(expr)
-    } else {
-      val converted = convertMatchToIfThenElse(expr)
-      matchConverterCache(expr) = converted
-      converted
-    }
-
-    toRet
+    convertMatchToIfThenElse(expr)
   }
 
   def conditionForPattern(in: Expr, pattern: Pattern, includeBinders: Boolean = false) : Expr = {
@@ -783,18 +774,9 @@ object TreeOps {
     searchAndReplaceDFS(rewritePM)(expr)
   }
 
-  private var mapGetConverterCache = new scala.collection.mutable.HashMap[Expr,Expr]()
   /** Rewrites all map accesses with additional error conditions. */
   def mapGetWithChecks(expr: Expr) : Expr = {
-    val toRet = if (mapGetConverterCache.isDefinedAt(expr)) {
-      mapGetConverterCache(expr)
-    } else {
-      val converted = convertMapGet(expr)
-      mapGetConverterCache(expr) = converted
-      converted
-    }
-
-    toRet
+    convertMapGet(expr)
   }
 
   private def convertMapGet(expr: Expr) : Expr = {
