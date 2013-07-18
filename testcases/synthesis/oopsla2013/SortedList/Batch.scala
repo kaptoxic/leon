@@ -23,24 +23,40 @@ object SortedList {
     case Cons(_, xs) => isSorted(xs)
   }
 
-  def insert(in1: List, v: Int) = choose {
-    (out : List) =>
-      isSorted(in1) && (content(out) == content(in1) ++ Set(v)) && isSorted(out)
+  def insert(in1: List, v: Int) = {
+    require(isSorted(in1))
+
+    choose {
+      (out : List) =>
+        (content(out) == content(in1) ++ Set(v)) && isSorted(out)
+    }
   }
 
-  def delete(in1: List, v: Int) = choose {
-    (out : List) =>
-      isSorted(in1) && (content(out) == content(in1) -- Set(v)) && isSorted(out)
+  def delete(in1: List, v: Int) = {
+    require(isSorted(in1))
+
+    choose {
+      (out : List) =>
+        isSorted(in1) && (content(out) == content(in1) -- Set(v)) && isSorted(out)
+    }
   }
 
-  def union(in1: List, in2: List) = choose {
-    (out : List) =>
-      isSorted(in1) && isSorted(in2) && (content(out) == content(in1) ++ content(in2)) && isSorted(out)
+  def union(in1: List, in2: List) = {
+    require(isSorted(in1) && isSorted(in2))
+
+    choose {
+      (out : List) =>
+        && (content(out) == content(in1) ++ content(in2)) && isSorted(out)
+    }
   }
 
-  def diff(in1: List, in2: List) = choose {
-    (out : List) =>
-      isSorted(in1) && isSorted(in2) && (content(out) == content(in1) -- content(in2)) && isSorted(out)
+  def diff(in1: List, in2: List) = {
+   require(isSorted(in1) && isSorted(in2))
+
+    choose {
+      (out : List) =>
+        && (content(out) == content(in1) -- content(in2)) && isSorted(out)
+    }
   }
 
   // ***********************

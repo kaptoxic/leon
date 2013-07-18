@@ -41,6 +41,7 @@ object Complete {
 
   def insert1(in1: List, v: Int) = {
     require(isSorted(in1))
+
     choose { (out : List) =>
       (content(out) == content(in1) ++ Set(v)) && isSorted(out) }
   }

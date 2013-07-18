@@ -503,7 +503,7 @@ case object CEGIS extends Rule("CEGIS") {
         def allInputExamples() = baseExampleInputs.iterator ++ cachedInputIterator
 
         def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
-          for (prog <- programs) {
+          for (prog <- programs if !sctx.shouldStop.get) {
             val expr = ndProgram.determinize(prog)
             val res = Equals(Tuple(p.xs.map(Variable(_))), expr)
             val solver3 = cexSolver.getNewSolver
@@ -512,8 +512,10 @@ case object CEGIS extends Rule("CEGIS") {
             solver3.check match {
               case Some(false) =>
                 return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = true)
-              case None =>
+              case None if !sctx.shouldStop.get =>
                 return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false)
+              case None =>
+                return RuleApplicationImpossible
               case Some(true) =>
                 // invalid program, we skip
             }
