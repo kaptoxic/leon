@@ -16,7 +16,7 @@ import lesynth.evaluation._
 
 import leon.StopwatchCollections
 
-case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abduction synthesis (two phase).") {
+case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abduction synthesis (two phase).") with TopLevelRule {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
 
     p.xs match {
