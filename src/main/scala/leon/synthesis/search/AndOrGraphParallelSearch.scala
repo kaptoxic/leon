@@ -63,7 +63,7 @@ abstract class AndOrGraphParallelSearch[WC,
     case class WorkerOrTaskDone(worker: ActorRef, res: ExpandResult[AT])
 
     case class RequestAndTask(task: AT)
-    case class RequestOrTask(task: OT)
+    case class RequestOrTask(task: OT, pathToRoot: List[AT])
     case object NoTaskReady
   }
 
@@ -87,6 +87,19 @@ abstract class AndOrGraphParallelSearch[WC,
 
     var workers = Map[ActorRef, Option[g.Leaf]]()
 
+    def pathToRoot(t: g.Tree): List[AT] = {
+      if (t eq null) {
+        Nil
+      } else {
+        t match {
+          case at: g.AndTree =>
+            at.task :: pathToRoot(at.parent)
+          case ot: g.OrTree =>
+            pathToRoot(ot.parent)
+        }
+      }
+    }
+
     def sendWork() {
       val (idleWorkers, workingWorkers) = workers.partition(_._2.isEmpty)
 
@@ -108,7 +121,7 @@ abstract class AndOrGraphParallelSearch[WC,
                 w ! RequestAndTask(al.task)
               case ol: g.OrLeaf =>
                 workers += w -> Some(ol)
-                w ! RequestOrTask(ol.task)
+                w ! RequestOrTask(ol.task, pathToRoot(ol))
             }
           }
       }
@@ -168,8 +181,8 @@ abstract class AndOrGraphParallelSearch[WC,
         val res = expandAndTask(self, ctx)(at)
         master ! WorkerAndTaskDone(self, res)
 
-      case RequestOrTask(ot) =>
-        val res = expandOrTask(self, ctx)(ot)
+      case RequestOrTask(ot, pathToRoot) =>
+        val res = expandOrTask(self, ctx, pathToRoot)(ot)
         master ! WorkerOrTaskDone(self, res)
     }
 
@@ -178,5 +191,5 @@ abstract class AndOrGraphParallelSearch[WC,
 
   def expandAndTask(w: ActorRef, ctx: WC)(t: AT): ExpandResult[OT]
 
-  def expandOrTask(w: ActorRef, ctx: WC)(t: OT): ExpandResult[AT]
+  def expandOrTask(w: ActorRef, ctx: WC, pathToRoot: List[AT])(t: OT): ExpandResult[AT]
 }

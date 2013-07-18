@@ -91,8 +91,8 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
       case _ =>
     }
 
-    if (options.manualSearch || options.searchWorkers > 1) {
-      options = options.copy(rules = ConditionAbductionSynthesisTwoPhase +: options.rules)
+    if (!options.manualSearch && options.searchWorkers == 1) {
+      options = options.copy(rules = options.rules.filterNot(_ == ConditionAbductionSynthesisTwoPhase))
     }
 
     options

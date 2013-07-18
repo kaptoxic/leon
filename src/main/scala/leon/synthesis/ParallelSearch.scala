@@ -77,7 +77,7 @@ class ParallelSearch(synth: Synthesizer,
     }
   }
 
-  def expandOrTask(ref: ActorRef, sctx: SynthesisContext)(t: TaskTryRules) = {
+  def expandOrTask(ref: ActorRef, sctx: SynthesisContext, pathToRoot: List[TaskRunRule])(t: TaskTryRules) = {
     val (normRules, otherRules) = rules.partition(_.isInstanceOf[NormalizingRule])
 
     val normApplications = normRules.flatMap(_.instantiateOn(sctx, t.p))
@@ -86,7 +86,12 @@ class ParallelSearch(synth: Synthesizer,
       Expanded(List(TaskRunRule(normApplications.head)))
     } else {
       val sub = otherRules.flatMap { r =>
-        r.instantiateOn(sctx, t.p).map(TaskRunRule(_))
+        r match {
+          case _: TopLevelRule if !pathToRoot.forall(_.rule.isInstanceOf[NormalizingRule]) =>
+            None
+          case _ =>
+            r.instantiateOn(sctx, t.p).map(TaskRunRule(_))
+        }
       }
 
       if (!sub.isEmpty) {

@@ -31,8 +31,8 @@ object Rules {
     DetupleInput,
     ADTSplit,
     IntegerEquation,
-    IntegerInequalities//,
-//    ConditionAbductionSynthesisTwoPhase
+    IntegerInequalities,
+    ConditionAbductionSynthesisTwoPhase
   )
 }
 

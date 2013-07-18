@@ -48,7 +48,7 @@ class SimpleSearch(synth: Synthesizer,
 
   val sctx = SynthesisContext.fromSynthesizer(synth)
 
-  def expandAndTask(t: TaskRunRule, pathToRoot: List[RuleInstantiation]): ExpandResult[TaskTryRules] = {
+  def expandAndTask(t: TaskRunRule): ExpandResult[TaskTryRules] = {
     val prefix = "[%-20s] ".format(Option(t.rule).getOrElse("?"))
 
     info(prefix+"Got: "+t.problem)
@@ -72,7 +72,7 @@ class SimpleSearch(synth: Synthesizer,
     }
   }
 
-  def expandOrTask(t: TaskTryRules, pathToRoot: List[RuleInstantiation]): ExpandResult[TaskRunRule] = {
+  def expandOrTask(t: TaskTryRules): ExpandResult[TaskRunRule] = {
     val (normRules, otherRules) = (Seq[Rule](), rules)//.partition(r => r.isInstanceOf[NormalizingRule] || r.name.contains("abduction"))
 
     val normApplications = normRules.flatMap(_.instantiateOn(sctx, t.p))
@@ -81,12 +81,7 @@ class SimpleSearch(synth: Synthesizer,
       Expanded(List(TaskRunRule(normApplications.head)))
     } else {
       val sub = otherRules.flatMap { r =>
-        r match {
-          case _: TopLevelRule if !pathToRoot.forall(_.rule.isInstanceOf[NormalizingRule]) =>
-            None
-          case _ =>
-            r.instantiateOn(sctx, t.p).map(TaskRunRule(_))
-        }
+        r.instantiateOn(sctx, t.p).map(TaskRunRule(_))
       }
 
       if (!sub.isEmpty) {
@@ -192,28 +187,15 @@ class SimpleSearch(synth: Synthesizer,
   }
 
 
-  def pathToRoot(l: g.Tree): List[RuleInstantiation] = {
-    if (l.parent eq null) {
-      Nil
-    } else {
-      l.parent.task match {
-        case t: TaskRunRule =>
-          t.app :: pathToRoot(l.parent)    
-        case _ =>
-          pathToRoot(l.parent)
-      }
-    }
-  }
-
   def searchStep() {
     nextLeaf() match {
       case Some(l)  =>
         l match {
           case al: g.AndLeaf =>
-            val sub = expandAndTask(al.task, pathToRoot(al))
+            val sub = expandAndTask(al.task)
             onExpansion(al, sub)
           case ol: g.OrLeaf =>
-            val sub = expandOrTask(ol.task, pathToRoot(ol))
+            val sub = expandOrTask(ol.task)
             onExpansion(ol, sub)
         }
       case None =>
