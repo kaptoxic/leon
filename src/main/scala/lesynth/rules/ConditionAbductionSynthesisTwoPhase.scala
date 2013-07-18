@@ -43,7 +43,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   () =>
 //                    getDataGenInputExamples(codeGenEval, p, 
 //                		100, 6000, Some(p.as)) ++
-                    getDataGenInputExamplesRandomIntegers(codeGenEval, p, 
+                    getDataGenInputExamplesRandomIntegers(sctx.context, sctx.program, codeGenEval, p, 
                 		100, 6000, Some(p.as)
                 		// bound the random geenerator
                 		,10)

@@ -25,7 +25,7 @@ object InputExamples {
 
     val models = new NaiveDataGen(ctx, program, evaluator).generateFor(ins, p.pc, numOfModels, numOfTries)
 
-    models.toList
+    models.toList.map(m => (ins zip m).toMap)
   }
   
   def getDataGenInputExamplesRandomIntegers(ctx: LeonContext, program: Program, evaluator: Evaluator, p: Problem,
@@ -35,14 +35,14 @@ object InputExamples {
     
     val ins = _forcedFreeVars.getOrElse(TreeOps.variablesOf(p.pc).toSeq)
 
-    val models = new NaiveDataGen(ctx, program evaluator).generateFor(ins, p.pc, numOfModels, numOfTries)
+    val models = new NaiveDataGen(ctx, program, evaluator).generateFor(ins, p.pc, numOfModels, numOfTries)
 
     def foundInteger(x: Expr) = x match {
       case _:IntLiteral => Some(IntLiteral(rnd.nextInt(bound)))
       case _ => None
     }
       
-    models.toList.map( innerMap =>
+    models.toList.map(m => (ins zip m).toMap).map( innerMap =>
       innerMap.map( innerEl => innerEl match {
         case (id, expr) => (id, searchAndReplace(foundInteger)(expr))
       })
