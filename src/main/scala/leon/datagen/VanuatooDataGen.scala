@@ -211,12 +211,25 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
       var total = 0
       var found = 0;
 
+      var theNext: Option[Seq[Expr]] = None
+
       def hasNext() = {
-        (total < maxEnumerated && found < maxValid && it.hasNext)
+        if (total == 0) {
+          theNext = computeNext()
+        }
+
+        theNext != None
       }
 
-      def next(): Seq[Expr] = {
-        while(hasNext()) {
+      def next() = {
+        val res = theNext.get
+        theNext = computeNext()
+        res
+      }
+
+
+      def computeNext(): Option[Seq[Expr]] = {
+        while(total < maxEnumerated && found < maxValid && it.hasNext) {
           val model = it.next.asInstanceOf[Tuple]
 
           if (model eq null) {
@@ -249,7 +262,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
                 it.skipIsomorphic()
               }
 
-              return model.exprs;
+              return Some(model.exprs);
             }
 
             if (total % 1000 == 0) {
@@ -257,7 +270,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
             }
           }
         }
-        null
+        None
       }
     }
   }
