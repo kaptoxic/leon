@@ -191,7 +191,9 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
     }).flatten
 
 
-    val gen = new StubGenerator[Expr, TypeTree]((ints.values ++ booleans.values).toSeq, Some(getConstructors _))
+    val gen = new StubGenerator[Expr, TypeTree]((ints.values ++ booleans.values).toSeq,
+                                                Some(getConstructors _),
+                                                treatEmptyStubsAsChildless = true)
 
     var found = Set[Seq[Expr]]()
 
