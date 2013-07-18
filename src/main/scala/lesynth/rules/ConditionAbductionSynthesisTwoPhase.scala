@@ -33,7 +33,6 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
 
               // temporary hack, should not mutate FunDef
               val oldPostcondition = holeFunDef.postcondition
-              val oldPrecondition = holeFunDef.precondition
               
               try {
                 val freshResID = FreshIdentifier("result").setType(holeFunDef.returnType)
@@ -42,8 +41,8 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 val codeGenEval = new CodeGenEvaluator(sctx.context, sctx.program)
                 def getInputExamples = {
                   () =>
-                    getDataGenInputExamples(codeGenEval, p, 
-                		100, 6000, Some(p.as)) ++
+//                    getDataGenInputExamples(codeGenEval, p, 
+//                		100, 6000, Some(p.as)) ++
                     getDataGenInputExamplesRandomIntegers(codeGenEval, p, 
                 		100, 6000, Some(p.as)
                 		// bound the random geenerator
@@ -54,7 +53,6 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 	
                 holeFunDef.postcondition = Some(replace(
                   Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))
-                holeFunDef.precondition = Some(p.pc)
 
                 val synthesizer = new SynthesizerForRuleExamples(
                   solver, solver.getNewSolver, program, desiredType, holeFunDef, p, sctx, evaluationStrategy,
@@ -79,7 +77,6 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                   RuleApplicationImpossible
               } finally {
                 holeFunDef.postcondition = oldPostcondition
-                holeFunDef.precondition = oldPrecondition
               }
             }
           }

@@ -25,21 +25,21 @@ trait HasLogger {
   
   import formatter._
   
-  def warning(msg: => String) = logger.warning(this.toString + ": " + msg)        		   
+  def warning(msg: => String) = logger.warning(msg)        		   
     
-  def severe(msg: => String) = logger.severe(this.toString + ": " + msg)
+  def severe(msg: => String) = logger.severe(msg)
      
-  def info(msg: => String) = logger.info(this.toString + ": " + msg)
+  def info(msg: => String) = logger.info(msg)
    
-  def fine(msg: => String) = logger.fine(this.toString + ": " + msg)
+  def fine(msg: => String) = logger.fine(msg)
    
-  def finer(msg: => String)  = logger.finer(this.toString + ": " + msg)
+  def finer(msg: => String)  = logger.finer(msg)
    
-  def finest(msg: => String) = logger.finest(this.toString + ": " + msg)
+  def finest(msg: => String) = logger.finest(msg)
      
   def entering(method: => String, arguments: Any*) =
-	  logger.finest(toString + ": " + "Entering " + getMyClass + "." + method)
+	  logger.finest("Entering " + getMyClass + "." + method)
      
   def exiting(method: => String, result: => String) =
-	  logger.finest(toString + ": " + "Exiting " + getMyClass + "." + method + " with " + result)
+	  logger.finest("Exiting " + getMyClass + "." + method + " with " + result)
 }
