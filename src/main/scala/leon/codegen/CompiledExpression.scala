@@ -48,7 +48,7 @@ class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr
     if (args.isEmpty) {
       meth.invoke(null, Seq(monitor).toArray : _*)
     } else {
-      meth.invoke(null, (monitor +: args.map(unit.valueToJVM)).toArray : _*)
+      meth.invoke(null, (monitor +: args).toArray : _*)
     }
   }
 
@@ -66,9 +66,9 @@ class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr
     }
   }
 
-  def eval(args: Seq[Expr]) : Expr = {
+  def eval(args: Seq[Expr], params : CodeGenEvalParams = defParams) : Expr = {
     try {
-      evalFromJVM(argsToJVM(args))
+      evalFromJVM(argsToJVM(args), params)
     } catch {
       case ite : InvocationTargetException => throw ite.getCause()
     }
