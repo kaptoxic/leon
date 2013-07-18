@@ -15,8 +15,6 @@ object BatchedQueue {
   def content(p: Queue): Set[Int] =
     content(p.f) ++ content(p.r)
 
-  def isEmpty(p: Queue): Boolean = p.f == Nil
-
   case class Queue(f: List, r: List)
 
   def rev_append(aList: List, bList: List): List = (aList match {
@@ -26,6 +24,18 @@ object BatchedQueue {
 
   def reverse(list: List) = rev_append(list, Nil) ensuring (content(_) == content(list))
 
+  def invariantList(q:Queue, f: List, r: List): Boolean = {
+  	rev_append(q.f, q.r) == rev_append(f, r) &&
+    { if (q.f == Nil) q.r == Nil else true }
+  }
+  
+  def tail(p: Queue): Queue = {
+    p.f match {
+      case Nil => p
+      case Cons(_, xs) => checkf(xs, p.r)
+    }
+  }
+  
   def checkf(f: List, r: List): Queue = (f match {
     case Nil => Queue(reverse(r), Nil)
     case _ => Queue(f, r)
@@ -44,7 +54,7 @@ object BatchedQueue {
   def snoc(p: Queue, x: Int): Queue =
     choose { (res: Queue) =>
       content(res) == content(p) ++ Set(x) &&
-        (if (isEmpty(p)) true
-        else content(tail(res)) ++ Set(x) == content(tail(res)))
+      (p.f == Nil || content(tail(res)) ++
+        Set(x) == content(tail(res)))
     }
 }
