@@ -81,10 +81,11 @@ class SimpleSearch(synth: Synthesizer,
       Expanded(List(TaskRunRule(normApplications.head)))
     } else {
       val sub = otherRules.flatMap { r =>
-        if (r == ConditionAbductionSynthesisTwoPhase && !pathToRoot.forall(_.rule.isInstanceOf[NormalizingRule])) {
-          None
-        } else {
-          r.instantiateOn(sctx, t.p).map(TaskRunRule(_))
+        r match {
+          case _: TopLevelRule if !pathToRoot.forall(_.rule.isInstanceOf[NormalizingRule]) =>
+            None
+          case _ =>
+            r.instantiateOn(sctx, t.p).map(TaskRunRule(_))
         }
       }
 

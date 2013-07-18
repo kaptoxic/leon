@@ -104,3 +104,7 @@ abstract class Rule(val name: String) {
 abstract class NormalizingRule(name: String) extends Rule(name) {
   override def toString = "N: "+name
 }
+
+abstract trait TopLevelRule {
+  this: Rule => 
+}
