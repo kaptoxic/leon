@@ -66,20 +66,19 @@ object MergeSort {
     case Cons(x,xs) => false
   }
   
-  def sort(list : List) : List = choose {
-      
-    (res : List) =>
-      contents(res) == contents(list) && isSorted(res)
-      
-//      list match {
-//    case Nil() => list
-//    case Cons(x,Nil()) => list
-//    case _ =>
-//    	 val p = split(list,size(list)/2)
-//   	 merge(mergeSort(p.fst), mergeSort(p.snd))
-      
-//      merge(mergeSort(split(list).fst), mergeSort(split(list).snd))
+  def sort(list : List) : List =
+      list match {
+    case Nil() => list
+    case Cons(_,Nil()) => list
+    case _ => {
+    	 val p = split(list)
+	    choose {(res : List) =>
+	      contents(res) == contents(list) && isSorted(res)
+    	 }
+    }
   }
+      
+//      merge(mergeSort(split(list).fst), mergeSort(split(list).snd))  
   
   //ensuring(res => contents(res) == contents(list) && isSorted(res))
  

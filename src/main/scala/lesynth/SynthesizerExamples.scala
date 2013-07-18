@@ -101,7 +101,7 @@ class SynthesizerForRuleExamples(
   // store initial precondition since it will be overwritten
   private var initialPrecondition: Expr = _
   // accumulate precondition for the remaining branch to synthesize 
-  private var accumulatingPrecondition: Expr = _
+  private var accumulatingCondition: Expr = _
   // accumulate the final expression of the hole
   private var accumulatingExpression: Expr => Expr = _
 
@@ -157,7 +157,7 @@ class SynthesizerForRuleExamples(
         reporter.info("######Iteration #" + iteration + " ###############")
         reporter.info("####################################")
         reporter.info("# precondition is: " + holeFunDef.precondition.getOrElse(BooleanLiteral(true)))
-        reporter.info("# accumulatingPrecondition is: " + accumulatingPrecondition)
+        reporter.info("# accumulatingCondition is: " + accumulatingCondition)
         reporter.info("# accumulatingExpression(Unit) is: " + accumulatingExpression(UnitLiteral))
         reporter.info("####################################")
         interactivePause
@@ -211,18 +211,6 @@ class SynthesizerForRuleExamples(
               val (passed, failedModulo) = ranker.fullyEvaluate(maxCandidateInd)
               synthInfo.end
 
-              // restore original precondition and body
-              holeFunDef.precondition = oldPreconditionSaved
-              holeFunDef.body = oldBodySaved
-              
-              // check for timeouts
-              if (!keepGoing) break
-
-              info("candidate with the most successfull evaluations is: " + maxCandidate.getExpr +
-                " with pass count " + passed + " out of " + gatheredExamples.size)
-              interactivePause
-              numberOfTested += batchSize
-
               // get all examples that failed evaluation to filter potential conditions
               val evaluation = evaluationStrategy.getEvaluation
               // evaluate all remaining examples
@@ -239,6 +227,18 @@ class SynthesizerForRuleExamples(
                 (passedExamplesPairs.map(_._1), failedExamplesPairs.map(_._1))
               
               fine("Failed examples for the maximum candidate: " + examplesPartition)
+
+              // restore original precondition and body
+              holeFunDef.precondition = oldPreconditionSaved
+              holeFunDef.body = oldBodySaved
+              
+              // check for timeouts
+              if (!keepGoing) break
+
+              info("candidate with the most successfull evaluations is: " + maxCandidate.getExpr +
+                " with pass count " + passed + " out of " + gatheredExamples.size)
+              interactivePause
+              numberOfTested += batchSize
 //              interactivePause
               
               val currentCandidateExpr = maxCandidate.getExpr
@@ -287,9 +287,9 @@ class SynthesizerForRuleExamples(
           // reseting iterator needed because we may have some expressions that previously did not work
           snippetsIterator = snippets.iterator
 
-        info("Filtering based on precondition: " + holeFunDef.precondition.get)
+        info("Filtering based on precondition: " + And(initialPrecondition, accumulatingCondition))
         fine("counterexamples before filter: " + gatheredExamples.size)
-        exampleRunner.filter(holeFunDef.precondition.get)
+        exampleRunner.filter(And(initialPrecondition, accumulatingCondition))
         gatheredExamples = exampleRunner.examples
         fine("counterexamples after filter: " + gatheredExamples.size)
         fine("counterexamples after filter: " + gatheredExamples.mkString("\n"))
@@ -367,8 +367,8 @@ class SynthesizerForRuleExamples(
   }
 
   def interactivePause = {
-    System.out.println("Press Any Key To Continue...");
-    new java.util.Scanner(System.in).nextLine();
+//    System.out.println("Press Any Key To Continue...");
+//    new java.util.Scanner(System.in).nextLine();
   }
 
   def getNewExampleQueue = PriorityQueue[(Expr, Int)]()(
@@ -393,11 +393,18 @@ class SynthesizerForRuleExamples(
     //    interactivePause
 
     // accumulate precondition for the remaining branch to synthesize 
-    accumulatingPrecondition = holeFunDef.precondition.getOrElse(BooleanLiteral(true))
+    accumulatingCondition = BooleanLiteral(true)
     // save initial precondition
-    initialPrecondition = accumulatingPrecondition
+    initialPrecondition = holeFunDef.precondition.getOrElse(BooleanLiteral(true))
     // accumulate the final expression of the hole
-    accumulatingExpression = (finalExp: Expr) => finalExp
+    accumulatingExpression = (finalExp: Expr) => {      
+	    def replaceChoose(expr: Expr) = expr match {
+	      case _: Choose => Some(finalExp)
+	      case _ => None
+	    }
+	    
+      TreeOps.searchAndReplace(replaceChoose)(TreeOps.matchToIfThenElse(holeFunDef.getBody))
+    }
     //accumulatingExpressionMatch = accumulatingExpression
 
     // each variable of super type can actually have a subtype
@@ -460,12 +467,13 @@ class SynthesizerForRuleExamples(
     holeFunDef.precondition = preconditionToRestore
 
     // get counterexamples
-    info("Going to generating counterexamples: " + holeFunDef)
-    val (maps, precondition) = generateCounterexamples(program, holeFunDef, numberOfCounterExamplesToGenerate)
-
-    // collect (add) counterexamples from leon
-    if (collectCounterExamplesFromLeon)
-      gatheredExamples ++= maps.map(Example(_))
+//    info("Going to generating counterexamples: " + holeFunDef)
+//    val (maps, precondition) = generateCounterexamples(program, holeFunDef, numberOfCounterExamplesToGenerate)
+//
+//    // collect (add) counterexamples from leon
+//    if (collectCounterExamplesFromLeon)
+//      gatheredExamples ++= maps.map(Example(_))
+    val maps = Seq[Map[Identifier, Expr]]()
 
     // will modify funDef body and precondition, restore it later
     try {
@@ -529,13 +537,14 @@ class SynthesizerForRuleExamples(
   def tryToSynthesizeBooleanCondition(snippetTree: Expr, innerSnippetTree: Expr,
     counterExamples: Seq[Map[Identifier, Expr]], succExamples: Seq[Map[Identifier, Expr]]): (Boolean, Option[Expr]) = {
     // new condition together with existing precondition
-    val newCondition = And(Seq(accumulatingPrecondition, innerSnippetTree))
+    val newPrecondition = And(Seq(initialPrecondition, accumulatingCondition, innerSnippetTree))
+    val newPathCondition = And(Seq(problem.pc, accumulatingCondition, innerSnippetTree))
 
     // new expression should not be false
 //    val notFalseEquivalence = Not(newCondition)
     val isSatisfiable = 
-      checkSatisfiabilityNoMod(newCondition)
-    fine("Is " + newCondition + " satisfiable: " + isSatisfiable)
+      checkSatisfiabilityNoMod(newPathCondition)
+    fine("Is " + newPathCondition + " satisfiable: " + isSatisfiable)
 
     // continue if our expression is not contradictory
     if (isSatisfiable) {
@@ -543,7 +552,7 @@ class SynthesizerForRuleExamples(
       var hadRuntimeError = false
       val implyCounterExamplesPre = (false /: counterExamples) {
         case (false, exMapping) =>
-          exampleRunner.evaluateToResult(newCondition, exMapping) match {
+          exampleRunner.evaluateToResult(newPrecondition, exMapping) match {
             case EvaluationResults.Successful(BooleanLiteral(false)) => false
             case r =>
               
@@ -676,7 +685,7 @@ class SynthesizerForRuleExamples(
       
       if (!implyCounterExamples) {
         // if expression implies counterexamples add it to the precondition and try to validate program
-        holeFunDef.precondition = Some(newCondition)
+        holeFunDef.precondition = Some(newPathCondition)
         
         // do analysis
         val (valid, map) = analyzeFunction(holeFunDef)
@@ -696,15 +705,15 @@ class SynthesizerForRuleExamples(
               })
 
           accumulatingExpression = newAccumulatingExpression
-          val currentBranchCondition = And(Seq(accumulatingPrecondition, innerSnippetTree))
+          val currentBranchCondition = And(Seq(accumulatingCondition, innerSnippetTree))
 
           // update accumulating precondition
           fine("updating accumulatingPrecondition")
-          accumulatingPrecondition = And(Seq(accumulatingPrecondition, Not(innerSnippetTree)))
+          accumulatingCondition = And(Seq(accumulatingCondition, Not(innerSnippetTree)))
           fine("updating hole fun precondition and body (to be hole)")
 
           // set to set new precondition
-          val preconditionToRestore = Some(accumulatingPrecondition)
+          val preconditionToRestore = Some(accumulatingCondition)
 
           val variableRefinementResult = variableRefiner.checkRefinements(innerSnippetTree, currentBranchCondition, allDeclarations)
           if (variableRefinementResult._1) {
@@ -718,13 +727,13 @@ class SynthesizerForRuleExamples(
 
           // found a boolean snippet, break
           (true, preconditionToRestore)
-        } else {            
+        } else {
 			    // collect (add) counterexamples from leon
 			    if (collectCounterExamplesFromLeon && !map.isEmpty)
 			      gatheredExamples ++= (map :: Nil).map(Example(_))            
           
           // reset funDef and continue with next boolean snippet
-          val preconditionToRestore = Some(accumulatingPrecondition)
+          val preconditionToRestore = Some(accumulatingCondition)
           (false, preconditionToRestore)
         }
       } else {
