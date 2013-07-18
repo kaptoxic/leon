@@ -16,7 +16,7 @@ for f in $FILES; do
     cat $f
     echo "Press enter to start synthesis..."
     read a
-    ./leon --synthesis --cegis:gencalls $f
+    ./leon --synthesis --cegis:gencalls --cegis:vanuatoo $f
     echo "Press enter to continue to the next problem..."
     read a
 done
@@ -31,7 +31,7 @@ for f in $FILES2; do
     cat $f
     echo "Press enter to start synthesis..."
     read a
-    ./leon --costmodel=naive --synthesis --cegis:gencalls $f
+    ./leon --costmodel=naive --synthesis --cegis:vanuatoo --cegis:gencalls $f
     echo "Press enter to continue to the next problem..."
     read a
 done
