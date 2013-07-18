@@ -216,6 +216,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
       }
 
       def next(): Seq[Expr] = {
+                println("BLERGH!")
         while(hasNext()) {
           val model = it.next.asInstanceOf[Tuple]
 
@@ -231,6 +232,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
               case (_, Some(pattern)) =>
                 failed = true;
+                println("Excluding pattern: "+pattern)
                 it.exclude(pattern)
 
               case (_, None) =>

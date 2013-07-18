@@ -485,12 +485,16 @@ case object CEGIS extends Rule("CEGIS") {
 
         val cachedInputIterator = new Iterator[Seq[Expr]] {
           def next() = {
+            println("Getting next input... for "+p.as+" ON "+p.pc)
             val i = inputIterator.next()
+            println("Done")
             baseExampleInputs = i +: baseExampleInputs
             i
           }
 
-          def hasNext() = inputIterator.hasNext
+          def hasNext() = {
+            inputIterator.hasNext
+          }
         }
 
         def hasInputExamples() = baseExampleInputs.size > 0 || cachedInputIterator.hasNext
