@@ -28,7 +28,7 @@ abstract class CostModel(val name: String) {
 }
 
 object CostModel {
-  def default: CostModel = NonAdbuctionFirst(WeightedBranchesCostModel)
+  def default: CostModel = WeightedBranchesCostModel
 
   def all: Set[CostModel] = Set(
     NaiveCostModel,
