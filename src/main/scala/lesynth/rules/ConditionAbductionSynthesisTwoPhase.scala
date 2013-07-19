@@ -41,8 +41,8 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
                 val codeGenEval = new CodeGenEvaluator(sctx.context, sctx.program)
                 def getInputExamples = {
                   () =>
-                    getDataGenInputExamples(sctx.context, sctx.program, codeGenEval, p, 
-                		100, 6000, Some(p.as)) ++
+                    //getDataGenInputExamples(sctx.context, sctx.program, codeGenEval, p, 
+                	//	100, 6000, Some(p.as)) ++
                     getDataGenInputExamplesRandomIntegers(sctx.context, sctx.program, codeGenEval, p, 
                 		100, 6000, Some(p.as)
                 		// bound the random geenerator
