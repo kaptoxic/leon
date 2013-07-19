@@ -396,6 +396,7 @@ class SynthesizerForRuleExamples(
     accumulatingCondition = BooleanLiteral(true)
     // save initial precondition
     initialPrecondition = holeFunDef.precondition.getOrElse(BooleanLiteral(true))
+    val holeFunDefBody = holeFunDef.getBody
     // accumulate the final expression of the hole
     accumulatingExpression = (finalExp: Expr) => {      
 	    def replaceChoose(expr: Expr) = expr match {
@@ -403,7 +404,7 @@ class SynthesizerForRuleExamples(
 	      case _ => None
 	    }
 	    
-      TreeOps.searchAndReplace(replaceChoose)(TreeOps.matchToIfThenElse(holeFunDef.getBody))
+      TreeOps.searchAndReplace(replaceChoose)(TreeOps.matchToIfThenElse(holeFunDefBody))
     }
     //accumulatingExpressionMatch = accumulatingExpression
 
@@ -575,6 +576,8 @@ class SynthesizerForRuleExamples(
 				      IfExpr(innerSnippetTree, snippetTree, error)
 				    
 				    import TreeOps._
+//				    println("ifInInnermostElse " + ifInInnermostElse)
+//				    println("acc expr before replace: " + accumulatingExpression(ifInInnermostElse))
 				    val newBody = searchAndReplace(replaceFunDef)(accumulatingExpression(ifInInnermostElse))
 				    
 				    newFun.body = Some(newBody)
@@ -610,7 +613,8 @@ class SynthesizerForRuleExamples(
 				    	  case _ =>
 				    	    // TODO think about this
 				    	    // I put condition into precondition so some examples will be violated?
-				    	    true//throw new RuntimeException("new evalution got: " + res)
+				    	    println("new evalution got: " + res + " for " + newCandidate + " and " + exMapping + " newFun is " + newFun)
+				    	    true
 				    	}
 				    		
 //              fine("Evaluation result for " + newCondition + " on " + exMapping + " is " + r)
@@ -673,7 +677,9 @@ class SynthesizerForRuleExamples(
 				    	  case EvaluationResults.RuntimeError("Condition flow hit unknown path.") =>				    	    
 				    	    false
 				    	  case EvaluationResults.Successful(BooleanLiteral(innerRes)) => innerRes
-				    	  case _ => false
+				    	  case _ =>
+				    	    println("new evalution got: " + res + " for " + newCandidate + " and " + exMapping)
+				    	    false
 				    	}
       	})
       } else
