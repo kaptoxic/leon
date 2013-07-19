@@ -203,6 +203,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
      * - Too large means repetitive (and not useful models) before reaching maxEnumerated
      */
 
+    //val maxIsomorphicModels = maxValid+1;
     val maxIsomorphicModels = maxValid+1;
 
     val it  = gen.enumerate(TupleType(ins.map(_.getType)))

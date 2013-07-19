@@ -483,11 +483,15 @@ case object CEGIS extends Rule("CEGIS") {
 
         }
 
-        val inputIterator: Iterator[Seq[Expr]] = if (useVanuatoo) {
-          new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 3000)
-        } else {
-          new NaiveDataGen(sctx.context, sctx.program, evaluator).generateFor(p.as, p.pc, 20, 1000)
-        }
+        val inputs = new NaiveDataGen(sctx.context, sctx.program, evaluator).generateFor(p.as, p.pc, 20, 1000)
+
+        val inputIterator: Iterator[Seq[Expr]] =
+          if (useVanuatoo) {
+            inputs ++
+            new VanuatooDataGen(sctx.context, sctx.program).generateFor(p.as, p.pc, 20, 4000)
+          } else {
+            inputs
+          }
 
         val cachedInputIterator = new Iterator[Seq[Expr]] {
           def next() = {
