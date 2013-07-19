@@ -508,7 +508,7 @@ case object CEGIS extends Rule("CEGIS") {
 
         def allInputExamples() = baseExampleInputs.iterator ++ cachedInputIterator
 
-        def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
+        def checkForPrograms(programs: Set[Set[Identifier]]): Option[RuleApplicationResult] = {
           for (prog <- programs if !sctx.shouldStop.get) {
             val expr = ndProgram.determinize(prog)
             val res = Equals(Tuple(p.xs.map(Variable(_))), expr)
@@ -522,17 +522,17 @@ case object CEGIS extends Rule("CEGIS") {
 
             solver3.check match {
               case Some(false) =>
-                return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = true)
+                return Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = true))
               case None if !sctx.shouldStop.get =>
-                return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false)
+                return Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false))
               case None =>
-                return RuleApplicationImpossible
+                return None
               case Some(true) =>
                 // invalid program, we skip
             }
           }
 
-          RuleApplicationImpossible
+          None
         }
 
         // Keep track of collected cores to filter programs to test
@@ -609,7 +609,13 @@ case object CEGIS extends Rule("CEGIS") {
               needMoreUnrolling = true;
             } else if (nPassing <= testUpTo) {
               // Immediate Test
-              result = Some(checkForPrograms(prunedPrograms))
+              checkForPrograms(prunedPrograms) match {
+                case Some(res) =>
+                  result = Some(res)
+
+                case None =>
+                  needMoreUnrolling = true
+              }
             } else if (((nPassing < allPrograms*filterThreshold) || didFilterAlready) && useBssFiltering) {
               // We filter the Bss so that the formula we give to z3 is much smalled
               val bssToKeep = prunedPrograms.foldLeft(Set[Identifier]())(_ ++ _)
@@ -790,7 +796,7 @@ case object CEGIS extends Rule("CEGIS") {
 
                 case _ =>
                   // Last chance, we test first few programs
-                  return checkForPrograms(prunedPrograms.take(testUpTo))
+                  return checkForPrograms(prunedPrograms.take(testUpTo)).getOrElse(RuleApplicationImpossible)
               }
             }
 
