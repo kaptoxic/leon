@@ -12,7 +12,11 @@ import purescala.Extractors._
 
 case object AsChoose extends Rule("As Choose") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
-      Some(RuleInstantiation.immediateSuccess(p, this, Solution.choose(p)))
+      Some(new RuleInstantiation(p, this, SolutionBuilder.none, this.name) {
+        def apply(sctx: SynthesisContext) = {
+          RuleSuccess(Solution.choose(p))
+        }
+      })
   }
 }
 
