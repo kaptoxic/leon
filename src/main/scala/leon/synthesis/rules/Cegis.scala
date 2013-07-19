@@ -495,7 +495,7 @@ case object CEGIS extends Rule("CEGIS") {
             val i = inputIterator.next()
             //println("Done")
             baseExampleInputs = i +: baseExampleInputs
-            //sctx.reporter.info(" @ Example: "+i.mkString(" ,  "))
+            sctx.reporter.info(" @ Example: "+i.mkString(" ,  "))
             i
           }
 
@@ -516,7 +516,7 @@ case object CEGIS extends Rule("CEGIS") {
 
             val constraint = And(p.pc :: res :: Not(p.phi) :: Nil)
 
-            //sctx.reporter.info(" - Testing: "+constraint)
+            sctx.reporter.info(" - Testing "+expr+"  ===> "+constraint)
 
             solver3.assertCnstr(constraint)
 
@@ -603,7 +603,7 @@ case object CEGIS extends Rule("CEGIS") {
 
             val nPassing = prunedPrograms.size
 
-            //sctx.reporter.info(nPassing+"/"+allPrograms+" with "+baseExampleInputs.size)
+            sctx.reporter.info(nPassing+"/"+allPrograms+" with "+baseExampleInputs.size)
 
             if (nPassing == 0) {
               needMoreUnrolling = true;
