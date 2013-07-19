@@ -23,23 +23,6 @@ object Complete {
     case Cons(_, xs) => isSorted(xs)
   }
 
-  def insert(in1: List, v: Int): List = {
-    require(isSorted(in1))
-    in1 match {
-      case Cons(h, t) =>
-        if (v < h) {
-          Cons(v, in1)
-        } else if (v == h) {
-          in1
-        } else {
-          Cons(h, insert(t, v))
-        }
-      case Nil =>
-        Cons(v, Nil)
-    }
-
-  } ensuring { res => (content(res) == content(in1) ++ Set(v)) && isSorted(res) }
-
   def delete(in1: List, v: Int): List = {
     require(isSorted(in1))
     in1 match {
@@ -58,11 +41,17 @@ object Complete {
 
   def union(in1: List, in2: List): List = {
     require(isSorted(in1) && isSorted(in2))
-    in1 match {
-      case Cons(h1, t1) =>
-        insert(union(t1, in2), h1)
-      case Nil =>
-        in2
+    (in1, in2) match {
+      case (Cons(h1, t1), Cons(h2, t2)) =>
+        if (h1 < h2) {
+          Cons(h1, union(t1, Cons(h2, t2)))
+        } else {
+          Cons(h2, union(Cons(h1, t1), t2))
+        }
+      case (Nil, l2) =>
+        l2
+      case (l1, Nil) =>
+        l1
     }
   } ensuring { res => content(res) == content(in1) ++ content(in2) && isSorted(res) }
 

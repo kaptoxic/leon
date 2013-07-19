@@ -92,6 +92,8 @@ class Synthesizer(val context : LeonContext,
     import verification.AnalysisPhase._
     import verification.VerificationContext
 
+    val ts = System.currentTimeMillis()
+
     val ssol = sol.toSimplifiedExpr(context, program)
     reporter.info("Solution requires validation")
 
@@ -105,6 +107,7 @@ class Synthesizer(val context : LeonContext,
     val vcreport = checkVerificationConditions(vctx, vcs)
 
     if (vcreport.totalValid == vcreport.totalConditions) {
+      reporter.info("Verification took "+(System.currentTimeMillis() - ts)+"ms")
       (sol, true)
     } else if (vcreport.totalValid + vcreport.totalUnknown == vcreport.totalConditions) {
       reporter.warning("Solution may be invalid:")
