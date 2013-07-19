@@ -40,6 +40,7 @@ object Complete {
 
   } ensuring { res => (content(res) == content(in1) ++ Set(v)) && isSorted(res) }
 
+
   def delete(in1: List, v: Int): List = {
     require(isSorted(in1))
     in1 match {
@@ -60,7 +61,7 @@ object Complete {
     require(isSorted(in1) && isSorted(in2))
     in1 match {
       case Cons(h1, t1) =>
-        union(t1, insert(in2, h1))
+        insert(union(t1, in2), h1)
       case Nil =>
         in2
     }
@@ -79,33 +80,26 @@ object Complete {
   // ***********************
   // Sorting algorithms
   // ***********************
-
-  def splitSpec(list : List, res : (List,List)) : Boolean = {
-    val s1 = size(res._1)
-    val s2 = size(res._2)
-    abs(s1 - s2) <= 1 && s1 + s2 == size(list) &&
-    content(res._1) ++ content(res._2) == content(list) 
-  }
-
-  def abs(i : Int) : Int = {
-    if(i < 0) -i else i
-  } ensuring(_ >= 0)
-
   def sortSpec(in : List, out : List) : Boolean = {
     content(out) == content(in) && isSorted(out)
   }
 
+  // def sort1(in : List) : List = (in match {
+  //   case Nil => Nil
+  //   case Cons(x, xs) => insert(sort1(xs), x)
+  // }) ensuring(res => sortSpec(in, res))
 
-  // def split(list : List) : (List,List) = (list match {
-  //   case Nil => (Nil, Nil)
-  //   case Cons(x, Nil) => (Cons(x, Nil), Nil)
-  //   case Cons(x1, Cons(x2, xs)) =>
-  //     val (s1,s2) = split(xs)
-  //     (Cons(x1, s1), Cons(x2, s2))
-  // }) ensuring(res => splitSpec(list, res))
+  // // Not really quicksort, neither mergesort.
+  // def sort2(in : List) : List = (in match {
+  //   case Nil => Nil
+  //   case Cons(x, Nil) => Cons(x, Nil)
+  //   case _ =>
+  //     val (s1,s2) = split(in)
+  //     union(sort2(s1), sort2(s2))
+  // }) ensuring(res => sortSpec(in, res))
 
-  def split(list : List) : (List,List) = {
-    choose { (res : (List,List)) => (content(res._1) ++ content(res._2) == content(list)) && abs(size(res._1) - size(res._2)) <= 1 }
+  def sort(list: List): List = choose {
+    (res: List) => sortSpec(list, res)
   }
 
 }

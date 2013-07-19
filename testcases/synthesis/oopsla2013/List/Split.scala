@@ -16,71 +16,63 @@ object Complete {
     case Cons(i, t) => Set(i) ++ content(t)
   }
 
-  def isSorted(list : List) : Boolean = list match {
-    case Nil => true
-    case Cons(_, Nil) => true
-    case Cons(x1, Cons(x2, _)) if(x1 > x2) => false
-    case Cons(_, xs) => isSorted(xs)
-  }
-
   def insert(in1: List, v: Int): List = {
-    require(isSorted(in1))
-    in1 match {
-      case Cons(h, t) =>
-        if (v < h) {
-          Cons(v, in1)
-        } else if (v == h) {
-          in1
-        } else {
-          Cons(h, insert(t, v))
-        }
-      case Nil =>
-        Cons(v, Nil)
-    }
+    Cons(v, in1)
+  } ensuring { content(_) == content(in1) ++ Set(v) }
 
-  } ensuring { res => (content(res) == content(in1) ++ Set(v)) && isSorted(res) }
+  //def insert(in1: List, v: Int) = choose {
+  //  (out : List) =>
+  //    content(out) == content(in1) ++ Set(v)
+  //}
 
   def delete(in1: List, v: Int): List = {
-    require(isSorted(in1))
     in1 match {
       case Cons(h,t) =>
-        if (h < v) {
-          Cons(h, delete(t, v))
-        } else if (h == v) {
+        if (h == v) {
           delete(t, v)
         } else {
-          in1
+          Cons(h, delete(t, v))
         }
       case Nil =>
         Nil
     }
-  } ensuring { res => content(res) == content(in1) -- Set(v) && isSorted(res) }
+  } ensuring { content(_) == content(in1) -- Set(v) }
+
+  //def delete(in1: List, v: Int) = choose {
+  //  (out : List) =>
+  //    content(out) == content(in1) -- Set(v)
+  //}
 
   def union(in1: List, in2: List): List = {
-    require(isSorted(in1) && isSorted(in2))
     in1 match {
-      case Cons(h1, t1) =>
-        union(t1, insert(in2, h1))
+      case Cons(h, t) =>
+        Cons(h, union(t, in2))
       case Nil =>
         in2
     }
-  } ensuring { res => content(res) == content(in1) ++ content(in2) && isSorted(res) }
+  } ensuring { content(_) == content(in1) ++ content(in2) }
+
+  //def union(in1: List, in2: List) = choose {
+  //  (out : List) =>
+  //    content(out) == content(in1) ++ content(in2)
+  //}
 
   def diff(in1: List, in2: List): List = {
-    require(isSorted(in1) && isSorted(in2))
     in2 match {
-      case Cons(h2, t2) =>
-        diff(delete(in1, h2), t2)
       case Nil =>
         in1
+      case Cons(h, t) =>
+        diff(delete(in1, h), t)
     }
-  } ensuring { res => content(res) == content(in1) -- content(in2) && isSorted(res) }
+  } ensuring { content(_) == content(in1) -- content(in2) }
 
-  // ***********************
-  // Sorting algorithms
-  // ***********************
+  //def diff(in1: List, in2: List) = choose {
+  //  (out : List) =>
+  //    content(out) == content(in1) -- content(in2)
+  //}
 
   def splitSpec(list : List, res : (List,List)) : Boolean = {
+
     val s1 = size(res._1)
     val s2 = size(res._2)
     abs(s1 - s2) <= 1 && s1 + s2 == size(list) &&
@@ -91,11 +83,6 @@ object Complete {
     if(i < 0) -i else i
   } ensuring(_ >= 0)
 
-  def sortSpec(in : List, out : List) : Boolean = {
-    content(out) == content(in) && isSorted(out)
-  }
-
-
   // def split(list : List) : (List,List) = (list match {
   //   case Nil => (Nil, Nil)
   //   case Cons(x, Nil) => (Cons(x, Nil), Nil)
@@ -105,7 +92,7 @@ object Complete {
   // }) ensuring(res => splitSpec(list, res))
 
   def split(list : List) : (List,List) = {
-    choose { (res : (List,List)) => (content(res._1) ++ content(res._2) == content(list)) && abs(size(res._1) - size(res._2)) <= 1 }
+    choose { (res : (List,List)) => splitSpec(list, res) }
   }
 
 }
