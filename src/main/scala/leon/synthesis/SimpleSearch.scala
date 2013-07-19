@@ -17,7 +17,7 @@ case class TaskRunRule(app: RuleInstantiation) extends AOAndTask[Solution] {
     app.onSuccess(sols)
   }
 
-  override def toString = rule.name
+  override def toString = app.toString
 }
 
 case class TaskTryRules(p: Problem) extends AOOrTask[Solution] {
