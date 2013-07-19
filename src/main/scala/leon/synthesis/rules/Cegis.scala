@@ -592,7 +592,7 @@ case object CEGIS extends Rule("CEGIS") {
             // We further filter the set of working programs to remove those that fail on known examples
             if (useCEPruning && hasInputExamples() && ndProgram.canTest()) {
 
-              for (p <- prunedPrograms) {
+              for (p <- prunedPrograms if !sctx.shouldStop.get) {
                 if (!allInputExamples().forall(ndProgram.testForProgram(p))) {
                   // This program failed on at least one example
                   solver1.assertCnstr(Not(And(p.map(Variable(_)).toSeq)))
@@ -609,7 +609,9 @@ case object CEGIS extends Rule("CEGIS") {
 
             sctx.reporter.info(nPassing+"/"+allPrograms+" with "+baseExampleInputs.size)
 
-            if (nPassing == 0) {
+            if (sctx.shouldStop.get) {
+              return RuleApplicationImpossible
+            } else if (nPassing == 0) {
               needMoreUnrolling = true;
             } else if (nPassing <= testUpTo) {
               // Immediate Test
