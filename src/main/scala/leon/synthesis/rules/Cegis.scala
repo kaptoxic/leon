@@ -450,8 +450,13 @@ case object CEGIS extends Rule("CEGIS") {
         var unrolings = 0
         val maxUnrolings = 3
 
-        val exSolver  = new TimeoutSolver(sctx.solver, 3000L) // 3sec
-        val cexSolver = new TimeoutSolver(sctx.solver, 6000L) // 3sec
+        val exSolver   = new TimeoutSolver(sctx.solver, 3000L) // 3sec
+        val cexSolver  = new TimeoutSolver(sctx.solver, 3000L) // 3sec
+
+        val testSolver = cexSolver
+
+        //new TimeoutSolver(new FairZ3Solver(sctx.context), 3000L)
+        //testSolver.setProgram(sctx.program)
 
         var baseExampleInputs: Seq[Seq[Expr]] = Seq()
 
@@ -490,6 +495,7 @@ case object CEGIS extends Rule("CEGIS") {
             val i = inputIterator.next()
             //println("Done")
             baseExampleInputs = i +: baseExampleInputs
+            //sctx.reporter.info(" @ Example: "+i.mkString(" ,  "))
             i
           }
 
@@ -506,8 +512,13 @@ case object CEGIS extends Rule("CEGIS") {
           for (prog <- programs if !sctx.shouldStop.get) {
             val expr = ndProgram.determinize(prog)
             val res = Equals(Tuple(p.xs.map(Variable(_))), expr)
-            val solver3 = cexSolver.getNewSolver
-            solver3.assertCnstr(And(p.pc :: res :: Not(p.phi) :: Nil))
+            val solver3 = testSolver.getNewSolver
+
+            val constraint = And(p.pc :: res :: Not(p.phi) :: Nil)
+
+            //sctx.reporter.info(" - Testing: "+constraint)
+
+            solver3.assertCnstr(constraint)
 
             solver3.check match {
               case Some(false) =>
@@ -574,9 +585,6 @@ case object CEGIS extends Rule("CEGIS") {
 
             val allPrograms = prunedPrograms.size
 
-            //println("Programs: "+prunedPrograms.size)
-            //println("#Tests:  "+exampleInputs.size)
-
             // We further filter the set of working programs to remove those that fail on known examples
             if (useCEPruning && hasInputExamples() && ndProgram.canTest()) {
 
@@ -591,11 +599,11 @@ case object CEGIS extends Rule("CEGIS") {
               if (prunedPrograms.isEmpty) {
                 needMoreUnrolling = true
               }
-
-              //println("Passing tests: "+prunedPrograms.size)
             }
 
             val nPassing = prunedPrograms.size
+
+            //sctx.reporter.info(nPassing+"/"+allPrograms+" with "+baseExampleInputs.size)
 
             if (nPassing == 0) {
               needMoreUnrolling = true;
@@ -627,7 +635,6 @@ case object CEGIS extends Rule("CEGIS") {
               //for (c <- clauses) {
               //  println(" - " + c)
               //}
-
             }
 
             val bss = ndProgram.bss
