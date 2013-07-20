@@ -83,7 +83,7 @@ case object ConditionAbductionSynthesisTwoPhase extends Rule("Condition abductio
           }
         })
       case _ =>
-        throw new RuntimeException("Rule is not applicable for more than one output variable.")
+//        throw new RuntimeException("Rule is not applicable for more than one output variable.")
         Nil
     }
     
