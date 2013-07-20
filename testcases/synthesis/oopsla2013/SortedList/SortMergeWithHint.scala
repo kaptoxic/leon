@@ -107,8 +107,18 @@ object Complete {
   //     union(sort2(s1), sort2(s2))
   // }) ensuring(res => sortSpec(in, res))
 
-  def sort(list: List): List = choose {
-    (res: List) => sortSpec(list, res)
-  }
+  def sort(list: List): List = (list match {
+    case Nil => Nil
+    case Cons(_, Nil) => list
+    case _ => split(list) match {
+      case (l1, l2) =>
+        val r1 = sort(l1)
+        val r2 = sort(l2)
+
+        choose {
+          (res: List) => sortSpec(list, res)
+        }
+    }
+  }) ensuring { res => size(res) == size(list) && sortSpec(list, res) }
 
 }

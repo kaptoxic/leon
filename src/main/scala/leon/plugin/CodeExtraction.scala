@@ -158,7 +158,7 @@ trait CodeExtraction extends Extractors {
 
         ctd match {
           case ccd: CaseClassDef =>
-            assert(scalaClassArgs contains sym)
+            assert(scalaClassArgs contains sym, "Symbol "+sym+" not found in classes: "+scalaClassArgs)
 
             ccd.fields = scalaClassArgs(sym).map{ case (name, asym) =>
               val tpe = toPureScalaType(asym.tpe)
