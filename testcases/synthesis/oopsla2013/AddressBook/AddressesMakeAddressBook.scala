@@ -41,9 +41,9 @@ object Addresses {
 
   case class AddressBook(business : List, pers : List)
   
-  def size(ab: AddressBook): Int = size(ab.business) + size(ab.pers)
+  def sizeA(ab: AddressBook): Int = size(ab.business) + size(ab.pers)
   		 
-  def isEmpty(ab: AddressBook) = size(ab) == 0
+  def isEmpty(ab: AddressBook) = sizeA(ab) == 0
   
   def content(ab: AddressBook) : Set[Address] = content(ab.pers) ++ content(ab.business)
   
@@ -97,7 +97,7 @@ object Addresses {
   def makeAddressBook(l: List): AddressBook = 
 		choose {
     (res: AddressBook) =>
-		  size(res) == size(l) && addressBookInvariant(res)
+		  sizeA(res) == size(l) && addressBookInvariant(res)
   }
   
 }

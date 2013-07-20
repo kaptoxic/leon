@@ -42,7 +42,7 @@ object Addresses {
   
   def size(ab: AddressBook): Int = size(ab.business) + size(ab.pers)
   	  
-  	  def content(ab: AddressBook) : Set[Address] = content(ab.pers) ++ content(ab.business)
+  def contentA(ab: AddressBook) : Set[Address] = content(ab.pers) ++ content(ab.business)
   	  
   def addressBookInvariant(ab: AddressBook) = allPrivate(ab.pers) && allBusiness(ab.business)
   
@@ -100,7 +100,7 @@ object Addresses {
     (res: AddressBook) =>
 		  size(res) == size(l) &&
 		  allPrivate(res.pers) && allBusiness(res.business) &&
-		  content(res) == content(l)
+		  contentA(res) == content(l)
   }
   
 }
