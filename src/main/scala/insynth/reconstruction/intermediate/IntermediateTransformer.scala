@@ -431,7 +431,7 @@ object IntermediateTransformer extends (SimpleNode => IntermediateNode) with Has
     for (
       node <- recursiveNodeSet;
       correspondingIntermediateNode <- nodeMap(node);
-      val nodesToProcess = (correspondingIntermediateNode match {
+      nodesToProcess = (correspondingIntermediateNode match {
       	case appX: Application => List(appX)
       	case Abstraction(_, _, subTrees) => subTrees.filter(_.isInstanceOf[Application])
     	});

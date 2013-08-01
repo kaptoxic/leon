@@ -39,6 +39,12 @@ fork in test := true
 
 EclipseKeys.skipParents in ThisBuild := false
 
-libraryDependencies += "com.dongxiguo" %% "zero-log" % "0.1.2"
+// logging library change for 2.10
+libraryDependencies += "com.typesafe" %% "scalalogging-log4j" % "1.0.1"
+
+libraryDependencies ++= Seq(
+  "org.apache.logging.log4j" % "log4j-api" % "2.0-beta3",
+  "org.apache.logging.log4j" % "log4j-core" % "2.0-beta3"
+)
 
 // sound.play(compile in Compile, Sounds.Basso) // play the 'Basso' sound whenever compile completes (successful or not)

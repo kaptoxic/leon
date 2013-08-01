@@ -7,7 +7,7 @@ import insynth.util.streams.ordered2.{ OrderedSizeStreamable => Streamable }
 import insynth.util.streams.unordered.{ RoundRobbin => UnRoundRobbin }
 
 class RoundRobbin[T] protected[streams] (val streams: Seq[Streamable[T]], name: String)
-	extends Streamable[T] with HasDefferLogger {
+	extends Streamable[T] with HasLogger {
     
   override def depleted: Boolean = throw new RuntimeException//getNextIndex._2 == -1 // wtv
   override def nextReady(ind: Int): Boolean = {

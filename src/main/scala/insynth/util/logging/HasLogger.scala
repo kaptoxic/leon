@@ -1,10 +1,5 @@
 package insynth.util.logging
 
-import com.dongxiguo.zeroLog.Filter
-import com.dongxiguo.zeroLog.formatters.SimpleFormatter
-
-import scala.util.logging.{ Logged, ConsoleLogger }
-
 /** 
  * Classes can mix this trait for having access to the "default" {{{logger}}}.
  *  
@@ -16,30 +11,33 @@ trait HasLogger {
     
   lazy val loggingCondition = true
   
-  protected[this] lazy val (logger, formatter) =
+  protected[this] lazy val logger =
 //    if (loggingCondition)
-//    	ZeroLoggerFactory.newLogger(getMyClass.toString)
+    	LoggerFactory.newLogger(getMyClass.getName)
+
 //  	else
 //    	(Filter.Off, new SimpleFormatter(getMyClass.toString) with ConsoleLogger)
-    (new DummyLogger, null)
   
-  import formatter._
-  
-  def warning(msg: => String) = logger.warning(msg)        		   
+//    	println(getClass().getResource("/log4j.properties"))
+//    	logger.info("aaa")
+    	
+  def warning(msg: => String) = logger.warn(msg)        		   
     
-  def severe(msg: => String) = logger.severe(msg)
+  def severe(msg: => String) = logger.fatal(msg)
      
-  def info(msg: => String) = logger.info(msg)
+  def info(msg: => String) = {
+    logger.info(msg)
+  }
    
-  def fine(msg: => String) = logger.fine(msg)
+  def fine(msg: => String) = logger.debug(msg)
    
-  def finer(msg: => String)  = logger.finer(msg)
+  def finer(msg: => String)  = logger.debug(msg)
    
-  def finest(msg: => String) = logger.finest(msg)
+  def finest(msg: => String) = logger.trace(msg)
      
   def entering(method: => String, arguments: Any*) =
-	  logger.finest("Entering " + getMyClass + "." + method)
+	  logger.trace("Entering " + getMyClass + "." + method)
      
   def exiting(method: => String, result: => String) =
-	  logger.finest("Exiting " + getMyClass + "." + method + " with " + result)
+	  logger.trace("Exiting " + getMyClass + "." + method + " with " + result)
 }
