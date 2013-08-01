@@ -404,7 +404,8 @@ class SynthesizerForRuleExamples(
 	      case _ => None
 	    }
 	    
-      TreeOps.searchAndReplace(replaceChoose)(TreeOps.matchToIfThenElse(holeFunDefBody))
+	    import TreeOps._
+      matchToIfThenElse(searchAndReplace(replaceChoose)(holeFunDefBody))
     }
     //accumulatingExpressionMatch = accumulatingExpression
 
@@ -587,8 +588,8 @@ class SynthesizerForRuleExamples(
 				
               val newCandidate = 
 				    Let(resFresh2, newBody,
-				      replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
-				        matchToIfThenElse(newFun.getPostcondition)))
+				      matchToIfThenElse(replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
+				        newFun.getPostcondition)))
 				    finest("New fun for Error evaluation: " + newFun)
 //				    println("new candidate: " + newBody)
 	
@@ -655,8 +656,8 @@ class SynthesizerForRuleExamples(
 				
               val newCandidate = 
 				    Let(resFresh2, newBody,
-				      replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
-				        matchToIfThenElse(newFun.getPostcondition)))
+				      matchToIfThenElse(replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
+				        newFun.getPostcondition)))
 				    finest("New fun for Error evaluation: " + newFun)
 //				    println("new candidate: " + newBody)
 	
