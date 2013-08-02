@@ -1,0 +1,2 @@
+# run this, then select 5 0 8 (CA)
+../../leon --synthesis --manual ../../testcases/synthesis/oopsla2013/MergeSort/MergeSortSort.scala
