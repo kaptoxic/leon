@@ -1,0 +1,2 @@
+# run this, then select 10,0,9 (CA)
+../../leon --synthesis --manual ../../testcases/synthesis/oopsla2013/SortedList/UnionIO.scala 
