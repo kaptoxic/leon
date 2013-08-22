@@ -1,7 +1,10 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 package heuristics
 
+import solvers._
 import purescala.Common._
 import purescala.Trees._
 import purescala.Extractors._
@@ -11,13 +14,18 @@ import purescala.Definitions._
 
 case object ADTInduction extends Rule("ADT Induction") with Heuristic {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
+    val tsolver = sctx.solverFactory.withTimeout(500L)
+
     val candidates = p.as.collect {
-        case IsTyped(origId, AbstractClassType(cd)) => (origId, cd)
+        case IsTyped(origId, AbstractClassType(cd)) if isInductiveOn(tsolver)(p.pc, origId) => (origId, cd)
     }
+
+    tsolver.free()
 
     val instances = for (candidate <- candidates) yield {
       val (origId, cd) = candidate
       val oas = p.as.filterNot(_ == origId)
+
 
       val resType = TupleType(p.xs.map(_.getType))
 
@@ -89,18 +97,20 @@ case object ADTInduction extends Rule("ADT Induction") with Heuristic {
               SimpleCase(caze, calls.foldLeft(sol.term){ case (t, (binders, callargs)) => LetTuple(binders, FunctionInvocation(newFun, callargs), t) })
             }
 
-            if (sols.exists(_.pre != BooleanLiteral(true))) {
+            // Might be overly picky with obviously true pre (a.is[Cons] OR a.is[Nil])
+            if (false && sols.exists(_.pre != BooleanLiteral(true))) {
               // Required to avoid an impossible cases, which suffices to
               // allow invalid programs. This might be too strong though: we
               // might only have to enforce it on solutions of base cases.
               None
             } else {
-              val funPre = substAll(substMap, Or(globalPre))
+              val funPre = substAll(substMap, And(p.pc, Or(globalPre)))
               val funPost = substAll(substMap, p.phi)
+              val idPost = FreshIdentifier("res").setType(resType)
               val outerPre = Or(globalPre)
 
               newFun.precondition = Some(funPre)
-              newFun.postcondition = Some(LetTuple(p.xs.toSeq, ResultVariable().setType(resType), funPost))
+              newFun.postcondition = Some((idPost, LetTuple(p.xs.toSeq, Variable(idPost), funPost)))
 
               newFun.body = Some(MatchExpr(Variable(inductOn), cases))
 

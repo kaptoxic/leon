@@ -1,10 +1,11 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 
 import synthesis.search._
 import akka.actor._
-import solvers.z3.FairZ3Solver
-import solvers.TrivialSolver
+import solvers.z3._
 
 class ParallelSearch(synth: Synthesizer,
                      problem: Problem,
@@ -22,13 +23,7 @@ class ParallelSearch(synth: Synthesizer,
   private[this] var contexts = List[SynthesisContext]()
 
   def initWorkerContext(wr: ActorRef) = {
-    val reporter = new SilentReporter
-    val solver = new FairZ3Solver(synth.context.copy(reporter = reporter))
-    solver.setProgram(synth.program)
-
-    solver.initZ3
-
-    val ctx = SynthesisContext.fromSynthesizer(synth).copy(solver = solver)
+    val ctx = SynthesisContext.fromSynthesizer(synth)
 
     synchronized {
       contexts = ctx :: contexts
@@ -37,25 +32,17 @@ class ParallelSearch(synth: Synthesizer,
     ctx
   }
 
-  override def stop() = {
-    synth.shouldStop.set(true)
-    for (ctx <- contexts) {
-      ctx.solver.halt()
-    }
-    super.stop()
-  }
-
   def expandAndTask(ref: ActorRef, sctx: SynthesisContext)(t: TaskRunRule) = {
     val prefix = "[%-20s] ".format(Option(t.rule).getOrElse("?"))
 
     t.app.apply(sctx) match {
-      case RuleSuccess(sol) =>
+      case RuleSuccess(sol, isTrusted) =>
         synth.synchronized {
           info(prefix+"Got: "+t.problem)
-          info(prefix+"Solved with: "+sol)
+          info(prefix+"Solved"+(if(isTrusted) "" else " (untrusted)")+" with: "+sol)
         }
 
-        ExpandSuccess(sol)
+        ExpandSuccess(sol, isTrusted)
       case RuleDecomposed(sub) =>
         synth.synchronized {
           info(prefix+"Got: "+t.problem)

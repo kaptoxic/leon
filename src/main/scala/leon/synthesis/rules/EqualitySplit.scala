@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 package rules
@@ -8,9 +10,11 @@ import purescala.TypeTrees._
 import purescala.TreeOps._
 import purescala.Extractors._
 
+import solvers._
+
 case object EqualitySplit extends Rule("Eq. Split") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
-    val solver = sctx.simpleSolver
+    val solver = SimpleSolverAPI(sctx.fastSolverFactory)
 
     val candidates = p.as.groupBy(_.getType).mapValues(_.combinations(2).filter {
       case List(a1, a2) =>
@@ -36,6 +40,7 @@ case object EqualitySplit extends Rule("Eq. Split") {
       case _ => false
     }).values.flatten
 
+    solver.free()
 
     candidates.flatMap(_ match {
       case List(a1, a2) =>

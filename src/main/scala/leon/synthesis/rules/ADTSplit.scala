@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 package rules
@@ -8,17 +10,18 @@ import purescala.TypeTrees._
 import purescala.TreeOps._
 import purescala.Extractors._
 import purescala.Definitions._
+import solvers._
 
 case object ADTSplit extends Rule("ADT Split.") {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation]= {
-    val solver = sctx.simpleSolver
+    val solver = SimpleSolverAPI(sctx.solverFactory.withTimeout(200L))
 
     val candidates = p.as.collect {
       case IsTyped(id, AbstractClassType(cd)) =>
 
         val optCases = for (dcd <- cd.knownDescendents.sortBy(_.id.name)) yield dcd match {
           case ccd : CaseClassDef =>
-            val toSat = And(p.pc, Not(CaseClassInstanceOf(ccd, Variable(id))))
+            val toSat = And(p.pc, CaseClassInstanceOf(ccd, Variable(id)))
 
             val isImplied = solver.solveSAT(toSat) match {
               case (Some(false), _) => true
@@ -43,6 +46,8 @@ case object ADTSplit extends Rule("ADT Split.") {
         }
     }
 
+    solver.free()
+
     candidates.collect{ _ match {
       case Some((id, cases)) =>
         val oas = p.as.filter(_ != id)
@@ -51,7 +56,8 @@ case object ADTSplit extends Rule("ADT Split.") {
            val args   = ccd.fieldsIds.map(id => FreshIdentifier(id.name, true).setType(id.getType)).toList
 
            val subPhi = subst(id -> CaseClass(ccd, args.map(Variable(_))), p.phi)
-           val subProblem = Problem(args ::: oas, p.pc, subPhi, p.xs)
+           val subPC  = subst(id -> CaseClass(ccd, args.map(Variable(_))), p.pc)
+           val subProblem = Problem(args ::: oas, subPC, subPhi, p.xs)
            val subPattern = CaseClassPattern(None, ccd, args.map(id => WildcardPattern(Some(id))))
 
            (ccd, subProblem, subPattern)

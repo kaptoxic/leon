@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package purescala
 
@@ -49,14 +51,22 @@ object Trees {
     val fixedType = body.getType
   }
 
+  case class LetDef(fd: FunDef, body: Expr) extends Expr {
+    val et = body.getType
+    if(et != Untyped)
+      setType(et)
+
+  }
+
+
   /* Control flow */
   case class FunctionInvocation(funDef: FunDef, args: Seq[Expr]) extends Expr with FixedType with ScalacPositional {
     val fixedType = funDef.returnType
 
     funDef.args.zip(args).foreach { case (a, c) => typeCheck(c, a.tpe) }
   }
-  case class IfExpr(cond: Expr, then: Expr, elze: Expr) extends Expr with FixedType {
-    val fixedType = leastUpperBound(then.getType, elze.getType).getOrElse(AnyType)
+  case class IfExpr(cond: Expr, thenn: Expr, elze: Expr) extends Expr with FixedType {
+    val fixedType = leastUpperBound(thenn.getType, elze.getType).getOrElse(AnyType)
   }
 
   case class Tuple(exprs: Seq[Expr]) extends Expr with FixedType {
@@ -135,13 +145,6 @@ object Trees {
     val theGuard: Option[Expr]
     def hasGuard = theGuard.isDefined
     def expressions: Seq[Expr]
-
-    def allIdentifiers : Set[Identifier] = {
-      pattern.allIdentifiers ++ 
-      TreeOps.allIdentifiers(rhs) ++ 
-      theGuard.map(TreeOps.allIdentifiers(_)).getOrElse(Set[Identifier]()) ++ 
-      (expressions map (TreeOps.allIdentifiers(_))).foldLeft(Set[Identifier]())((a, b) => a ++ b)
-    }
   }
 
   case class SimpleCase(pattern: Pattern, rhs: Expr) extends MatchCase {
@@ -159,11 +162,8 @@ object Trees {
 
     private def subBinders = subPatterns.map(_.binders).foldLeft[Set[Identifier]](Set.empty)(_ ++ _)
     def binders: Set[Identifier] = subBinders ++ (if(binder.isDefined) Set(binder.get) else Set.empty)
-
-    def allIdentifiers : Set[Identifier] = {
-      ((subPatterns map (_.allIdentifiers)).foldLeft(Set[Identifier]())((a, b) => a ++ b))  ++ binders
-    }
   }
+
   case class InstanceOfPattern(binder: Option[Identifier], classTypeDef: ClassTypeDef) extends Pattern { // c: Class
     val subPatterns = Seq.empty
   }
@@ -280,7 +280,7 @@ object Trees {
     val fixedType = BooleanType
 
     override def equals(that: Any): Boolean = (that != null) && (that match {
-      case t: Iff => t.left == left
+      case t: Iff => t.left == left && t.right == right
       case _ => false
     })
 
@@ -379,9 +379,6 @@ object Trees {
 
   case class DeBruijnIndex(index: Int) extends Expr with Terminal
 
-  // represents the result in post-conditions
-  case class ResultVariable() extends Expr with Terminal
-
   /* Literals */
   sealed abstract class Literal[T] extends Expr with Terminal {
     val value: T
@@ -466,7 +463,10 @@ object Trees {
   }
 
   /* Set expressions */
-  case class FiniteSet(elements: Seq[Expr]) extends Expr 
+  case class FiniteSet(elements: Seq[Expr]) extends Expr {
+    val tpe = if (elements.isEmpty) None else leastUpperBound(elements.map(_.getType))
+    tpe.foreach(t => setType(SetType(t)))
+  }
   // TODO : Figure out what evaluation order is, for this.
   // Perhaps then rewrite as "contains".
   case class ElementOfSet(element: Expr, set: Expr) extends Expr with FixedType {
