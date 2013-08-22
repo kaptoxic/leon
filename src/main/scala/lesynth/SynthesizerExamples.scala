@@ -20,10 +20,9 @@ import leon.evaluators.EvaluationResults
 import leon.evaluators._
 import leon.synthesis.{ Problem, SynthesisContext }
 
-import insynth.interfaces.Declaration
 import insynth.{ Solver => _, _ }
 import insynth.leon.loader._
-import insynth.leon._
+import insynth.leon.{ LeonDeclaration => Declaration, _ }
 import insynth.engine._
 import insynth.reconstruction.Output
 import insynth.util.logging.HasLogger
@@ -35,6 +34,9 @@ import lesynth.refinement._
 
 import SynthesisInfo._
 import SynthesisInfo.Action._
+
+// enable postfix operations
+import scala.language.postfixOps
 
 class SynthesizerForRuleExamples(
   // some synthesis instance information
@@ -76,9 +78,8 @@ class SynthesizerForRuleExamples(
   
   // objects used in the synthesis
   private var loader: LeonLoader = _
-  private var inSynth: InSynthTemp = _
-  private var inSynthBoolean: InSynthTemp = _
-  private var hole: Hole = _
+  private var inSynth: InSynth = _
+  private var inSynthBoolean: InSynth = _
   // initial declarations
   private var allDeclarations: List[Declaration] = _
 
@@ -379,13 +380,12 @@ class SynthesizerForRuleExamples(
 
   def initialize = {
     // create new insynth object
-    hole = Hole(desiredType)
-    loader = new LeonLoader(program, hole, problem.as, false)
-    inSynth = new InSynthTemp(loader, true)
+    loader = new LeonLoader(program, problem.as, false)
+    inSynth = new InSynth(loader, desiredType, true)
     // save all declarations seen
-    allDeclarations = inSynth.getCurrentBuilder.getAllDeclarations
+    allDeclarations = inSynth.declarations
     // make conditions synthesizer
-    inSynthBoolean = new InSynthTemp(allDeclarations, BooleanType, true)
+    inSynthBoolean = new InSynth(allDeclarations, BooleanType, true)
 
     // funDef of the hole
     fine("postcondition is: " + holeFunDef.getPostcondition)
@@ -435,7 +435,7 @@ class SynthesizerForRuleExamples(
     val oldPrecondition = holeFunDef.precondition.getOrElse(BooleanLiteral(true))
     holeFunDef.precondition = Some(initialPrecondition)
 
-    snippetTree.setType(hole.desiredType)
+    snippetTree.setType(desiredType)
     //holeFunDef.getBody.setType(hole.desiredType)
     reporter.info("Current candidate solution is:\n" + holeFunDef)
 
