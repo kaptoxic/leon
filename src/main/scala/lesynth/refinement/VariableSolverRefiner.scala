@@ -14,7 +14,6 @@ import leon.solvers._
 import leon.purescala.Common.{ Identifier, FreshIdentifier }
 import leon.synthesis.Problem
 
-import insynth.interfaces._
 import insynth.leon.loader._
 import insynth.leon._
 
@@ -26,7 +25,7 @@ class VariableSolverRefiner(directSubclassMap: Map[ClassType, Set[ClassType]], v
   classMap: Map[Identifier, ClassType], solver: Solver, reporter: Reporter = new SilentReporter)
   extends VariableRefiner(directSubclassMap, variableDeclarations, classMap, reporter) with HasLogger {  
     
-  override def checkRefinements(expr: Expr, condition: Expr, allDeclarations: List[Declaration]) = {
+  override def checkRefinements(expr: Expr, condition: Expr, allDeclarations: List[LeonDeclaration]) = {
     val superResult = super.checkRefinements(expr, condition, allDeclarations)
     if (superResult._1 == false) {
 	    val variables = allIdentifiers(expr)
