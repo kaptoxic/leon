@@ -43,7 +43,7 @@ object Leon extends Build {
 
     val ldLibPath = if (is64) ldLibraryDir64.absolutePath else ldLibraryDir32.absolutePath
 
-    val leonLibPath = depsPaths.find(_.endsWith("/library/target/scala-2.9.2/classes")) match {
+    val leonLibPath = depsPaths.find(_.endsWith("/library/target/scala-2.10/classes")) match {
       case None => throw new Exception("Couldn't find leon-library in the classpath.")
       case Some(p) => p
     }
@@ -75,7 +75,7 @@ object Leon extends Build {
   }
 
   def genRunnerTask(taskName: String, file: File, name: String, mainClass: String) = {
-    TaskKey[Unit](taskName, "Generate the " + name + " Bash script") <<= (streams, setupScriptTask) map { (s, cps) =>
+    TaskKey[Unit](taskName, "Generate the " + name + " Bash script") <<= (streams, setupScriptTask, resourceDirectory in Compile) map { (s, cps, res) =>
       try {
         // Paths discovery
         if(file.exists) {
@@ -89,7 +89,7 @@ object Leon extends Build {
         fw.write("#!/bin/bash --posix" + nl)
 
         fw.write("SCALACLASSPATH=\"")
-        fw.write(cps.mkString(":"))
+        fw.write((res.getAbsolutePath +: cps).mkString(":"))
         fw.write("\"" + nl + nl)
 
         fw.write("source "+setupScriptFile.getAbsolutePath()+nl)

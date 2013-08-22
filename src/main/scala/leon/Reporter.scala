@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 
 import purescala.Definitions.Definition
@@ -47,7 +49,7 @@ class DefaultReporter extends Reporter {
       Console.BLUE
     }
     "[" + color + pfx.substring(1, pfx.length-2) + Console.RESET + "] " +
-    msg.trim.replaceAll("\n", "\n" + (" " * (pfx.size)))
+    msg.replaceAll("\n", "\n" + (" " * (pfx.size)))
   }
 
   def errorFunction(msg: Any) = output(reline(errorPfx, msg.toString))
@@ -63,5 +65,5 @@ class QuietReporter extends DefaultReporter {
 
 class SilentReporter extends QuietReporter {
   override def errorFunction(msg : Any) = {}
-  override def fatalErrorFunction(msg : Any) = throw new Exception("Fatal error: " + msg.toString)
+  override def fatalErrorFunction(msg: Any) = throw LeonFatalError()
 }

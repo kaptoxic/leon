@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 
 object Main {
@@ -5,6 +7,7 @@ object Main {
   lazy val allPhases: List[LeonPhase[_, _]] = {
     List(
       plugin.ExtractionPhase,
+      SubtypingPhase,
       xlang.ArrayTransformation,
       xlang.EpsilonElimination,
       xlang.ImperativeCodeElimination,
@@ -75,7 +78,7 @@ object Main {
       val leonOpt: LeonOption = opt.substring(2, opt.length).split("=", 2).toList match {
         case List(name, value) =>
           LeonValueOption(name, value)
-        case List(name) => name
+        case List(name) =>
           LeonFlagOption(name)
         case _ =>
           reporter.fatalError("Woot?")
@@ -121,9 +124,9 @@ object Main {
   def computePipeline(settings: Settings): Pipeline[List[String], Any] = {
     import purescala.Definitions.Program
 
-    val pipeBegin : Pipeline[List[String],Program] = plugin.ExtractionPhase
+    val pipeBegin : Pipeline[List[String],Program] = plugin.ExtractionPhase andThen SubtypingPhase
 
-    val pipeSynthesis: Pipeline[Program, Program]=
+    val pipeSynthesis: Pipeline[Program, Program] =
       if (settings.synthesis) {
         synthesis.SynthesisPhase
       } else {

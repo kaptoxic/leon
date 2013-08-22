@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package purescala
 
@@ -55,8 +57,8 @@ object Trees {
 
     funDef.args.zip(args).foreach { case (a, c) => typeCheck(c, a.tpe) }
   }
-  case class IfExpr(cond: Expr, then: Expr, elze: Expr) extends Expr with FixedType {
-    val fixedType = leastUpperBound(then.getType, elze.getType).getOrElse(AnyType)
+  case class IfExpr(cond: Expr, thenn: Expr, elze: Expr) extends Expr with FixedType {
+    val fixedType = leastUpperBound(thenn.getType, elze.getType).getOrElse(AnyType)
   }
 
   case class Tuple(exprs: Seq[Expr]) extends Expr with FixedType {
@@ -280,7 +282,7 @@ object Trees {
     val fixedType = BooleanType
 
     override def equals(that: Any): Boolean = (that != null) && (that match {
-      case t: Iff => t.left == left
+      case t: Iff => t.left == left && t.right == right
       case _ => false
     })
 
@@ -466,7 +468,10 @@ object Trees {
   }
 
   /* Set expressions */
-  case class FiniteSet(elements: Seq[Expr]) extends Expr 
+  case class FiniteSet(elements: Seq[Expr]) extends Expr {
+    val tpe = if (elements.isEmpty) None else leastUpperBound(elements.map(_.getType))
+    tpe.foreach(t => setType(SetType(t)))
+  }
   // TODO : Figure out what evaluation order is, for this.
   // Perhaps then rewrite as "contains".
   case class ElementOfSet(element: Expr, set: Expr) extends Expr with FixedType {

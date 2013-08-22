@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 
@@ -12,6 +14,7 @@ object Heuristics {
     InnerCaseSplit,
     //new OptimisticInjection(_),
     //new SelectiveInlining(_),
+    ADTLongInduction,
     ADTInduction
   )
 }

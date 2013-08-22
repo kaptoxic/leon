@@ -1,9 +1,11 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 
 import synthesis.search._
 import akka.actor._
-import solvers.z3.FairZ3Solver
+import solvers.z3.{FairZ3Solver,UninterpretedZ3Solver}
 import solvers.TrivialSolver
 
 class ParallelSearch(synth: Synthesizer,
@@ -25,10 +27,13 @@ class ParallelSearch(synth: Synthesizer,
     val reporter = new SilentReporter
     val solver = new FairZ3Solver(synth.context.copy(reporter = reporter))
     solver.setProgram(synth.program)
-
     solver.initZ3
 
-    val ctx = SynthesisContext.fromSynthesizer(synth).copy(solver = solver)
+    val  simpleSolver = new UninterpretedZ3Solver(synth.context.copy(reporter = reporter))
+    simpleSolver.setProgram(synth.program)
+    simpleSolver.initZ3
+
+    val ctx = SynthesisContext.fromSynthesizer(synth).copy(solver = solver, simpleSolver = simpleSolver)
 
     synchronized {
       contexts = ctx :: contexts
@@ -49,13 +54,13 @@ class ParallelSearch(synth: Synthesizer,
     val prefix = "[%-20s] ".format(Option(t.rule).getOrElse("?"))
 
     t.app.apply(sctx) match {
-      case RuleSuccess(sol) =>
+      case RuleSuccess(sol, isTrusted) =>
         synth.synchronized {
           info(prefix+"Got: "+t.problem)
-          info(prefix+"Solved with: "+sol)
+          info(prefix+"Solved"+(if(isTrusted) "" else " (untrusted)")+" with: "+sol)
         }
 
-        ExpandSuccess(sol)
+        ExpandSuccess(sol, isTrusted)
       case RuleDecomposed(sub) =>
         synth.synchronized {
           info(prefix+"Got: "+t.problem)

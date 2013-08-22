@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 
@@ -76,7 +78,7 @@ object LinearEquations {
       var i = 0
       while(i < sols.size) {
         // seriously ??? 
-        K(i+j+1)(j) = evaluator.eval(sols(i)).asInstanceOf[EvaluationSuccessful].value.asInstanceOf[IntLiteral].value
+        K(i+j+1)(j) = evaluator.eval(sols(i)).asInstanceOf[EvaluationResults.Successful].value.asInstanceOf[IntLiteral].value
         i += 1
       }
     }

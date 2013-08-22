@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package xlang
 
@@ -243,6 +245,11 @@ object ImperativeCodeElimination extends LeonPhase[Program, (Program, Set[FunDef
         }
         val (bodyRes, bodyScope, bodyFun) = toFunction(b)
         (bodyRes, (b2: Expr) => LetDef(newFd, bodyScope(b2)), bodyFun)
+      }
+      case c @ Choose(ids, b) => {
+        //Recall that Choose cannot mutate variables from the scope
+        val (bodyRes, bodyScope, bodyFun) = toFunction(b)
+        (bodyRes, (b2: Expr) => Choose(ids, bodyScope(b2)).setPosInfo(c), bodyFun)
       }
       case n @ NAryOperator(Seq(), recons) => (n, (body: Expr) => body, Map())
       case n @ NAryOperator(args, recons) => {

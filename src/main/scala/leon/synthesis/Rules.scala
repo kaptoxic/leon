@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 
@@ -24,6 +26,7 @@ object Rules {
     CEGIS,
     Assert,
     DetupleOutput,
+    DetupleInput,
     ADTSplit,
     IntegerEquation,
     IntegerInequalities
@@ -56,9 +59,9 @@ abstract class RuleInstantiation(val problem: Problem, val rule: Rule, val onSuc
 }
 
 sealed abstract class RuleApplicationResult
-case class RuleSuccess(solution: Solution)    extends RuleApplicationResult
-case class RuleDecomposed(sub: List[Problem]) extends RuleApplicationResult
-case object RuleApplicationImpossible         extends RuleApplicationResult
+case class RuleSuccess(solution: Solution, isTrusted: Boolean = true)  extends RuleApplicationResult
+case class RuleDecomposed(sub: List[Problem])                          extends RuleApplicationResult
+case object RuleApplicationImpossible                                  extends RuleApplicationResult
 
 object RuleInstantiation {
   def immediateDecomp(problem: Problem, rule: Rule, sub: List[Problem], onSuccess: List[Solution] => Option[Solution], description: String) = {

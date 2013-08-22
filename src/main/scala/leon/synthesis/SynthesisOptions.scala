@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 
@@ -10,10 +12,12 @@ case class SynthesisOptions(
   timeoutMs: Option[Long]             = None,
   costModel: CostModel                = CostModel.default,
   rules: Seq[Rule]                    = Rules.all ++ Heuristics.all,
+  manualSearch: Boolean               = false,
 
   // Cegis related options
   cegisGenerateFunCalls: Boolean      = false,
   cegisUseCETests: Boolean            = true,
   cegisUseCEPruning: Boolean          = true,
-  cegisUseBPaths: Boolean             = true
+  cegisUseBPaths: Boolean             = true,
+  cegisUseVanuatoo: Boolean           = false
 )

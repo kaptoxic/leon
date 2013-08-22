@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package test
 package verification
@@ -19,7 +21,7 @@ class XLangVerificationRegression extends FunSuite {
   private case class Output(report : VerificationReport, reporter : Reporter)
 
   private def mkPipeline : Pipeline[List[String],VerificationReport] =
-    leon.plugin.ExtractionPhase andThen xlang.XlangAnalysisPhase
+    leon.plugin.ExtractionPhase andThen leon.SubtypingPhase andThen xlang.XlangAnalysisPhase
 
   private def mkTest(file : File, forError: Boolean = false)(block: Output=>Unit) = {
     val fullName = file.getPath()

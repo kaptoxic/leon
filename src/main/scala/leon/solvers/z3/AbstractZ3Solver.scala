@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package solvers.z3
 
@@ -522,6 +524,14 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
           val res = getLength(ar)
           res
         }
+
+        case arr @ FiniteArray(exprs) => {
+          val ArrayType(innerType) = arr.getType
+          val arrayType = arr.getType
+          val a: Expr = ArrayFill(IntLiteral(exprs.length), simplestValue(innerType)).setType(arrayType)
+          val u = exprs.zipWithIndex.foldLeft(a)((array, expI) => ArrayUpdated(array, IntLiteral(expI._2), expI._1).setType(arrayType))
+          rec(u)
+        }
         case Distinct(exs) => z3.mkDistinct(exs.map(rec(_)): _*)
   
         case _ => {
@@ -613,7 +623,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
                 case OpTrue => BooleanLiteral(true)
                 case OpFalse => BooleanLiteral(false)
                 case OpEq => Equals(rargs(0), rargs(1))
-                case OpITE => {
+                case OpITE =>
                   assert(argsSize == 3)
                   val r0 = rargs(0)
                   val r1 = rargs(1)
@@ -621,15 +631,14 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
                   try {
                     IfExpr(r0, r1, r2).setType(leastUpperBound(r1.getType, r2.getType).get)
                   } catch {
-                    case e => {
+                    case e: Throwable =>
                       println("I was asking for lub because of this.")
                       println(t)
                       println("which was translated as")
                       println(IfExpr(r0,r1,r2))
                       throw e
-                    }
                   }
-                }
+
                 case OpAnd => And(rargs)
                 case OpOr => Or(rargs)
                 case OpIff => Iff(rargs(0), rargs(1))

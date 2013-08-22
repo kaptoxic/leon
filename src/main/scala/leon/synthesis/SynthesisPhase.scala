@@ -1,3 +1,5 @@
+/* Copyright 2009-2013 EPFL, Lausanne */
+
 package leon
 package synthesis
 
@@ -16,18 +18,23 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
   override val definedOptions : Set[LeonOptionDef] = Set(
     LeonFlagOptionDef(    "inplace",         "--inplace",         "Debug level"),
     LeonOptValueOptionDef("parallel",        "--parallel[=N]",    "Parallel synthesis search using N workers"),
+    LeonFlagOptionDef(    "manual",          "--manual",          "Manual search"),
     LeonFlagOptionDef(    "derivtrees",      "--derivtrees",      "Generate derivation trees"),
     LeonFlagOptionDef(    "firstonly",       "--firstonly",       "Stop as soon as one synthesis solution is found"),
     LeonValueOptionDef(   "timeout",         "--timeout=T",       "Timeout after T seconds when searching for synthesis solutions .."),
     LeonValueOptionDef(   "costmodel",       "--costmodel=cm",    "Use a specific cost model for this search"),
     LeonValueOptionDef(   "functions",       "--functions=f1:f2", "Limit synthesis of choose found within f1,f2,.."),
-    LeonFlagOptionDef(    "cegis:gencalls",  "--cegis:gencalls",  "Include function calls in CEGIS generators")
+    LeonFlagOptionDef(    "cegis:gencalls",  "--cegis:gencalls",  "Include function calls in CEGIS generators"),
+    LeonFlagOptionDef(    "cegis:vanuatoo",  "--cegis:vanuatoo",  "Generate inputs using new korat-style generator")
   )
 
   def processOptions(ctx: LeonContext): SynthesisOptions = {
     var options = SynthesisOptions()
 
     for(opt <- ctx.options) opt match {
+      case LeonFlagOption("manual") =>
+        options = options.copy(manualSearch = true)
+
       case LeonFlagOption("inplace") =>
         options = options.copy(inPlace = true)
 
@@ -69,10 +76,17 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
       case LeonFlagOption("cegis:gencalls") =>
         options = options.copy(cegisGenerateFunCalls = true)
 
+      case LeonFlagOption("cegis:vanuatoo") =>
+        options = options.copy(cegisUseVanuatoo = true)
+
       case LeonFlagOption("derivtrees") =>
         options = options.copy(generateDerivationTrees = true)
 
       case _ =>
+    }
+
+    if (options.manualSearch) {
+      options = options.copy(rules = rules.AsChoose +: options.rules)
     }
 
     options
