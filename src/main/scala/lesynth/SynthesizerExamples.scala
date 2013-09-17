@@ -597,8 +597,8 @@ class SynthesizerForRuleExamples(
 			          program.mainObject.copy(defs = newFun +: program.mainObject.defs ))
 //				    println("new program: " + newProgram)
 			          
-		          val _evaluator = new CodeGenEvaluator(synthesisContext.context, newProgram,		              
-		              _root_.leon.codegen.CodeGenEvalParams(maxFunctionInvocations = 500, checkContracts = true))
+		          val _evaluator = new CodeGenEvaluator(synthesisContext.context, newProgram		              
+		              /* TODO:, _root_.leon.codegen.CodeGenEvalParams(maxFunctionInvocations = 500, checkContracts = true) */)
 	
 				    	val res = _evaluator.eval(newCandidate, exMapping)
 				    	println(res)
@@ -665,8 +665,8 @@ class SynthesizerForRuleExamples(
 			          program.mainObject.copy(defs = newFun +: program.mainObject.defs ))
 //				    println("new program: " + newProgram)
 			          
-		          val _evaluator = new CodeGenEvaluator(synthesisContext.context, newProgram,		              
-		              _root_.leon.codegen.CodeGenEvalParams(maxFunctionInvocations = 500, checkContracts = true))
+		          val _evaluator = new CodeGenEvaluator(synthesisContext.context, newProgram /* TODO: ,		              
+		              _root_.leon.codegen.CodeGenEvalParams(maxFunctionInvocations = 500, checkContracts = true) */)
 	
 				    	val res = _evaluator.eval(newCandidate, exMapping)
 				    	println("for mapping: " + exMapping + "res is: " + res)
