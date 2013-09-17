@@ -26,7 +26,7 @@ case class CodeGenExampleRunner(program: Program, funDef: FunDef, ctx: LeonConte
   val evaluationContext = ctx.copy(reporter = new SilentReporter)
   
   fine("building codegen evaluator with program:\n" + program)
-  lazy val _evaluator = new CodeGenEvaluator(evaluationContext, program, params)
+  lazy val _evaluator = new CodeGenEvaluator(evaluationContext, program/*TODO:, params*/)
   override def getEvaluator = _evaluator
   
   def transformExamples(examples: Seq[Example]) =
