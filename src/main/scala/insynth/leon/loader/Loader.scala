@@ -41,11 +41,11 @@ case class LeonLoader(program: Program, variables: List[Identifier], loadArithme
     /* add declarations to builder */
           
     // add function declarations
-    for( funDef@FunDef(id, returnType, args, _, _, _) <- program.definedFunctions ) {
-      val leonFunctionType = FunctionType(args map { _.tpe } toList, returnType)
+    for( funDef <- program.definedFunctions ) {
+      val leonFunctionType = FunctionType(funDef.args map { _.tpe } toList, funDef.returnType)
               
       val newDeclaration = makeDeclaration(
-        NaryReconstructionExpression( id, { args: List[Expr] => FunctionInvocation(funDef, args) } ), 
+        NaryReconstructionExpression( funDef.id, { args: List[Expr] => FunctionInvocation(funDef, args) } ), 
         leonFunctionType
       )        
       
