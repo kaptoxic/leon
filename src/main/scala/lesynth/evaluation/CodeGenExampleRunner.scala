@@ -23,7 +23,7 @@ case class CodeGenExampleRunner(program: Program, funDef: FunDef, ctx: LeonConte
 
   private var _examples = ArrayBuffer(transformExamples(inputExamples): _*)
 
-  val evaluationContext = ctx.copy(reporter = new SilentReporter)
+  val evaluationContext = ctx
   
   fine("building codegen evaluator with program:\n" + program)
   lazy val _evaluator = new CodeGenEvaluator(evaluationContext, program/*TODO:, params*/)

@@ -4,7 +4,7 @@ import scala.collection.mutable.{ Map => MutableMap, Set => MutableSet }
 import scala.collection.mutable.{ PriorityQueue, ArrayBuffer, HashSet }
 import scala.util.control.Breaks._
 
-import leon.{ Reporter, DefaultReporter, SilentReporter, LeonContext }
+import leon.{ Reporter, DefaultReporter, LeonContext }
 import leon.Main.processOptions
 
 import leon.solvers._
@@ -40,8 +40,7 @@ import scala.language.postfixOps
 
 class SynthesizerForRuleExamples(
   // some synthesis instance information
-  val mainSolver: Solver,
-  var solver: IncrementalSolver,
+  val mainSolver: SolverFactory[Solver],
   val program: Program,
   val desiredType: LeonType,
   val holeFunDef: FunDef,
@@ -54,7 +53,7 @@ class SynthesizerForRuleExamples(
 //  leonTimeout: Int = 1, // seconds
   analyzeSynthesizedFunctionOnly: Boolean = false,
   showLeonOutput: Boolean = false,
-  reporter: Reporter = new DefaultReporter,
+  reporter: Reporter,
   //examples: List[Map[Identifier, Expr]] = Nil,
   // we need the holeDef to know the right ids
   introduceExamples: (() => List[Map[Identifier, Expr]]) = { () => Nil },
@@ -109,7 +108,7 @@ class SynthesizerForRuleExamples(
   // information about the synthesis
   private val synthInfo = new SynthesisInfo
   
-  val verifier = new RelaxedVerifier(solver, problem, synthInfo)
+  val verifier = new RelaxedVerifier(mainSolver, problem, synthInfo)
   import verifier._
 
   def synthesize: Report = {
@@ -129,7 +128,7 @@ class SynthesizerForRuleExamples(
     var keepGoing = true
     // update flag in case of time limit overdue
     def checkTimeout =
-      if (synthesisContext.shouldStop.get) {
+      if (synthesisContext.context.interruptManager.isInterrupted()) {
         reporter.info("Timeout occured, stopping this synthesis rules")
         keepGoing = false
         true
@@ -388,7 +387,7 @@ class SynthesizerForRuleExamples(
     inSynthBoolean = new InSynth(allDeclarations, BooleanType, true)
 
     // funDef of the hole
-    fine("postcondition is: " + holeFunDef.getPostcondition)
+    fine("postcondition is: " + holeFunDef.postcondition.get)
     fine("declarations we see: " + allDeclarations.map(_.toString).mkString("\n"))
     //    interactivePause
 
@@ -396,7 +395,7 @@ class SynthesizerForRuleExamples(
     accumulatingCondition = BooleanLiteral(true)
     // save initial precondition
     initialPrecondition = holeFunDef.precondition.getOrElse(BooleanLiteral(true))
-    val holeFunDefBody = holeFunDef.getBody
+    val holeFunDefBody = holeFunDef.body.get
     // accumulate the final expression of the hole
     accumulatingExpression = (finalExp: Expr) => {      
 	    def replaceChoose(expr: Expr) = expr match {
@@ -427,7 +426,7 @@ class SynthesizerForRuleExamples(
   def tryToSynthesizeBranch(snippetTree: Expr, examplesPartition: (Seq[Example], Seq[Example])): Boolean = {
     val (succeededExamples, failedExamples) = examplesPartition
     // replace hole in the body with the whole if-then-else structure, with current snippet tree
-    val oldBody = holeFunDef.getBody
+    val oldBody = holeFunDef.body.get
     val newBody = accumulatingExpression(snippetTree)
     holeFunDef.body = Some(newBody)
 
@@ -586,10 +585,12 @@ class SynthesizerForRuleExamples(
 				    assert(newBody.getType != Untyped)
             val resFresh2 = FreshIdentifier("result22", true).setType(newBody.getType)
 				
+              val (id, post) = newFun.postcondition.get
+
               val newCandidate = 
 				    Let(resFresh2, newBody,
-				      matchToIfThenElse(replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
-				        newFun.getPostcondition)))
+				      matchToIfThenElse(replace(Map(LeonVariable(id) -> LeonVariable(resFresh2)),
+				        post)))
 				    finest("New fun for Error evaluation: " + newFun)
 //				    println("new candidate: " + newBody)
 	
@@ -654,10 +655,12 @@ class SynthesizerForRuleExamples(
 				    assert(newBody.getType != Untyped)
             val resFresh2 = FreshIdentifier("result22", true).setType(newBody.getType)
 				
+              val (id, post) = newFun.postcondition.get
+
               val newCandidate = 
 				    Let(resFresh2, newBody,
-				      matchToIfThenElse(replace(Map(ResultVariable() -> LeonVariable(resFresh2)),
-				        newFun.getPostcondition)))
+				      matchToIfThenElse(replace(Map(LeonVariable(id) -> LeonVariable(resFresh2)),
+				        post)))
 				    finest("New fun for Error evaluation: " + newFun)
 //				    println("new candidate: " + newBody)
 	
