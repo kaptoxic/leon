@@ -20,7 +20,7 @@ class LoaderTest extends JUnitSuite {
   import Scaffold._
 
 	val insynthTestDir = "testcases/condabd/test"
-  val testDir = insynthTestDir + "/loader/"
+  val testDir = insynthTestDir + "/insynth/"
     
   @Test
   def testAddresses {
@@ -81,6 +81,43 @@ class LoaderTest extends JUnitSuite {
         ("l2", "List"),
         ("tail", "Cons => List"),
         ("head", "Cons => Int")
+  		)
+  		
+		  assertTrue(
+	      "Expected:\n" + expectedDeclarations.mkString("\n") + "\nFound:\n" + allDeclarations.mkString("\n"),
+	      expectedDeclarations.subsetOf(allDeclarations)	      
+      )
+    }
+  } 
+  
+  @Test
+  def testAddressesWithAddition {
+    val fileName = testDir + "AddressesWithAddition.scala"
+  	
+    for ((sctx, funDef, problem) <- forFile(fileName)) {
+      val program = sctx.program
+      val arguments = funDef.args.map(_.id)
+
+      assertEquals(1, problem.xs.size)
+      val resultVariable = problem.xs.head
+      val varsInScope = funDef.args.map(_.id).toList //problem.as)
+      assertTrue(varsInScope.size >= 3)
+
+	    val loader = new LeonLoader(program, varsInScope, false)
+	    
+      val allDeclarations = loader.load.map(d => (d.getSimpleName, d.leonType.toString)).toSet
+
+      val expectedDeclarations = Set(
+        ("AddressBook", "(List, List) => AddressBook"),
+        ("[Cons=>List]", "Cons => List"),
+        ("pers", "AddressBook => List"),
+        ("addToPers", "(AddressBook, Address) => AddressBook"),
+        ("addToBusiness", "(AddressBook, Address) => AddressBook"),
+        ("l", "List"),
+        ("tail", "Cons => List"),
+        ("a", "Cons => Address"),
+        ("x", "Int"),
+        ("y", "Boolean")
   		)
   		
 		  assertTrue(
