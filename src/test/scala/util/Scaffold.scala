@@ -6,6 +6,8 @@ import org.scalatest.matchers.ShouldMatchers._
 import java.io.{BufferedWriter, FileWriter, File}
 
 import leon._
+import leon.test._
+import leon.utils._
 import leon.purescala.Definitions._
 import leon.purescala.Trees._
 import leon.purescala.TreeOps._
@@ -18,6 +20,7 @@ object Scaffold {
 
   def forProgram(content: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
 
+    val reporter = new TestSilentReporter
     val ctx = LeonContext(
       settings = Settings(
         synthesis = true,
@@ -25,7 +28,7 @@ object Scaffold {
         verify    = false		
       ),
       files = List(),
-      reporter = new SilentReporter,
+      reporter = reporter,
       interruptManager = new InterruptManager(reporter)
     )
 //    Settings.showIDs = true
@@ -35,7 +38,7 @@ object Scaffold {
     val (program, results) = try {
       pipeline.run(ctx)((content, Nil))
     } catch {
-      case _ =>
+      case _: Throwable =>
         fail("Error while processing")
     }
     
@@ -44,15 +47,18 @@ object Scaffold {
 
   def forFile(file: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
     val programFile = new File(file)
-    
+
+    val reporter = new TestSilentReporter
+
     val ctx = LeonContext(
       settings = Settings(
         synthesis = true,
         xlang     = false,
-        verify    = false		
+        verify    = false
       ),
       files = List(programFile),
-      reporter = new SilentReporter
+      reporter = reporter,
+      interruptManager = new InterruptManager(reporter)
     )
 
     val pipeline = leon.plugin.ExtractionPhase andThen SynthesisProblemExtractionPhase
@@ -60,7 +66,7 @@ object Scaffold {
     val (program, results) = try {
       pipeline.run(ctx)(file :: Nil)
     } catch {
-      case _ =>
+      case _: Throwable =>
         fail("Error while processing " + file)
     }
     
@@ -71,12 +77,6 @@ object Scaffold {
     problemMap: Map[leon.purescala.Definitions.FunDef,Seq[leon.synthesis.Problem]]) = {
 
     val opts = SynthesisOptions()
-    
-    val solver = new FairZ3Solver(ctx)
-    solver.setProgram(program)
-
-    val simpleSolver = new UninterpretedZ3Solver(ctx)
-    simpleSolver.setProgram(program)
 
     for ((f, ps) <- problemMap; p <- ps) 
     	yield {
@@ -84,10 +84,7 @@ object Scaffold {
                                     opts,
                                     Some(f),
                                     program,
-                                    solver,
-                                    simpleSolver,
-                                    new SilentReporter,
-                                    new java.util.concurrent.atomic.AtomicBoolean)
+                                    new TestSilentReporter)
 
         (sctx, f, p)
     	}
