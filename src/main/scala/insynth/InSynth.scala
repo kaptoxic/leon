@@ -27,7 +27,7 @@ class InSynth(_declarations: List[Declaration], goalType: Type, ordered: Boolean
 //  def this(program: Program, hole: Hole, ordered: Boolean) =
 //    this(new LeonLoader(program, hole).load, hole.getType, ordered)
     
-  def this(loader: LeonLoader, goalType: Type,  ordered: Boolean) =
+  def this(loader: LeonLoader, goalType: Type, ordered: Boolean) =
     this(loader.load, goalType, ordered)
   
   lazy val solver = new Solver(declarations, new LeonQueryBuilder(goalType))
@@ -58,6 +58,8 @@ class InSynth(_declarations: List[Declaration], goalType: Type, ordered: Boolean
   }
   
   def getCurrentBuilder = solver.currentBuilder
+
+  def getAllDeclarations = _declarations
 
 }
 

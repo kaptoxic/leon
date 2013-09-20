@@ -262,4 +262,41 @@ class InSynthTest extends JUnitSuite {
     }
   }
 
+  @Test
+  def testDeclarations {  
+      	
+    for ((sctx, funDef, problem) <- forFile(insynthTestDir + "AddressesWithAddition.scala")) {
+      val program = sctx.program
+      val arguments = funDef.args.map(_.id)
+
+      assertEquals(1, problem.xs.size)
+      val resultVariable = problem.xs.head
+      // note problem.as does not contain function arguments, thus we use funDef.args
+      //val varsInScope = problem.as
+
+	    val loader = new LeonLoader(program, arguments.toList, false)
+	    val inSynth = new InSynth(loader.load, resultVariable.getType, true)
+	          
+      val allDeclarations = inSynth.getAllDeclarations.map(d => (d.getSimpleName, d.leonType.toString)).toSet
+
+      val expectedDeclarations = Set(
+        ("AddressBook", "(List, List) => AddressBook"),
+        ("[Cons=>List]", "Cons => List"),
+        ("pers", "AddressBook => List"),
+        ("addToPers", "(AddressBook, Address) => AddressBook"),
+        ("addToBusiness", "(AddressBook, Address) => AddressBook"),
+        ("l", "List"),
+        ("tail", "Cons => List"),
+        ("a", "Cons => Address"),
+        ("x", "Int"),
+        ("y", "Boolean")
+  		)
+  		
+		  assertTrue(
+	      "Expected:\n" + expectedDeclarations.mkString("\n") + "\nFound:\n" + allDeclarations.mkString("\n"),
+	      expectedDeclarations.subsetOf(allDeclarations)	      
+      )
+    }
+  }
+
 }
