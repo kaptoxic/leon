@@ -18,9 +18,11 @@ import leon.synthesis.utils._
 
 object Scaffold {
 
+  val reporter = new TestSilentReporter
+
   def forProgram(content: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
 
-    val reporter = new TestSilentReporter
+    val forProgramReporter = new TestSilentReporter
     val ctx = LeonContext(
       settings = Settings(
         synthesis = true,
@@ -28,8 +30,8 @@ object Scaffold {
         verify    = false		
       ),
       files = List(),
-      reporter = reporter,
-      interruptManager = new InterruptManager(reporter)
+      reporter = forProgramReporter,
+      interruptManager = new InterruptManager(forProgramReporter)
     )
 //    Settings.showIDs = true
 
@@ -48,8 +50,7 @@ object Scaffold {
   def forFile(file: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
     val programFile = new File(file)
 
-    val reporter = new TestSilentReporter
-
+    val forProgramReporter = new TestSilentReporter
     val ctx = LeonContext(
       settings = Settings(
         synthesis = true,
@@ -57,8 +58,8 @@ object Scaffold {
         verify    = false
       ),
       files = List(programFile),
-      reporter = reporter,
-      interruptManager = new InterruptManager(reporter)
+      reporter = forProgramReporter,
+      interruptManager = new InterruptManager(forProgramReporter)
     )
 
     val pipeline = leon.plugin.ExtractionPhase andThen SynthesisProblemExtractionPhase
