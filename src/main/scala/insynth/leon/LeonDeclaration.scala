@@ -31,7 +31,10 @@ extends Declaration(inSynthType, weight) {
     
   def getSimpleName = expression.getSimpleName
   
-  override def toString = getSimpleName + " : " + inSynthType + " : " + leonType + " [" + expression + "]"
+  override def toString = getSimpleName +
+//  + " : " + inSynthType +
+  " : " + leonType
+//  + " [" + expression + "]"
   
 }
 

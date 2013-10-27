@@ -71,11 +71,11 @@ class InSynthTempTest {
   }
   
   def interactivePause = {    
-    System.out.println("Press Any Key To Continue...");
-    new java.util.Scanner(System.in).nextLine();
+//    System.out.println("Press Any Key To Continue...");
+//    new java.util.Scanner(System.in).nextLine();
   }
       
-  @Ignore
+  @Test
   def testAddresses: Unit = {  
   	
     for ((sctx, funDef, problem) <- forFile(lesynthTestDir + "Addresses.scala")) {
@@ -90,6 +90,9 @@ class InSynthTempTest {
 	    val inSynth = new InSynthTemp(loader, true)
 	    // save all declarations seen
 	    val allDeclarations = inSynth.getCurrentBuilder.getAllDeclarations
+
+	    println("****************\nDeclarations:\n***********************")
+    	println( allDeclarations.mkString("\n") )
 	    
 	    val solver = inSynth.solver	    
 	    val solution = solver.getProofTree
@@ -165,7 +168,8 @@ class InSynthTempTest {
     }
   }
  
-  @Ignore
+  
+  @Test
   def testAddressesWithRefinement: Unit = {  
   	
     for ((sctx, funDef, problem) <- forFile(lesynthTestDir + "Addresses.scala")) {
@@ -180,6 +184,7 @@ class InSynthTempTest {
 	    val inSynth = new InSynthTemp(loader, true)
 	    // save all declarations seen
 	    val allDeclarations = inSynth.getCurrentBuilder.getAllDeclarations
+	    
 	    
 		  val nilAbstractClassDef = program.definedClasses.find(_.id.name == "Nil").
 		  	get.asInstanceOf[CaseClassDef]
@@ -199,8 +204,10 @@ class InSynthTempTest {
         newDeclarations.map(decl => decl.getSimpleName + ":" + decl.getType).mkString("\n")
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.tail"))
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.a"))
-	    println(declsMessage)      
+//	    println(declsMessage)      
       
+	    println("****************\nDeclarations:\n***********************")
+    	println( newDeclarations.mkString("\n") )
 	    val builder = new InitialEnvironmentBuilder(newDeclarations)
       
 	    val solver = inSynth.solver	    
@@ -288,7 +295,8 @@ class InSynthTempTest {
     }
   } 
  
-  @Ignore
+  
+  @Test
   def testAddressesWithRefinementCodeGen: Unit = {  
   	
     for ((sctx, funDef, problem) <- forFile(lesynthTestDir + "Addresses.scala")) {
@@ -303,6 +311,7 @@ class InSynthTempTest {
 	    val inSynth = new InSynthTemp(loader, true)
 	    // save all declarations seen
 	    val allDeclarations = inSynth.getCurrentBuilder.getAllDeclarations
+	    
 	    
 		  val nilAbstractClassDef = program.definedClasses.find(_.id.name == "Nil").
 		  	get.asInstanceOf[CaseClassDef]
@@ -322,8 +331,10 @@ class InSynthTempTest {
         newDeclarations.map(decl => decl.getSimpleName + ":" + decl.getType).mkString("\n")
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.tail"))
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.a"))
-	    println(declsMessage)      
+//	    println(declsMessage)      
       
+	    println("****************\nDeclarations:\n***********************")
+    	println( newDeclarations.mkString("\n") )
 	    val builder = new InitialEnvironmentBuilder(newDeclarations)
       
 	    val solver = inSynth.solver	    
@@ -333,12 +344,12 @@ class InSynthTempTest {
 	          
       var ind = 1
       for ((output, snippet) <- extractorResults zip (extractorResults map { p => codegen(p._1) })) {
-      	print("%20s %20s\n".format(snippet, output._1.toString))
+//      	print("%20s %20s\n".format(snippet, output._1.toString))
       	ind +=1     	
       	
-      	if ((ind % 1000) == 0) {
-      	  interactivePause
-      	}
+//      	if ((ind % 1000) == 0) {
+//      	  interactivePause
+//      	}
       }
        	
       val message = 
@@ -355,7 +366,8 @@ class InSynthTempTest {
     }
   } 
   
-  @Ignore
+  
+  @Test
   def testAddressesWithRefinementTime: Unit = {  
   	
     for ((sctx, funDef, problem) <- forFile(lesynthTestDir + "Addresses.scala")) {
@@ -370,6 +382,7 @@ class InSynthTempTest {
 	    val inSynth = new InSynthTemp(loader, true)
 	    // save all declarations seen
 	    val allDeclarations = inSynth.getCurrentBuilder.getAllDeclarations
+	    
 	    
 		  val nilAbstractClassDef = program.definedClasses.find(_.id.name == "Nil").
 		  	get.asInstanceOf[CaseClassDef]
@@ -390,6 +403,8 @@ class InSynthTempTest {
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.tail"))
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.a"))
       
+	    println("****************\nDeclarations:\n***********************")
+    	println( newDeclarations.mkString("\n") )
 	    val builder = new InitialEnvironmentBuilder(newDeclarations)
       
 	    val solver = inSynth.solver	    
@@ -397,7 +412,7 @@ class InSynthTempTest {
       
 	    val startTime = System.currentTimeMillis
       val extractorResults = assertTake(transformer(solution.getNodes.head), 5000)
-      println("Time for extracting 5000 solutions: " + (System.currentTimeMillis - startTime))
+//      println("Time for extracting 5000 solutions: " + (System.currentTimeMillis - startTime))
 	          
 //      val duplicityMap = (Map[Expr, Set[(lambda.Node, Float)]]() /: extractorResults) {
 //        (resMap, pair) =>
@@ -479,7 +494,8 @@ class InSynthTempTest {
     }
   } 
  
-  @Ignore
+  
+  @Test
   def testListConcatWithRefinementCodeGen: Unit = {  
   	
     for ((sctx, funDef, problem) <- forFile(lesynthSynthesisDir + "List/ListConcat.scala")) {
@@ -513,8 +529,11 @@ class InSynthTempTest {
         newDeclarations.map(decl => decl.getSimpleName + ":" + decl.getType).mkString("\n")
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l1.tail"))
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l1.head"))
-	    println(declsMessage)      
+//	    println(declsMessage)      
       
+	    
+	    println("****************\nDeclarations:\n***********************")
+    	println( newDeclarations.mkString("\n") )
 	    val builder = new InitialEnvironmentBuilder(newDeclarations)
       
 	    val solver = inSynth.solver	    
@@ -524,7 +543,7 @@ class InSynthTempTest {
 	          
       var ind = 1
       for ((output, snippet) <- extractorResults zip (extractorResults map { p => codegen(p._1) })) {
-      	print("%20s %20s\n".format(snippet, output._1.toString))
+//      	print("%20s %20s\n".format(snippet, output._1.toString))
       	ind +=1     	
       	
       	if ((ind % 1000) == 0) {
@@ -562,6 +581,7 @@ class InSynthTempTest {
 	    // save all declarations seen
 	    val allDeclarations = inSynth.getCurrentBuilder.getAllDeclarations
 	    
+	    
 		  val nilAbstractClassDef = program.definedClasses.find(_.id.name == "Nil").
 		  	get.asInstanceOf[CaseClassDef]
 	    val listVal = funDef.args.head.toVariable
@@ -580,8 +600,10 @@ class InSynthTempTest {
         newDeclarations.map(decl => decl.getSimpleName + ":" + decl.getType).mkString("\n")
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.tail"))
       assertTrue(declsMessage, newDeclarations.exists(_.getSimpleName contains "l.a"))
-	    println(declsMessage)      
+//	    println(declsMessage)      
       
+	    println("****************\nDeclarations:\n***********************")
+    	println( newDeclarations.mkString("\n") )
 	    val builder = new InitialEnvironmentBuilder(newDeclarations)
       
 	    val solver = inSynth.solver	    
@@ -647,10 +669,10 @@ class InSynthTempTest {
 //      println(it.hasNext)
 //      
       for (output <- extractorResults) {
-      	print("%20s %5f" format (output._1, output._2))
+//      	print("%20s %5f" format (output._1, output._2))
       	
-		    System.out.println("Press Any Key To Continue...");
-		    new java.util.Scanner(System.in).nextLine();
+//		    System.out.println("Press Any Key To Continue...");
+//		    new java.util.Scanner(System.in).nextLine();
       }
 //      println("\nExtracted: " + resTemp.size)
 //    	println("\nExtracted: " + extractorResults.size)
