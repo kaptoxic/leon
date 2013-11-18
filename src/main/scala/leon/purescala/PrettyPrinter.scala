@@ -7,7 +7,6 @@ import Common._
 import Trees._
 import TypeTrees._
 import Definitions._
-
 import java.lang.StringBuffer
 
 /** This pretty-printer uses Unicode for some operators, to make sure we
@@ -220,6 +219,20 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
       sb.append("else\n")
       ind(lvl+1)
       pp(e, lvl+1)
+      
+    case Cons(h, t) =>
+      sb.append("Cons")
+      ppNary(h :: t :: Nil, "(", ",", ")", lvl)
+    case NilList(tpe) =>
+      sb.append("Nil[")
+      pp(tpe, lvl)
+      sb.append("]")
+    case Car(l) =>
+      sb.append("Car")
+      ppUnary(l, "(", ")", lvl)
+    case Cdr(l) =>
+      sb.append("Cdr")
+      ppUnary(l, "(", ")", lvl) 
 
     case mex @ MatchExpr(s, csc) => {
       def ppc(p: Pattern): Unit = p match {

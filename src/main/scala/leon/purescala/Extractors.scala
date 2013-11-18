@@ -69,6 +69,7 @@ object Extractors {
       case MapIsDefinedAt(t1,t2) => Some((t1,t2, MapIsDefinedAt))
       case ArrayFill(t1, t2) => Some((t1, t2, ArrayFill))
       case ArraySelect(t1, t2) => Some((t1, t2, ArraySelect))
+      case Cons(t1, t2) => Some((t1, t2, Cons)) 
       case Concat(t1,t2) => Some((t1,t2,Concat))
       case ListAt(t1,t2) => Some((t1,t2,ListAt))
       case Let(binders, e, body) => Some((e, body, (e: Expr, b: Expr) => Let(binders, e, b)))
