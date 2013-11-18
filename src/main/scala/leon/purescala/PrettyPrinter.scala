@@ -498,6 +498,13 @@ class PrettyPrinter(opts: PrinterOptions,
         ob foreach { b => p"$b @ " }
         p"$lit"
 
+      case Car(l) =>
+        sb.append("Car")
+        ppUnary(l, "(", ")", lvl)
+      case Cdr(l) =>
+        sb.append("Cdr")
+        ppUnary(l, "(", ")", lvl) 
+
       // Types
       case Untyped               => p"<untyped>"
       case UnitType              => p"Unit"

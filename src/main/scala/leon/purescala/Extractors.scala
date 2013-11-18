@@ -86,6 +86,10 @@ object Extractors {
         Some((Seq(expr), (es: Seq[Expr]) => BVNarrowingCast(es.head, newType)))
       case BVWideningCast(expr, newType) =>
         Some((Seq(expr), (es: Seq[Expr]) => BVWideningCast(es.head, newType)))
+      
+      // S-Expressions
+      case Car(t) => Some((t,Car))
+      case Cdr(t) => Some((t,Cdr))
 
       /* Binary operators */
       case LetDef(fds, rest) => Some((
