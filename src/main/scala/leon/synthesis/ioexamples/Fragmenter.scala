@@ -78,5 +78,54 @@ object Fragmenter {
     
     rec(expr1, expr2, identity)
   }
+  
+  def compare(expr1: Expr, expr2: Expr)(implicit map: Map[(Expr, Expr), Int]): (Int, Map[(Expr, Expr), Int]) = {
+    var mutableMap = map
+    
+    def rec(expr1: Expr, expr2: Expr): Int = {
+      val res = 
+	      (expr1, expr2) match {
+			    case (Cons(h1, t1), Cons(h2, t2)) =>	      
+			      val headRes = rec(h1, h2)
+			      val tailRes = rec(t1, t2)
+			      // if one less, other greater return sign that these two are not comparable
+			      if (headRes * tailRes < 0) throw new Exception
+			      math.signum(headRes + tailRes)
+			    case (Atom(_), _: Cons) => -1
+			    case (_: Cons, Atom(_)) => 1
+			    case (_, _) => 0			      
+	      }
+	      	      
+      mutableMap += (expr1, expr2) -> res
+      mutableMap += (expr2, expr1) -> -res
+      res
+    }
+    
+    val res =
+	    try {
+	    	rec(expr1, expr2)
+	    } catch {
+	      case _: Exception =>
+		      mutableMap += (expr1, expr2) -> 0 
+		      mutableMap += (expr2, expr1) -> 0
+		      0
+	    }
+    
+    (res, mutableMap.toMap)
+  }
+  
+  def sort(inputExamples: List[Expr]) = {
+    implicit var map = Map[(Expr, Expr), Int]()
+    
+    def compFun(a: Expr, b: Expr) = {
+      val res = compare(a, b)
+      map ++= res._2
+      if (res._1 == 0) throw new Exception("Input examples should form a total order")      	
+        
+      res._1 < 0
+    }
+    
+    inputExamples.sortWith((a, b) => compFun(a, b))
+  }
 
 }
