@@ -52,5 +52,16 @@ class EvaluationTest extends FunSuite {
       constructFragment(oeLP_AB_RP, mapOfSubexpressions(ieLP_AB_RP))
     }
   }
+  
+  test("predicate difference") {
+    val x = ellABrlBlABrr
+    val y = ellABrllABrlABrr
+    
+    val res = structureDifference(x, y)
+    res.size should be (1)
+    res(0)(nil) should be (Cdr(Car(nil)))
+//    res(0)((ellABrlBlABrr)) should be (List(varB))
+//    res(0)((ellABrllABrlABrr)) should be (List(ieLP_AB_RP))
+  }
 
 }

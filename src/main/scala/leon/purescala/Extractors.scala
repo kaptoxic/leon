@@ -289,4 +289,11 @@ object Extractors {
     def unapply[T <: Typed](e: T): Option[(T, TypeTree)] = Some((e, e.getType))
   }
 
+  object Atom {
+    def unapply(e: Expr): Option[Expr] = e match {
+      case _: Cons => None
+      case ex => Some(ex)
+    }
+  }
+
 }
