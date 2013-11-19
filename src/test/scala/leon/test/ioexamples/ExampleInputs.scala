@@ -21,15 +21,29 @@ object ExampleInputs {
   val varB = Variable(identifierB).setType(Int32Type)
   val varC = Variable(identifierC).setType(Int32Type)
   
-  /// (A B)
-  def ieLP_AB_RP = Cons(varA, Cons(varB, nil))
+  // ()
+  def elr = nil
+  // (A)
+  def elAr = Cons(varA, nil)
+  // (B)
+  def elBr = Cons(varB, nil)
+  // (C)
+  def elCr = Cons(varC, nil)  
+  // (A B)
+  def elABr = Cons(varA, elBr)
+  // (A B C)
+  def elABCr = Cons(varA, Cons(varB, elCr))
   
   // ((A)(B))
-  def oeLP_AB_RP = Cons(Cons(varA, nil), Cons(Cons(varB, nil), nil))
+  def ellArlBrr = Cons(Cons(varA, nil), Cons(Cons(varB, nil), nil))
   
+  // (B (A B))
+  def elBlABrr  = Cons(varB, elABr)
   // ((A B)(B (A B))
-  def ellABrlBlABrr  = Cons(ieLP_AB_RP, Cons(varB, ieLP_AB_RP))
+  def ellABrlBlABrr  = Cons(elABr, elBlABrr)
   // ((A B)((A B) (A B))
-  def ellABrllABrlABrr  = Cons(ieLP_AB_RP, Cons(ieLP_AB_RP, ieLP_AB_RP))
+  def ellABrllABrlABrr  = Cons(elABr, Cons(elABr, elABr))
+  // ((B (A B))(A B))
+  def elBlABrlABrr = Cons(elBlABrr, elABr)
 
 }
