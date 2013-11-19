@@ -455,4 +455,12 @@ object Extractors {
       }
     }
   }
+
+  object Atom {
+    def unapply(e: Expr): Option[Expr] = e match {
+      case _: Cons => None
+      case ex => Some(ex)
+    }
+  }
+
 }

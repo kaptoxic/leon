@@ -4,12 +4,13 @@ package synthesis.ioexamples
 import scala.collection.mutable.{ Map => MMap }
 
 import purescala.Trees._
-import purescala.TreeOps
+import purescala._
 
 object Fragmenter {
   
   val u = Util
   import TreeOps._
+  import Extractors._
 
   def mapOfSubexpressions(ex: Expr): Map[Expr, Expr] = {
     var map = MMap[Expr, Expr]()
@@ -64,6 +65,18 @@ object Fragmenter {
     val modifiedMap = map.filterNot( _._1.isInstanceOf[NilList]  ).mapValues(Some(_))
     
     searchAndReplace({ e => modifiedMap.getOrElse(e, None) }, false)(tree)
+  }
+    
+  def structureDifference(expr1: Expr, expr2: Expr) = {
+    def rec(e1: Expr, e2: Expr, ctx: Expr => Expr): List[Expr => Expr] = (e1, e2) match {
+      case (Atom(a1), Atom(a2)) => Nil
+      case (Atom(a2), _) => List(ctx)
+      case (Cons(h1, t1), Cons(h2, t2)) =>
+        rec(h1, h2, x => ctx(u.Car(x))) ++
+        rec(t1, t2, x => ctx(u.Cdr(x)))
+    }
+    
+    rec(expr1, expr2, identity)
   }
 
 }
