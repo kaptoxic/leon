@@ -174,4 +174,28 @@ class EvaluationTest extends FunSuite {
     }
   }
 
+  test("find predicates") {
+    val inputExamples = List(
+      ieunpack1, ieunpack2, ieunpack3, ieunpack4
+    ).map(substituteAllAtom)
+    assert(sort(inputExamples) == inputExamples)
+    
+    val chain = findChain(inputExamples)
+    chain.size should be (3)
+    for ((inner, correct) <- chain zip inputExamples.tail) {
+      inner should be (List(correct))
+    } 
+    
+    val chainIncludingStart = chain.zip(inputExamples.init).map {
+      case (chain, start) => start :: chain
+    }
+    
+    val predicates = chainIncludingStart.map{ findPredicate(_) }
+    predicates.size should be (3)
+    for ((predicate, given) <- predicates zip List(
+      p1, p2, p3
+    ))
+      predicate(w) should be (given)
+  }
+
 }
