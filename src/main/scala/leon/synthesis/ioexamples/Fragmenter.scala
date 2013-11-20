@@ -207,5 +207,19 @@ object Fragmenter extends HasLogger {
 	      traverse(x, x1)
 	    }
   }
+  
+  def findPredicate(chain: List[Expr]) = {
+    require(chain.size >= 2)
+
+    val differences =
+      for( (x, x1) <- chain.zip(chain.tail) ) yield {
+        structureDifference(x, x1)
+      }
+      // map { Atom(_) }
+    
+    assert( differences forall { _.size == 1})
+    
+    (x: Expr) => Or(differences.map(_.head(x)).toSeq)
+  }
 
 }

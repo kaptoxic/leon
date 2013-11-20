@@ -58,4 +58,16 @@ object ExampleInputs {
   val ellWdWrdWr = Cons(elWdWr, w)
   // (((w.w).w).w)
   val elllWdWrdWrdWr = Cons(ellWdWrdWr, w)
+  
+  // examples for the unpack benchmark
+  // inputs
+  val ieunpack1 = nil
+  val ieunpack2 = elAr
+  val ieunpack3 = elABr
+  val ieunpack4 = elABCr
+  
+  // predicates
+  val p1 = w
+  val p2 = Cdr(w)
+  val p3 = Cdr(Cdr(w))
 }
