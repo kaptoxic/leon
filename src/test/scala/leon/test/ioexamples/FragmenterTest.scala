@@ -3,7 +3,7 @@ package test.ioexamples
 
 import leon.synthesis.ioexamples._
 import purescala.Trees._
-import purescala.TreeOps
+import purescala._
 
 import org.scalatest.FunSuite
 import org.scalatest.matchers.ShouldMatchers._
@@ -13,8 +13,10 @@ class EvaluationTest extends FunSuite {
   
   import ExampleInputs._
   import Fragmenter._
+  import Extractors._
 
   import Util._
+  import TreeOps._
 
   def assertExpressionMapping(e: Expr)(implicit map: Map[Expr, Expr]) = {
     assert(map contains e)
@@ -76,8 +78,8 @@ class EvaluationTest extends FunSuite {
     compRes(varA, ellArlBrr) should be (-1)
     compRes(ellArlBrr, elABr) should be (1)
     compRes(ellABrllABrlABrr, ellABrlBlABrr) should be (1)
-    compRes(ellABrlBlABrr, elBlABrlABrr) should be (0)
-    compRes(elBlABrlABrr, ellABrlBlABrr) should be (0)
+    compRes(ellABrlBlABrr, elBlABrlABrr) should be (-2)
+    compRes(elBlABrlABrr, ellABrlBlABrr) should be (-2)
   }
 
   test("compare trees maps") {
@@ -97,8 +99,8 @@ class EvaluationTest extends FunSuite {
     compRes(varA, ellArlBrr) should be (-1)
     compRes(ellArlBrr, elABr) should be (1)
     compRes(ellABrllABrlABrr, ellABrlBlABrr) should be (1)
-    compRes(ellABrlBlABrr, elBlABrlABrr) should be (0)
-    compRes(elBlABrlABrr, ellABrlBlABrr) should be (0)
+    compRes(ellABrlBlABrr, elBlABrlABrr) should be (-2)
+    compRes(elBlABrlABrr, ellABrlBlABrr) should be (-2)
   }
 
   test("sorting") {
@@ -109,6 +111,66 @@ class EvaluationTest extends FunSuite {
       assert(permutation.size == inputExamples.size)
       
       sort(permutation) should be (inputExamples)
+    }
+  }
+
+  test("find chain") {
+    val inputExamples = List(elAr, elABCr).map( substituteAllAtom )
+    val correctChain = List(List(elWWr, elWWWr).map (substituteAllAtom))
+    
+    for (ex <- inputExamples) {
+      val gathered = (List[Expr]() /: allSubexpressions(ex)) {
+        (res, el) => res ++ collect({ case Atom(e) => e })(el)
+      }.distinct
+      gathered.size should be (1)
+      gathered.head should be (w)
+    }
+    for (permutation <- inputExamples.permutations) {
+      assert(permutation.size == inputExamples.size)
+      
+      sort(permutation) should be (inputExamples)
+    }
+    
+    val res = findChain(inputExamples)
+    res.size should be (1)
+    res should be (correctChain)
+  }
+
+  test("find chain w -> (w (((w w) w) w))") {
+    val inputExamples = List(w, elllWdWrdWrdWr)
+    val correctChain = List(List(elWdWr, ellWdWrdWr, elllWdWrdWrdWr))
+    
+    val res = findChain(inputExamples)
+    res.size should be (1)
+    res should be (correctChain)
+  }
+
+  test("find chain (... w) -> (... (((w w) w) w))") {
+    val inputExamples = List(w, elllWdWrdWrdWr)
+    val correctChain = List(elWdWr, ellWdWrdWr, elllWdWrdWrdWr)
+    
+    for(leftExpr <- List(elWdWr, ellWdWrdWr, elllWdWrdWrdWr,
+      elBlABrr, ellABrlBlABrr, ellABrllABrlABrr, elBlABrlABrr).map(substituteAllAtom)) {      
+	    val res = findChain(inputExamples map { Cons(leftExpr, _) })
+	    res.size should be (1)
+	    res.head should be (correctChain map { Cons(leftExpr, _) })
+    }
+  }
+
+  test("find chain (... w) -> (.. ((w w) w)) -> (... (((w w) w) w))") {
+    val inputExamples = List(w, ellWdWrdWr, elllWdWrdWrdWr)
+    val correctChain = List(
+      List(elWdWr, ellWdWrdWr),
+      List(elllWdWrdWrdWr)
+    )
+    
+    for(leftExpr <- List(
+      elWdWr, ellWdWrdWr, elllWdWrdWrdWr,
+      elBlABrr, ellABrlBlABrr, ellABrllABrlABrr, elBlABrlABrr
+      ).map(substituteAllAtom)) {      
+	    val res = findChain(inputExamples map { Cons(leftExpr, _) })
+	    res.size should be (2)
+	    res should be (correctChain.map(_ map { Cons(leftExpr, _) }))
     }
   }
 
