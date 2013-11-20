@@ -193,9 +193,57 @@ class EvaluationTest extends FunSuite {
     val predicates = chainIncludingStart.map{ findPredicate(_) }
     predicates.size should be (3)
     for ((predicate, given) <- predicates zip List(
-      p1, p2, p3
+      predUnpack1, predUnpack2, predUnpack3
     ))
       predicate(w) should be (given)
   }
+  
+  test("differences constraints") {
+    {
+	    val diffs = differenceConstraints(elWr, Cons(Cdr(w), nil), w)
+	    diffs.size should be (1)
+	    diffs should be (List(Cdr(w)))
+    }
+    
+    {
+	    val diffs = differenceConstraints(fragUnpack3, Cons(Cons(Car(Cdr(x)), nil), Cons(Cdr(Cdr(x)), nil)), x).distinct
+	    diffs.size should be (1)
+	    diffs should be (List(Cdr(x)))      
+    }
+    
+  }
+
+  test("difference produced") {
+    val fragments = List(fragUnpack2, fragUnpack3, fragUnpack4)
+    
+    val allDiffs =
+	    for((f1, f2) <- fragments zip fragments.tail) yield {
+	      val diffs = differences(f1, f2, x)
+		    assert(diffs contains Cdr(x))
+		    diffs.toSet
+	    }
+    
+    allDiffs(0) intersect allDiffs(1) should be (Set(Cdr(x)))
+    allDiffs(0) union allDiffs(1) should be (Set(Cdr(x), Car(x)))
+  }
+  
+  test("differences produced for predicates") {
+    val fragments = List(predUnpack1, predUnpack2, predUnpack3)
+    
+    val allDiffs =
+	    for((f1, f2) <- fragments zip fragments.tail) yield {
+	      val diffs = differences(f1, f2, w)
+		    assert(diffs contains Cdr(w))
+		    diffs.toSet
+	    }
+    
+    allDiffs(0) intersect allDiffs(1) should be (Set(Cdr(w)))
+    allDiffs(0) union allDiffs(1) should be (Set(Cdr(w), w))
+  }
+
+  
+//    val diffs = differenceConstraints(nil, Cons(Cdr(varX), nil), w)
+//    diffs.size should be (1)
+//    diffs shuold be (List())
 
 }

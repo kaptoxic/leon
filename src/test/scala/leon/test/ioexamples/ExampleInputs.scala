@@ -15,10 +15,12 @@ object ExampleInputs {
   val identifierA = FreshIdentifier("A")
   val identifierB = FreshIdentifier("B")
   val identifierC = FreshIdentifier("C")
+  val identifierX = FreshIdentifier("x")
   
   val varA = Variable(identifierA).setType(Int32Type)
   val varB = Variable(identifierB).setType(Int32Type)
   val varC = Variable(identifierC).setType(Int32Type)
+  val x = Variable(identifierX).setType(Int32Type)
   
   // ()
   val elr = nil
@@ -66,8 +68,13 @@ object ExampleInputs {
   val ieunpack3 = elABr
   val ieunpack4 = elABCr
   
+  val fragUnpack1 = nil
+  val fragUnpack2 = Cons(x, nil)
+  val fragUnpack3 = Cons(Cons(Car(x), nil), Cons(Cdr(x), nil))
+  val fragUnpack4 = Cons(Cons(Car(x), nil), Cons(Cons(Car(Cdr(x)), nil), Cons(Cdr(Cdr(x)), nil)))
+  
   // predicates
-  val p1 = w
-  val p2 = Cdr(w)
-  val p3 = Cdr(Cdr(w))
+  val predUnpack1 = w
+  val predUnpack2 = Cdr(w)
+  val predUnpack3 = Cdr(Cdr(w))
 }
