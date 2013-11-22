@@ -33,4 +33,12 @@ object Utils {
   def choose[A, B, C, D, E](predicate: (A, B, C, D, E) => Boolean): (A, B, C, D, E) = noChoose
 
   def error[T](reason: String): T = sys.error(reason)
+  
+  def passes[A,B](tests: Map[A, B], i: A, o: B) = {
+    if (tests.isDefinedAt(i)) {
+      tests(i) == o
+    } else {
+      true
+    }
+  }
 }

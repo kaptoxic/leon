@@ -818,6 +818,14 @@ trait CodeExtraction extends Extractors {
             case _ =>
               unsupported(tr, "toSet can only be applied to multisets.")
           }
+          
+        case ap @ ExPasses(exs @ ExLiteralMap(_, _, _), in, out) => {
+          val rexs = extractTree(exs).asInstanceOf[FiniteMap]
+          val rin  = extractTree(in)
+          val rout = extractTree(out)
+
+          And(rexs.singletons.map { case (f, t) => Implies(Equals(f, rin), Equals(rout, t)) })
+        }
 
         case up @ ExUpdated(m, f, t) =>
           val rm = extractTree(m)
