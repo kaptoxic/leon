@@ -67,6 +67,12 @@ object ExampleInputs {
   val ieunpack2 = elAr
   val ieunpack3 = elABr
   val ieunpack4 = elABCr
+
+  // outputs
+  val oeunpack1 = nil
+  val oeunpack2 = Cons(elAr, nil)
+  val oeunpack3 = Cons(elAr, Cons(elBr, nil))
+  val oeunpack4 = Cons(elAr, Cons(elBr, Cons(elCr, nil)))
   
   val fragUnpack1 = nil
   val fragUnpack2 = Cons(x, nil)
