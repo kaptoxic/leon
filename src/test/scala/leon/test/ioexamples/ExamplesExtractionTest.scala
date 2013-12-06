@@ -26,7 +26,7 @@ class ExamplesExtractionTest extends FunSuite {
   
   test("expected trees from passes should be returned") {
    
-    val problems = forFile(lesynthTestDir + "ExamplesAsSpecifications.scala")
+    val problems = forFile(lesynthTestDir + "ExamplesAsSpecifications.scala").toList
     problems.size should be (3)
     
     {
@@ -54,7 +54,7 @@ class ExamplesExtractionTest extends FunSuite {
   
   test("expected  mappings should be extracted") {
    
-    val problems = forFile(lesynthTestDir + "ExamplesAsSpecifications.scala")
+    val problems = forFile(lesynthTestDir + "ExamplesAsSpecifications.scala").toList
     problems.size should be (3)
     
     {
@@ -71,6 +71,40 @@ class ExamplesExtractionTest extends FunSuite {
 	        exampleList.size should be (3)
 	      case _ => fail
 	    }
+    }
+    
+    {
+      val (sctx, funDef, problem) = problems.find(_._2.id.name == "tail").get
+      
+      val program = sctx.program
+      
+//      val listClass = program.caseClassDef("List")
+      val consClass = program.caseClassDef("Cons")
+      val nilClass = program.caseClassDef("Nil")
+      
+      val nilExp = CaseClass(nilClass, Nil): Expr
+      
+      val mappings = ExamplesExtraction.extract(problem.phi)
+      
+      val ioExamples = ExamplesExtraction.transformMappings(mappings)
+      
+      ioExamples match {
+        case Some(((inId, outId), exampleList)) =>
+          inId should be (problem.as.head)
+          outId should be (problem.xs.head)
+          exampleList.size should be (3)
+          
+          exampleList should contain (
+            (CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil): Expr, nilExp)
+          )
+          exampleList should contain (
+            (CaseClass(consClass, IntLiteral(0) ::
+              (CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil))
+              :: Nil): Expr,
+            CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil): Expr)
+          )
+        case _ => fail
+      }
     }
   }
     
