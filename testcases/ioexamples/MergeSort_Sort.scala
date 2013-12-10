@@ -22,6 +22,8 @@ object MergeSort {
       case Cons(y, ys) => x <= y && isSorted(Cons(y, ys))
     }
   }
+  
+  def sameList(l: List) = l
 
   def size(list: List): Int = list match {
     case Nil() => 0
