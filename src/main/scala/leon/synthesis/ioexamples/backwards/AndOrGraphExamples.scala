@@ -11,36 +11,60 @@ import purescala.Definitions._
 import purescala.Common._
 import evaluators._
 
-object AndOrGraphExamples {
+object FragmentGraph {
   
   import AndOrGraph._
+  import StepGraph._
   
-  trait WithExamples extends Solvable {
+  trait WithExamples {
 
-    override def getChildren = children.toList.asInstanceOf[List[WithExamples]]
-//    var output: Expr = _
+    def output: Expr
+    
   }
   
-  trait ExampleOr extends WithExamples {
-    var fragment: Expr = _
-//    var correspondingNode: SingleSolution = _
-    protected var childrenMap = m.Map[Step, List[WithExamples]]()
+  abstract class Fragment(val step: Step) extends Node[Fragment] with WithExamples {
+    
+    override def toString = "Fr{" + step + "}"
+    
+    override def getChildren = super.getChildren.asInstanceOf[List[Fragment]]
+    
+  }
+  
+  // only OR or Root node can be expanded to new children
+  abstract class ExpandableFragment(override val step: Step, val fragment: Expr)
+    extends Fragment(step) with SingleSolution[Node[Fragment]] {
+    
+    override def toString = super.toString + "(" + fragment + ")"
+    
+  }
+  
+  class RootFragment(override val step: Step, override val output: Expr)
+    extends ExpandableFragment(step, output)
+ 
+  class AndFragment(override val step: Step, override val parent: Fragment) extends Fragment(step)
+    with AndNode[Fragment] {
+    
+    override def output = parent.output
+    
+  }
+    
+  class OrFragment(override val step: Step, override val parent: Fragment, override val fragment: Expr)
+    extends ExpandableFragment(step, fragment) with OrNode[Fragment] {
+    
+    override def output = parent.output
+  
+//    var fragment: Expr = _
+
+    protected var childrenMap = m.Map[String, List[Fragment]]()
     
     def getMap = childrenMap
     
-    def addChildren(step: Step, children: List[WithExamples]) {
+    def addChildren(step: String, children: List[Fragment]) {
       childrenMap += (step -> children)
+      
       for (child <- children)
-        super.addChild(child.asInstanceOf[Node])
-    }
+        super.addChild(child)
+    }    
   }
-  
-  trait SingleSolutionWithExample extends SingleSolution with ExampleOr
-  
-  class ExampleRoot(val correspondingNode: Root) extends SingleSolutionWithExample
-  
-//  class ExampleNode(parent: Step, funDef: String) extends Node(parent, funDef) with WithExamples
-  class ExampleAndNode(parent: Step, funDef: String) extends AndNode(parent, funDef) with WithExamples
-  class ExampleOrNode(parent: Step, funDef: String) extends OrNode(parent, funDef) with SingleSolutionWithExample
 
 }

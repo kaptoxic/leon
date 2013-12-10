@@ -52,20 +52,21 @@ class SynthesizerTest extends FunSuite {
     {
         
       import AndOrGraph._
-      import AndOrGraphExamples._
+      import StepGraph._
+      import FragmentGraph._
       
       val operationTree = {
-        val root = new Root()
-        val consNode = new OrNode(root, "Cons")
+        val root = new RootStep()
+        val consNode = new OrStep(root, "Cons")
         root addChild consNode        
         val consNode_1 = new LeafNode(consNode, inputVar)
         consNode_1 addChild consNode
         
-        val mergeNode = new AndNode(root, "merge")
+        val mergeNode = new AndStep(root, "merge")
         root addChild mergeNode
         val m1Node = new LeafNode(mergeNode, inputVar)
         mergeNode addChild m1Node
-        val m2Node = new OrNode(mergeNode, "sameList")
+        val m2Node = new OrStep(mergeNode, "sameList")
         mergeNode.addChild(m2Node)
         val m21Node = new LeafNode(m2Node, inputVar)
         m2Node.addChild(m21Node)
@@ -75,11 +76,31 @@ class SynthesizerTest extends FunSuite {
         root
       }
       
-//      test("synthesizer.explore") {
+      test("synthesizer.expand") {
+        
+        val exampleRoot = new RootFragment(operationTree, l1)
+
+        def inverser(name: String)(frag: Expr) = (name, frag) match {
+          case ("Cons", l1) => List( List(IntLiteral(1), nilExp) )
+          case _ =>
+            fail
+        }
+        
+        val result = synthesizer.expand(exampleRoot, operationTree.getSolvedNode, inverser)
+          
+        result should not be (Nil)
+        
+        result match {
+          case (el: AndFragment) :: Nil =>
+            el.getChildren.size should be (2)
+          case _ =>
+            fail
+        }
+      }
+      
+//      test("synthesizer.propagate") {
 //        
-//        val exampleRoot = new ExampleRoot
-//        exampleRoot.fragment = l1
-//        exampleRoot.correspondingNode = operationTree
+//        val exampleRoot = new RootFragment(operationTree, l1)
 //
 //        def inverser(name: String)(frag: Expr) = (name, frag) match {
 //          case ("Cons", l1) => List( List(IntLiteral(1), nilExp) )
@@ -88,39 +109,14 @@ class SynthesizerTest extends FunSuite {
 //        }
 //        
 //        val result =
-//          synthesizer.explore(exampleRoot, inverser)
+//          synthesizer.propagate(exampleRoot, (l1, l1), Map(l1 -> Map(l1 -> l1)), inverser)
 //          
-//        result should not be (Nil)
-//        
-//        result match {
-//          case (el: ExampleAndNode) :: Nil =>
-//            el.getChildren.size should be (2)
-//          case _ =>
-//            fail
+//        exampleRoot.solvedNode should not be (null)
+//        exampleRoot.solvedNode match {
+//          case x: AndNode =>
+//          case _ => fail
 //        }
 //      }
-      
-      test("synthesizer.propagate") {
-        
-        val exampleRoot = new ExampleRoot(operationTree)
-        exampleRoot.fragment = l1
-        assert(exampleRoot.correspondingNode.solvedNode != null)
-
-        def inverser(name: String)(frag: Expr) = (name, frag) match {
-          case ("Cons", l1) => List( List(IntLiteral(1), nilExp) )
-          case _ =>
-            fail
-        }
-        
-        val result =
-          synthesizer.propagate(exampleRoot, (l1, l1), Map(l1 -> Map(l1 -> l1)), inverser)
-          
-        exampleRoot.solvedNode should not be (null)
-        exampleRoot.solvedNode match {
-          case x: AndNode =>
-          case _ => fail
-        }
-      }
             
     }
 //    

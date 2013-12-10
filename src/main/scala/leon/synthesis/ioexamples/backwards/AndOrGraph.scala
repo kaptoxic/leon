@@ -13,22 +13,20 @@ import evaluators._
 
 object AndOrGraph {
   
-  trait Step {
-    protected var children = m.LinkedList[Node]()
+  trait Base[T] {
+    protected var children = m.LinkedList[T]()
     
-    def addChild(child: Node) = children :+= child
+    def addChild(child: T) = children :+= child
     
-    def getChildren: List[Step] = children.toList
-    
+    def getChildren = children.toList
+  }
+  
+  trait Solvable[T] {
     def isSolved = solved
-    
-    def getSolution(cst: (String, List[Expr]) => Expr): Expr
-    
-    def funDef: String
-
+  
     private var solved = false
     
-    def setSolved(n: Node) = {
+    def setSolved(n: T) = {
       solved = true
     }
     
@@ -36,55 +34,44 @@ object AndOrGraph {
       solved = true
     }
   }
-  
-  trait SingleSolution extends Step {
+
+  trait SingleSolution[T] extends Solvable[T] {
     
-    override def getSolution(cst: (String, List[Expr]) => Expr) =
-      solvedNode.getSolution(cst: (String, List[Expr]) => Expr)
-            
-    var solvedNode: Node = _
+    private var solvedNode: T = _
     
-    override def setSolved(n: Node) = {
+    override def setSolved(n: T) = {
       super.setSolved(n)
       solvedNode = n
     }
-  }
-  
-  class Root() extends SingleSolution {    
-    def funDef = "root"
-  }
-  
-  abstract class Node(parent: Step, val funDef: String) extends Step {
     
+    def getSolvedNode = solvedNode
+      
+  }
+   
+  trait Node[T] extends Base[Node[T]] with Solvable[Node[T]] 
+
+  trait WithParent[T] {
+    def parent: Node[T]
   }
   
-  case class AndNode(parent: Step, override val funDef: String) extends Node(parent, funDef) {
-    var numberOfSolved = 0
-    
-    override def setSolved(n: Node) = {
-      super.setSolved(n)
-      numberOfSolved += 1
-      if (numberOfSolved == children.size)
-        parent.setSolved(this)
-    }
-    
-    override def getSolution(cst: (String, List[Expr]) => Expr): Expr =
-      cst(funDef, children.toList.map(_.getSolution(cst)))
-          
-  }
-  
-  case class OrNode(parent: Step, override val funDef: String) extends Node(parent, funDef) with SingleSolution {
-        
-    override def setSolved(n: Node) = {
+  trait SolvableWithParent[T] extends Node[T] with WithParent[T] {
+    override def setSolved(n: Node[T]) = {
       super.setSolved(n)
       parent.setSolved(this)
-    }
+    }    
   }
   
-  case class LeafNode(parent: Step, solution: Expr) extends Node(parent, "leaf") {
-        
-    override def getSolution(cst: (String, List[Expr]) => Expr): Expr =
-      solution
+  trait AndNode[T] extends Node[T] with SolvableWithParent[T] {
+    var numberOfSolved = 0
+    
+    override def setSolved(n: Node[T]) = {      
+      numberOfSolved += 1
+      if (numberOfSolved == children.size)
+        super.setSolved(n)
+    }
+    
   }
-
+  
+  trait OrNode[T] extends Node[T] with SingleSolution[Node[T]] with SolvableWithParent[T]
+  
 }
