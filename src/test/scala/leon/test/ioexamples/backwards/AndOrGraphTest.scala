@@ -22,7 +22,8 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
 
   import Scaffold._
   import AndOrGraph._
-  import AndOrGraphExamples._
+  import FragmentGraph._
+  import StepGraph._
 
   val testDir = "testcases/ioexamples/"
     
@@ -49,20 +50,18 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
     val nil = nilExp
     val l1 = (CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil))
     
-    val synthesizer = new Synthesizer(codeGenEval)
-    
     test("solving without and nodes") {
-      val root = new Root()
-      val consNode = new OrNode(root, "Cons")
+      val root = new RootStep()
+      val consNode = new OrStep(root, "Cons")
       root addChild consNode        
       val consNode_1 = new LeafNode(consNode, inputVar)
       consNode_1 addChild consNode
       
-      val mergeNode = new AndNode(root, "merge")
+      val mergeNode = new AndStep(root, "merge")
       root addChild mergeNode
       val m1Node = new LeafNode(mergeNode, inputVar)
       mergeNode addChild m1Node
-      val m2Node = new OrNode(mergeNode, "sameList")
+      val m2Node = new OrStep(mergeNode, "sameList")
       mergeNode.addChild(m2Node)
       val m21Node = new LeafNode(m2Node, inputVar)
       m2Node.addChild(m21Node)
@@ -72,21 +71,23 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
       m2Node.isSolved should be (false)
       mergeNode.isSolved should be (false)
       root.isSolved should be (true)
-      root.solvedNode should not be (null)
+      root.getSolvedNode should not be (null)
+      root.getSolvedNode should be (consNode)
       consNode.isSolved should be (true)
-      consNode.solvedNode should not be (null)
+      consNode.getSolvedNode should not be (null)
+      consNode.getSolvedNode should be (consNode_1)
     }
     
     test("solving with and nodes") {
-      val root = new Root()
-      val consNode = new OrNode(root, "Cons")
+      val root = new RootStep()
+      val consNode = new OrStep(root, "Cons")
       root addChild consNode        
       
-      val mergeNode = new AndNode(root, "merge")
+      val mergeNode = new AndStep(root, "merge")
       root addChild mergeNode
       val m1Node = new LeafNode(mergeNode, inputVar)
       mergeNode addChild m1Node
-      val m2Node = new OrNode(mergeNode, "sameList")
+      val m2Node = new OrStep(mergeNode, "sameList")
       mergeNode.addChild(m2Node)
       val m21Node = new LeafNode(m2Node, inputVar)
       m2Node.addChild(m21Node)
@@ -95,10 +96,11 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
       mergeNode.setSolved(m1Node)
       
       m2Node.isSolved should be (true)
-      m2Node.solvedNode should not be (null)
+      m2Node.getSolvedNode should not be (null)
       mergeNode.isSolved should be (true)
       root.isSolved should be (true)
-      root.solvedNode should not be (null)
+      root.getSolvedNode should not be (null)
+      root.getSolvedNode should be (mergeNode)
       consNode.isSolved should be (false)
     }
    
