@@ -57,7 +57,9 @@ object StepGraph {
   
   case class OrStep(parent: Step, override val stepFun: String) extends SingleStep with OrNode[Step]
   
-  case class LeafNode(parent: Step, solution: Expr) extends Step {
+  case class LeafStep(parent: Step, solution: Expr) extends Step {
+    
+    setSolved
     
     override val stepFun = "leaf"
         

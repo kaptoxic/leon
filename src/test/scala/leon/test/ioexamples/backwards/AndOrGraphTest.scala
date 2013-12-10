@@ -54,16 +54,16 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
       val root = new RootStep()
       val consNode = new OrStep(root, "Cons")
       root addChild consNode        
-      val consNode_1 = new LeafNode(consNode, inputVar)
+      val consNode_1 = new LeafStep(consNode, inputVar)
       consNode_1 addChild consNode
       
       val mergeNode = new AndStep(root, "merge")
       root addChild mergeNode
-      val m1Node = new LeafNode(mergeNode, inputVar)
+      val m1Node = new LeafStep(mergeNode, inputVar)
       mergeNode addChild m1Node
       val m2Node = new OrStep(mergeNode, "sameList")
       mergeNode.addChild(m2Node)
-      val m21Node = new LeafNode(m2Node, inputVar)
+      val m21Node = new LeafStep(m2Node, inputVar)
       m2Node.addChild(m21Node)
               
       consNode.setSolved(consNode_1)
@@ -85,11 +85,11 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
       
       val mergeNode = new AndStep(root, "merge")
       root addChild mergeNode
-      val m1Node = new LeafNode(mergeNode, inputVar)
+      val m1Node = new LeafStep(mergeNode, inputVar)
       mergeNode addChild m1Node
       val m2Node = new OrStep(mergeNode, "sameList")
       mergeNode.addChild(m2Node)
-      val m21Node = new LeafNode(m2Node, inputVar)
+      val m21Node = new LeafStep(m2Node, inputVar)
       m2Node.addChild(m21Node)
               
       m2Node.setSolved(m21Node)
