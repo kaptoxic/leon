@@ -54,8 +54,10 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
         
         if (inverse.size > 1) {            
           val andNode = new AndFragment(step, node)
-          for (frag <- inverse) {
-            val orNode = new OrFragment(step, andNode, frag)
+          assert(stepToExpand.isInstanceOf[AndStep])
+          assert(inverse.size == stepToExpand.asInstanceOf[AndStep].getChildren.size)
+          for ((frag, innerStep) <- inverse zip stepToExpand.getChildren) {
+            val orNode = new OrFragment(innerStep, andNode, frag)
             andNode addChild orNode
           }
           
@@ -70,50 +72,47 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     childNodes
   }
       
-//  def propagate(root: RootFragment, ex: IO, subexpressions: Map[Expr, Map[Expr, Expr]],
-//    inverser: String => Expr => List[List[Expr]]) = {
-//    fine("Entering propagate with " + root)
-//    
-//    def rec(node: Fragment): Unit = node match {
-//      case andNode: AndFragment =>
-//        assert(!andNode.getChildren.isEmpty)
-//        for (child <- andNode.getChildren)
-//          rec(child) 
-//
-//      case orNode: OrFragment =>
-//        val solvedNode = orNode.step 
-//        val fragment = orNode.fragment
-//        val output = ex._1
-//        
-//        val mapToSubexps = subexpressions(output)
-//        if (mapToSubexps contains fragment) {
-////          orNode.solved = true
-//          orNode.parent.setSolved(orNode)
-//        } else {            
-//          val childNodes = explore(orNode, opNode.funDef, inverser)
-//          
-//          // add and explore children
-//          orNode.addChildren(solvedNode, childNodes)
-//          assert(orNode.getChildren.size == opNode.getChildren.size)
-//          for ((child, childOp) <- orNode.getChildren zip opNode.getChildren)
-//            rec(child, childOp)
-//        }
-//    }
-//    
-//    val operationRoot = root.correspondingNode
-//    val solvedNode = operationRoot.solvedNode
-//    if (root.getMap contains solvedNode) {
-//      // path through solved node already explored
-//      rec(root.solvedNode.asInstanceOf[WithExamples], solvedNode)
-//    } else {
-//      val childNodes = explore(root, "root", inverser)
-//      
-//      // add and explore children
-//      root.addChildren(solvedNode, childNodes)
-//      for (child <- childNodes)
-//        rec(child, solvedNode)
-//    }
-//  }
+  def propagate(root: RootFragment, subexpressions: Map[Expr, Map[Expr, Expr]],
+    inverser: String => Expr => List[List[Expr]]) = {
+    fine("Entering propagate with " + root)
+    
+    def rec(node: Fragment): Unit = node match {
+      case andNode: AndFragment =>
+        assert(!andNode.getChildren.isEmpty)
+        for (child <- andNode.getChildren)
+          rec(child) 
+
+      case orNode: ExpandableFragment =>
+        val step = orNode.step 
+        val fragment = orNode.fragment
+        val input = orNode.input
+        
+        val mapToSubexps = subexpressions(input)
+        if (mapToSubexps contains fragment) {
+          fine(mapToSubexps + " contains " + fragment)
+          assert(orNode.step.isSolved)
+          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.isInstanceOf[LeafStep],
+            "node is: " + orNode + ", while step is " + orNode.step)
+          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.asInstanceOf[LeafStep].solution == mapToSubexps(fragment))
+
+          orNode.setSolved(orNode)
+        } else {            
+          val childSteps = orNode.step.getChildren
+          
+          // for all steps, not already explored, explore them
+          for (childStep <- childSteps; stepFun = childStep.stepFun; if ! orNode.getMap.contains(stepFun)) {
+            
+            val exploredNodes = expand(orNode, childStep, inverser)
+            
+            orNode.addChildren(stepFun, exploredNodes)
+            for ( exploredChild <- exploredNodes )
+              rec(exploredChild)
+          }
+        }
+    }
+    
+    rec(root)
+  }
 //  
 //  def synthesize(
 //    inputVar: Identifier,
