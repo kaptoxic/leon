@@ -26,11 +26,11 @@ class SynthesizerTest extends FunSuite {
     
   val problems = forFile(testDir + "MergeSort_Sort.scala").toList
   problems.size should be (1)
-  
+    
   type IO = (Expr, Expr)
   // may come in handy
   implicit def exprToPair(expr: Expr) = (expr, expr)
-  
+    
   {
     val (sctx, funDef, problem) = problems.head
     
@@ -41,36 +41,136 @@ class SynthesizerTest extends FunSuite {
     val consClass = program.caseClassDef("Cons")
     val nilClass = program.caseClassDef("Nil")
     val nilExp = CaseClass(nilClass, Nil): Expr
-
-    object TestDecomposer extends (Expr => Map[Expr, Expr]) {
-      def apply(expr: Expr): Map[Expr, Expr] = expr match {
-        case `inputVar` =>
-          Map(nilExp -> inputVar)
-        case _ =>
-          throw new RuntimeException
-      }
-    }
     
     val functions = program.definedFunctions.groupBy( f => f.returnType)
     
     val nil = nilExp
-    val l0 = (CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil))
-  
-    test("given a single example") {
-      val synthesizer = new Synthesizer(codeGenEval)
-      val examples: List[IO] = List( nil )
+    val l1 = (CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil))
     
-	    synthesizer.synthesize(inputVar.id, examples, functions, TestDecomposer) should
-	      be (Some(inputVar))	    
-    }
+    val synthesizer = new Synthesizer(codeGenEval)
     
-    test("given two examples") {
-      val synthesizer = new Synthesizer(codeGenEval)
-      val examples: List[IO] = List( nil, l0 )
+    {
+        
+      import AndOrGraph._
+      import AndOrGraphExamples._
+      
+      val operationTree = {
+        val root = new Root()
+        val consNode = new OrNode(root, "Cons")
+        root addChild consNode        
+        val consNode_1 = new LeafNode(consNode, inputVar)
+        consNode_1 addChild consNode
+        
+        val mergeNode = new AndNode(root, "merge")
+        root addChild mergeNode
+        val m1Node = new LeafNode(mergeNode, inputVar)
+        mergeNode addChild m1Node
+        val m2Node = new OrNode(mergeNode, "sameList")
+        mergeNode.addChild(m2Node)
+        val m21Node = new LeafNode(m2Node, inputVar)
+        m2Node.addChild(m21Node)
+                
+        consNode.setSolved(consNode_1)
+        
+        root
+      }
+      
+//      test("synthesizer.explore") {
+//        
+//        val exampleRoot = new ExampleRoot
+//        exampleRoot.fragment = l1
+//        exampleRoot.correspondingNode = operationTree
+//
+//        def inverser(name: String)(frag: Expr) = (name, frag) match {
+//          case ("Cons", l1) => List( List(IntLiteral(1), nilExp) )
+//          case _ =>
+//            fail
+//        }
+//        
+//        val result =
+//          synthesizer.explore(exampleRoot, inverser)
+//          
+//        result should not be (Nil)
+//        
+//        result match {
+//          case (el: ExampleAndNode) :: Nil =>
+//            el.getChildren.size should be (2)
+//          case _ =>
+//            fail
+//        }
+//      }
+      
+      test("synthesizer.propagate") {
+        
+        val exampleRoot = new ExampleRoot(operationTree)
+        exampleRoot.fragment = l1
+        assert(exampleRoot.correspondingNode.solvedNode != null)
 
-      synthesizer.synthesize(inputVar.id, examples, functions, TestDecomposer) should
-        be (Some(inputVar))     
+        def inverser(name: String)(frag: Expr) = (name, frag) match {
+          case ("Cons", l1) => List( List(IntLiteral(1), nilExp) )
+          case _ =>
+            fail
+        }
+        
+        val result =
+          synthesizer.propagate(exampleRoot, (l1, l1), Map(l1 -> Map(l1 -> l1)), inverser)
+          
+        exampleRoot.solvedNode should not be (null)
+        exampleRoot.solvedNode match {
+          case x: AndNode =>
+          case _ => fail
+        }
+      }
+            
     }
+//    
+//    
+//    
+//
+//    object TestDecomposer extends (Expr => Map[Expr, Expr]) {
+//      def apply(expr: Expr): Map[Expr, Expr] = expr match {
+//        case `inputVar` =>
+//          Map(nilExp -> inputVar)
+//        case _ =>
+//          throw new RuntimeException
+//      }
+//    }
+  
+//    test("given a single example") {
+//      val examples: List[IO] = List( nil )
+//    
+//	    synthesizer.synthesize(inputVar.id, examples, functions, TestDecomposer) should
+//	      be (Some(inputVar))	    
+//    }
+//    
+//    test("given two examples") {
+//      val synthesizer = new Synthesizer(codeGenEval)
+//      val examples: List[IO] = List( nil, l1 )
+//
+//      synthesizer.synthesize(inputVar.id, examples, functions, TestDecomposer) should
+//        be (Some(inputVar))     
+//    }
+//    
+//    val l2 = (CaseClass(consClass, IntLiteral(2) :: nilExp :: Nil))
+//    val l12 = (CaseClass(consClass, IntLiteral(1) :: l2 :: Nil))
+//    
+//    test("given 4 examples") {
+//      val synthesizer = new Synthesizer(codeGenEval)
+//      val examples: List[IO] = List( nil, l1, l2, l12 )
+//
+//      synthesizer.synthesize(inputVar.id, examples, functions, TestDecomposer) should
+//        be (Some(inputVar))     
+//    }
+//    
+//    val l21 = (CaseClass(consClass, IntLiteral(2) :: l1 :: Nil))
+//
+//    test("given 5 examples") {
+//      val synthesizer = new Synthesizer(codeGenEval)
+//      val examples: List[IO] = List( nil, l1, l2, l12, (l21, l12) )
+//
+//      synthesizer.synthesize(inputVar.id, examples, functions, TestDecomposer) should
+//        be (Some(inputVar))     
+//    }
   }
 
 }
