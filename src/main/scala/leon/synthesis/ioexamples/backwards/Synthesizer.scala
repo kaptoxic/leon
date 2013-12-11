@@ -45,17 +45,20 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
 //    val funDef = node.correspondingNode.solvedNode.funDef
     val frag = node.fragment
     val step = stepToExpand//node.step
-    fine("stepFun used is: " + step.stepFun)
+    assert(step!=null)
+//    fine("stepFun used is: " + step.stepFun)
     
     // for each inverse example build a child
+    fine("Calling inverser with: %s and %s".format(step.stepFun, frag.toString))
     val inverses = inverser(step.stepFun)(frag)
     val childNodes =
       for (inverse <- inverses) yield {
         
         if (inverse.size > 1) {            
           val andNode = new AndFragment(step, node)
-          assert(stepToExpand.isInstanceOf[AndStep])
-          assert(inverse.size == stepToExpand.asInstanceOf[AndStep].getChildren.size)
+          assert(stepToExpand.isInstanceOf[AndStep], "stepToExpand(%s) is not AndStep".format(stepToExpand))
+          // if not the same size that means that node should not be explored
+//          assert(inverse.size == stepToExpand.getChildren.size)
           for ((frag, innerStep) <- inverse zip stepToExpand.getChildren) {
             val orNode = new OrFragment(innerStep, andNode, frag)
             andNode addChild orNode
@@ -78,7 +81,7 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     
     def rec(node: Fragment): Unit = node match {
       case andNode: AndFragment =>
-        assert(!andNode.getChildren.isEmpty)
+//        assert(!andNode.getChildren.isEmpty)
         for (child <- andNode.getChildren)
           rec(child) 
 
@@ -88,15 +91,24 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
         val input = orNode.input
         
         val mapToSubexps = subexpressions(input)
-        if (mapToSubexps contains fragment) {
+        // if no children then this is a leaf
+        fine("orNode " + orNode)
+        fine("orNode.step.getChildren.isEmpty, orNode.step.isSolved= %s, %s".format(orNode.step.getChildren.isEmpty, orNode.step.isSolved))
+        if (orNode.step.getChildren.isEmpty && orNode.step.isSolved) {
+          fine("orNode.step.isSolved = true, for " + orNode.step)
+          assert(mapToSubexps contains fragment)
           fine(mapToSubexps + " contains " + fragment)
-          assert(orNode.step.isSolved)
-          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.isInstanceOf[LeafStep],
-            "node is: " + orNode + ", while step is " + orNode.step)
-          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.asInstanceOf[LeafStep].solution == mapToSubexps(fragment))
+//          assert(orNode.step.isSolved)
+//          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.isInstanceOf[LeafStep],
+//            "node is: " + orNode + ", while step is " + orNode.step)
+          assert(orNode.step.asInstanceOf[OrStep].solution == mapToSubexps(fragment),
+            "found solutions do not match - %s and %s".format(
+              orNode.step.asInstanceOf[OrStep].solution, mapToSubexps(fragment)
+            ))
 
-          orNode.setSolved(orNode)
-        } else {            
+          orNode.setSolved(orNode)          
+        } else
+        {            
           val childSteps = orNode.step.getChildren
           
           // for all steps, not already explored, explore them
@@ -113,7 +125,7 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     
     rec(root)
   }
-//  
+  
 //  def synthesize(
 //    inputVar: Identifier,
 //    examples: List[IO],

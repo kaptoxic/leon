@@ -21,8 +21,6 @@ object StepGraph {
     
     def getSolution(cst: (String, List[Expr]) => Expr): Expr
     
-    override def toString = "Step[" + stepFun + "]"
-    
   }
   
   abstract class Step extends Node[Step] with StepLike {
@@ -55,16 +53,46 @@ object StepGraph {
       cst(stepFun, children.toList.map(_.asInstanceOf[StepLike].getSolution(cst)))          
   }
   
-  case class OrStep(parent: Step, override val stepFun: String) extends SingleStep with OrNode[Step]
-  
-  case class LeafStep(parent: Step, solution: Expr) extends Step {
+  case class OrStep(parent: Step, var _stepFun: String)
+  extends SingleStep with OrNode[Step] {
     
-    setSolved
+    override def stepFun = _stepFun
     
-    override val stepFun = "leaf"
+    def solution_=(sol: Expr) = {
+      _solution = sol
+      setSolved(null)
+    }
+    def solution = _solution
+    
+    private var _solution: Expr = null
+    
+    def this(parent: Step, solution: Expr) = {
+      this(parent, "none")
+      _solution = solution
+      setSolved(null)
+    }
+    
+    def this(parent: Step, stepFun: String, solution: Expr) = {
+      this(parent, stepFun)
+      _solution = solution
+      setSolved(null)
+    }
         
-    override def getSolution(cst: (String, List[Expr]) => Expr): Expr =
-      cst(stepFun, List(solution))
+    override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
+      assert(solution != null)
+      cst(stepFun, List(solution))  
+    }
+        
   }
+  
+//  case class LeafStep(parent: Step, solution: Expr) extends Step {
+//    
+//    setSolved
+//    
+//    override val stepFun = "leaf"
+//        
+//    override def getSolution(cst: (String, List[Expr]) => Expr): Expr =
+//      cst(stepFun, List(solution))
+//  }
 
 }

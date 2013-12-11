@@ -53,20 +53,17 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
     test("solving without and nodes") {
       val root = new RootStep()
       val consNode = new OrStep(root, "Cons")
+      consNode.solution = inputVar
       root addChild consNode        
-      val consNode_1 = new LeafStep(consNode, inputVar)
-      consNode_1 addChild consNode
-      
+
       val mergeNode = new AndStep(root, "merge")
       root addChild mergeNode
-      val m1Node = new LeafStep(mergeNode, inputVar)
+      val m1Node = new OrStep(mergeNode, "sameList")
       mergeNode addChild m1Node
       val m2Node = new OrStep(mergeNode, "sameList")
       mergeNode.addChild(m2Node)
-      val m21Node = new LeafStep(m2Node, inputVar)
-      m2Node.addChild(m21Node)
               
-      consNode.setSolved(consNode_1)
+      root.setSolved(consNode)
       
       m2Node.isSolved should be (false)
       mergeNode.isSolved should be (false)
@@ -74,8 +71,7 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
       root.getSolvedNode should not be (null)
       root.getSolvedNode should be (consNode)
       consNode.isSolved should be (true)
-      consNode.getSolvedNode should not be (null)
-      consNode.getSolvedNode should be (consNode_1)
+      consNode.getSolvedNode should be (null)
     }
     
     test("solving with and nodes") {
@@ -85,18 +81,18 @@ class AndOrGraphTest extends FunSuite with ShouldMatchers {
       
       val mergeNode = new AndStep(root, "merge")
       root addChild mergeNode
-      val m1Node = new LeafStep(mergeNode, inputVar)
+      val m1Node = new OrStep(mergeNode, "sameList")
+      m1Node.solution = inputVar
       mergeNode addChild m1Node
       val m2Node = new OrStep(mergeNode, "sameList")
+      m2Node.solution = inputVar
       mergeNode.addChild(m2Node)
-      val m21Node = new LeafStep(m2Node, inputVar)
-      m2Node.addChild(m21Node)
               
-      m2Node.setSolved(m21Node)
+      mergeNode.setSolved(m2Node)
       mergeNode.setSolved(m1Node)
       
       m2Node.isSolved should be (true)
-      m2Node.getSolvedNode should not be (null)
+      m2Node.getSolvedNode should be (null)
       mergeNode.isSolved should be (true)
       root.isSolved should be (true)
       root.getSolvedNode should not be (null)

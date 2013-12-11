@@ -66,7 +66,7 @@ object AndOrGraph {
     
     override def setSolved(n: Node[T]) = {      
       numberOfSolved += 1
-      if (numberOfSolved == children.size)
+      if (numberOfSolved >= children.size)
         super.setSolved(n)
     }
     
