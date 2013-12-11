@@ -96,7 +96,8 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
         fine("orNode.step.getChildren.isEmpty, orNode.step.isSolved= %s, %s".format(orNode.step.getChildren.isEmpty, orNode.step.isSolved))
         if (orNode.step.getChildren.isEmpty && orNode.step.isSolved) {
           fine("orNode.step.isSolved = true, for " + orNode.step)
-          assert(mapToSubexps contains fragment)
+          assert(mapToSubexps contains fragment, "mapToSubexps(%s) does not contain fragment(%s) for input(%s)"
+            .format(mapToSubexps, fragment, input))
           fine(mapToSubexps + " contains " + fragment)
 //          assert(orNode.step.isSolved)
 //          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.isInstanceOf[LeafStep],
@@ -126,15 +127,18 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     rec(root)
   }
       
-  def explore(root: RootFragment, functions: Expr => List[String], 
+  def explore(root: RootFragment,
+    functions: Expr => List[String], 
     subexpressions: Map[Expr, Map[Expr, Expr]],
-    inverser: String => Expr => List[List[Expr]]) = {
+    inverser: String => Expr => List[List[Expr]]
+  ) = {
     fine("Entering explore with " + root)
     
-    type Element = (ExpandableFragment, String)
+//    type Element = (ExpandableFragment, String)
+    type Element = ExpandableFragment
     val queue = m.Queue[Element]()
     
-    def process(node: ExpandableFragment, nextOp: String): Unit = {
+    def process(node: ExpandableFragment): Unit = {
       val step = node.step
       assert(step.getChildren.isEmpty)
 
@@ -142,78 +146,97 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
       val input = node.input
       val mapToSubexps = subexpressions(input)
       
+      fine("mapToSubexps(%s) contains fragment(%s)".format(mapToSubexps, fragment))
       if (mapToSubexps contains fragment) {
         node.setSolved(null)
         node.step.asInstanceOf[SingleStep].solution = mapToSubexps(fragment)
-        node.step.setSolved(null)
+//        node.step.setSolved(null)
       }
-      
-      val inverses = inverser(nextOp)(node.fragment)
-      assert(inverses.size >= 1)
-      assert(inverses.map(l => l.size).forall(_ == inverses.head.size))
-      
-      val newStepNode =
-        if (inverses.head.size > 1) {            
-          val andNode = new AndStep(step, nextOp)
-          for (_ <- inverses.head) {
-            val orNode = new OrStep(andNode)
-            andNode addChild orNode
-          }
-          
-          andNode
-        }
-        else {
-          val orNode = new OrStep(step, nextOp)
-          orNode
-        }
-      
-      step.addChild(newStepNode)
+      else 
+      {
+        val applicableOps = functions(fragment)
+        fine("applicable functions are: " + applicableOps)
+        for (nextOp <- applicableOps) {
+          fine("nextOp is " + nextOp)
         
-      val expandedNodes = expand(node, newStepNode, inverser)
+          val inverses = inverser(nextOp)(node.fragment)
+          assert(inverses.size >= 1)
+          assert(inverses.map(l => l.size).forall(_ == inverses.head.size))
+          
+          val newStepNode =
+            if (inverses.head.size > 1) {            
+              val andNode = new AndStep(step, nextOp)
+              for (_ <- inverses.head) {
+                val orNode = new OrStep(andNode)
+                andNode addChild orNode
+              }
+              
+              andNode
+            }
+            else {
+              val orNode = new OrStep(step, nextOp)
+              orNode
+            }
+          
+          step.addChild(newStepNode)
+            
+          val expandedNodes = expand(node, newStepNode, inverser)
+          
+          val nextToCheck =
+            for (expandedNode <- expandedNodes) yield {
+              expandedNode match {
+                case of: OrFragment => List(of)
+                case af: AndFragment => af.getChildren.asInstanceOf[List[ExpandableFragment]]            
+              }
+            }
+          
+          node.addChildren(nextOp, expandedNodes)
+          
+          fine("Enqueueing : " + nextToCheck.flatten)
+          queue.enqueue(nextToCheck.flatten: _*)
+        }
+      }
     }
+    
+    queue.enqueue(root)
     
     while (!root.isSolved && !queue.isEmpty) {
       val element = queue.dequeue
       
-      process(element._1, element._2)
+      process(element)
     }
   }
   
-//  def synthesize(
-//    inputVar: Identifier,
-//    examples: List[IO],
-//    functions: Map[TypeTree, Seq[FunDef]],
-//    decomposer: Expr => Map[Expr, Expr],
-//    inverser: FunDef => Expr => List[List[Expr]]): Option[Expr] = {
-//    
-//    var subexpressions = m.Map[Expr, Map[Expr, Expr]]()
-//    
-//    var branches = new m.LinkedList[Branch]
-//    
-//    case class Branch(condition: Expr) {
-//      
-//      var examples = new m.LinkedList[IO]
-//      var operationRoot = new Root
-//      var roots = m.Map[IO, ExampleRoot]()
-//      
-//      def addExample(ex: IO) = {
-//        examples :+= ex
-//
-//        val thisRoot = new ExampleRoot(operationRoot)
-////        thisRoot.output = ex._2
-//        thisRoot.fragment = ex._2
-////        thisRoot.correspondingNode = operationRoot
-//        
-//        roots += (ex -> thisRoot)
-//      }
-//      
-//      var nodes = m.Queue[Step](Root)
-//      
-//      def getBody = {
-//        if (nodes.head.isSolved) Some(nodes.head.getSolution)
-//        else None
-//      }
-//      
+  def synthesize(
+    inputVar: Identifier,
+    examples: List[IO],
+    functions: Expr => List[String],
+    subexpressions: Map[Expr, Map[Expr, Expr]],
+    cst: (String, List[Expr]) => Expr,
+    inverser: String => Expr => List[List[Expr]]
+  ): Option[Expr] = {
+    
+    var branches = new m.LinkedList[Branch]
+    
+    case class Branch(condition: Expr) {
+      
+      var examples = new m.LinkedList[IO]
+      var operationRoot = new RootStep
+      var roots = m.Map[IO, RootFragment]()
+      
+      def getBody = {
+        if (operationRoot.isSolved) Some(operationRoot.getSolution(cst))
+        else None
+      }
+      
+      def covers(expr: Expr): Boolean = {
+        if (condition == BooleanLiteral(true)) true
+        else { 
+          throw new RuntimeException
+//          evaluate(condition, mapping)
+        }
+      }
+      
 //      def search: Boolean = {        
 //        var found = false
 //        
@@ -236,27 +259,33 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
 //        
 //        found
 //      }
-//    }
-//    
-//    val headExample = examples.head
-//    
-//    val branch = Branch(BooleanLiteral(true))
-//    branch.examples :+= headExample
-//    
-//    val initialNode = Node(inputVar.toVariable, List(inputVar.toVariable))
-//    branch.nodes enqueue initialNode
-//    initialNode.resolved = true
-//    
-//    branches :+= branch
-//    
-//    for (ex <- examples.tail) {
-//      branch.examples :+= ex
-//      val searchFlag = branch.search
-//      fine("For example " + ex + " search result is " + searchFlag)
-//      if (!searchFlag) return None
-//    }
-//    
-//    branch.getBody
-//    null
-//  }
+    }
+    
+    val branch = Branch(BooleanLiteral(true))
+    branches :+= branch
+    
+    val headExample = examples.head
+    val fragmentRoot = new RootFragment(branch.operationRoot, headExample)
+    branch.examples :+= headExample
+    
+    explore(fragmentRoot, functions, subexpressions, inverser)
+    
+    for (ex <- examples.tail) {
+      assert(branch.covers(ex._1))
+      branch.examples :+= ex
+      
+      val fragmentRoot = new RootFragment(branch.operationRoot, ex)
+      
+      propagate(fragmentRoot, subexpressions, inverser)
+      val searchFlag = fragmentRoot.isSolved
+            
+      fine("For example " + ex + " search result is " + searchFlag)
+      if (!searchFlag) {        
+        explore(fragmentRoot, functions, subexpressions, inverser)
+        assert(fragmentRoot.isSolved)
+      }
+    }
+    
+    branch.getBody
+  }
 }
