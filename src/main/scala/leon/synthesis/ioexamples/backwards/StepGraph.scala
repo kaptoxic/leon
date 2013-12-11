@@ -32,11 +32,22 @@ object StepGraph {
   abstract class SingleStep extends Step with SingleSolution[Node[Step]] {
     
     override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
-      val innerSolution = getSolvedNode.getSolution(cst)
-      cst(stepFun, List(innerSolution))  
+      if (solution == null) {
+        val innerSolution = getSolvedNode.getSolution(cst)
+        cst(stepFun, List(innerSolution))
+      } else
+        solution
     }
     
     override def getSolvedNode = super.getSolvedNode.asInstanceOf[Step]
+    
+    def solution_=(sol: Expr) = {
+      _solution = sol
+      setSolved(null)
+    }
+    def solution = _solution
+    
+    protected var _solution: Expr = null
     
   }
   
@@ -53,18 +64,10 @@ object StepGraph {
       cst(stepFun, children.toList.map(_.asInstanceOf[StepLike].getSolution(cst)))          
   }
   
-  case class OrStep(parent: Step, var _stepFun: String)
+  case class OrStep(parent: Step, var _stepFun: String = "none")
   extends SingleStep with OrNode[Step] {
     
     override def stepFun = _stepFun
-    
-    def solution_=(sol: Expr) = {
-      _solution = sol
-      setSolved(null)
-    }
-    def solution = _solution
-    
-    private var _solution: Expr = null
     
     def this(parent: Step, solution: Expr) = {
       this(parent, "none")
@@ -78,10 +81,10 @@ object StepGraph {
       setSolved(null)
     }
         
-    override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
-      assert(solution != null)
-      cst(stepFun, List(solution))  
-    }
+//    override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
+//      assert(solution != null)
+//      cst(stepFun, List(solution))  
+//    }
         
   }
   

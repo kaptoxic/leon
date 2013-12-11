@@ -181,6 +181,28 @@ class SynthesizerTest extends FunSuite {
       }
     }
     
+    test("synthesizer.propagate single root") {
+    
+      val root = new RootStep()
+      root.solution = inputVar      
+              
+      assert(root.isSolved)
+      
+      val exampleRoot = new RootFragment(root, l1)
+
+      def inverser(name: String)(frag: Expr) = (name, frag) match {
+        case ("root", l1) => List( List( l1 ) )
+        case _ =>
+          fail
+      }
+      
+      val result =
+        synthesizer.propagate(exampleRoot, Map(l1 -> Map(l1 -> inputVar)), inverser)
+        
+      exampleRoot.isSolved should be (true)
+      exampleRoot.getSolvedNode should be (exampleRoot)
+    }
+    
     test("synthesizer.propagate mergesort example") {
       
       val makeFirstList = (CaseClass(consClass,

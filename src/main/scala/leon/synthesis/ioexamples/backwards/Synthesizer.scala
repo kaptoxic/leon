@@ -101,9 +101,9 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
 //          assert(orNode.step.isSolved)
 //          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.isInstanceOf[LeafStep],
 //            "node is: " + orNode + ", while step is " + orNode.step)
-          assert(orNode.step.asInstanceOf[OrStep].solution == mapToSubexps(fragment),
+          assert(orNode.step.asInstanceOf[SingleStep].solution == mapToSubexps(fragment),
             "found solutions do not match - %s and %s".format(
-              orNode.step.asInstanceOf[OrStep].solution, mapToSubexps(fragment)
+              orNode.step.asInstanceOf[SingleStep].solution, mapToSubexps(fragment)
             ))
 
           orNode.setSolved(orNode)          
@@ -124,6 +124,59 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     }
     
     rec(root)
+  }
+      
+  def explore(root: RootFragment, functions: Expr => List[String], 
+    subexpressions: Map[Expr, Map[Expr, Expr]],
+    inverser: String => Expr => List[List[Expr]]) = {
+    fine("Entering explore with " + root)
+    
+    type Element = (ExpandableFragment, String)
+    val queue = m.Queue[Element]()
+    
+    def process(node: ExpandableFragment, nextOp: String): Unit = {
+      val step = node.step
+      assert(step.getChildren.isEmpty)
+
+      val fragment = node.fragment
+      val input = node.input
+      val mapToSubexps = subexpressions(input)
+      
+      if (mapToSubexps contains fragment) {
+        node.setSolved(null)
+        node.step.asInstanceOf[SingleStep].solution = mapToSubexps(fragment)
+        node.step.setSolved(null)
+      }
+      
+      val inverses = inverser(nextOp)(node.fragment)
+      assert(inverses.size >= 1)
+      assert(inverses.map(l => l.size).forall(_ == inverses.head.size))
+      
+      val newStepNode =
+        if (inverses.head.size > 1) {            
+          val andNode = new AndStep(step, nextOp)
+          for (_ <- inverses.head) {
+            val orNode = new OrStep(andNode)
+            andNode addChild orNode
+          }
+          
+          andNode
+        }
+        else {
+          val orNode = new OrStep(step, nextOp)
+          orNode
+        }
+      
+      step.addChild(newStepNode)
+        
+      val expandedNodes = expand(node, newStepNode, inverser)
+    }
+    
+    while (!root.isSolved && !queue.isEmpty) {
+      val element = queue.dequeue
+      
+      process(element._1, element._2)
+    }
   }
   
 //  def synthesize(
