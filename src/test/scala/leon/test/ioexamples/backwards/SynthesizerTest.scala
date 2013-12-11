@@ -62,19 +62,15 @@ class SynthesizerTest extends FunSuite {
         val root = new RootStep()
         val consNode = new OrStep(root, "Cons")
         root addChild consNode        
-        val consNode_1 = new LeafStep(consNode, inputVar)
-        consNode_1 addChild consNode
         
         val mergeNode = new AndStep(root, "merge")
         root addChild mergeNode
-        val m1Node = new LeafStep(mergeNode, inputVar)
+        val m1Node = new OrStep(mergeNode, "sameList")
         mergeNode addChild m1Node
         val m2Node = new OrStep(mergeNode, "sameList")
         mergeNode.addChild(m2Node)
-        val m21Node = new LeafStep(m2Node, inputVar)
-        m2Node.addChild(m21Node)
                 
-        consNode.setSolved(consNode_1)
+        root.setSolved(consNode)
         
         root
       }
@@ -105,14 +101,12 @@ class SynthesizerTest extends FunSuite {
         val root = new RootStep()
         val consNode = new OrStep(root, "Cons")
         root addChild consNode        
-        val consNode_1 = new LeafStep(consNode, inputVar)
-        consNode_1 addChild consNode
 
         val mergeNode = new AndStep(root, "merge")
         root addChild mergeNode
-        val m1Node = new LeafStep(mergeNode, inputVar)
+        val m1Node = new OrStep(mergeNode, inputVar)
         mergeNode addChild m1Node
-        val m2Node = new LeafStep(mergeNode, inputVar)
+        val m2Node = new OrStep(mergeNode, inputVar)
         mergeNode.addChild(m2Node)
                 
         mergeNode.setSolved(m1Node)
@@ -143,31 +137,31 @@ class SynthesizerTest extends FunSuite {
     
     test("synthesizer.propagate single node") {
     
-      val operationTree = {
-        val root = new RootStep()
+      val root = new RootStep()
 //        val consNode = new OrStep(root, "Cons")
 //        root addChild consNode
-        val inputNode = new LeafStep(root, inputVar)
-        root addChild inputNode
-        
-        val mergeNode = new AndStep(root, "merge")
-        root addChild mergeNode
-        val m1Node = new LeafStep(mergeNode, inputVar)
-        mergeNode addChild m1Node
-        val m2Node = new OrStep(mergeNode, "sameList")
-        mergeNode.addChild(m2Node)
-        val m21Node = new LeafStep(m2Node, inputVar)
-        m2Node.addChild(m21Node)
+      val inputNode = new OrStep(root, "Cons", inputVar)
+      root addChild inputNode
+      
+      val mergeNode = new AndStep(root, "merge")
+      root addChild mergeNode
+      val m1Node = new OrStep(mergeNode, inputVar)
+      mergeNode addChild m1Node
+      val m2Node = new OrStep(mergeNode, "sameList")
+      mergeNode.addChild(m2Node)
+
+      val operationTree = root
               
-        root.setSolved(inputNode)
-        
-        root
-      }
+      root.setSolved(inputNode)
+      
+      assert(root.isSolved)
+      assert(inputNode.isSolved)
       
       val exampleRoot = new RootFragment(operationTree, l1)
 
       def inverser(name: String)(frag: Expr) = (name, frag) match {
-//        case ("Cons", l1) => List( List(IntLiteral(1), nilExp) )
+        case ("Cons", l1) => List( List( l1 ) )
+        case ("merge", l1) => List( List( l1, nilExp ) )
         case _ =>
           fail
       }
@@ -176,15 +170,14 @@ class SynthesizerTest extends FunSuite {
         synthesizer.propagate(exampleRoot, Map(l1 -> Map(l1 -> inputVar)), inverser)
         
       exampleRoot.isSolved should be (true)
-      exampleRoot.getSolvedNode should be (exampleRoot)
+      exampleRoot.getSolvedNode match {
+        case of: OrFragment =>
+          of.fragment should be (l1)
+        case _ => fail
+      }
 
       withClue("Got map: " + exampleRoot.getMap.toString) {
-        exampleRoot.getMap should be ('empty)
-//        exampleRoot.getMap("Cons") should have size 1
-//        exampleRoot.getMap("Cons") match {
-//          case (a: AndFragment) :: Nil =>
-//          case _ => fail
-//        }
+        exampleRoot.getMap should not be ('empty)
       }
     }
     
@@ -196,14 +189,14 @@ class SynthesizerTest extends FunSuite {
         CaseClassSelector(consClass, inputVar, consClass.fields.find(_.id.name == "tail").get.id)
     
       val root = new RootStep()
-      val consNode = new OrStep(root, "Cons")
+      val consNode = new AndStep(root, "Cons")
       root addChild consNode
       
       val mergeNode = new AndStep(root, "merge")
       root addChild mergeNode
-      val m1Node = new LeafStep(mergeNode, secondList)
+      val m1Node = new OrStep(mergeNode, secondList)
       mergeNode addChild m1Node
-      val m2Node = new LeafStep(mergeNode, makeFirstList)
+      val m2Node = new OrStep(mergeNode, makeFirstList)
       mergeNode.addChild(m2Node)
             
       mergeNode.setSolved(m2Node)
@@ -214,31 +207,35 @@ class SynthesizerTest extends FunSuite {
       val exampleRoot = new RootFragment(root, example)
 
       def inverser(name: String)(frag: Expr) = (name, frag) match {
-        case ("Cons", l1) => List( List(IntLiteral(1)) )
-        case ("merge", l21) => List( List(l2, l1) )
-        case ("merge", l12) => List( List(l1, l2) )
+        case ("Cons", `l1`) => List( List(IntLiteral(1), nilExp) )
+        case ("Cons", `l12`) => List( List(IntLiteral(1), l2) )
+        case ("merge", `l21`) => List( List(l2, l1) )
+        case ("merge", `l12`) => List( List(l1, l2) )
         case _ =>
           fail
       }
       
       val subexpressions: Map[Expr, Map[Expr, Expr]] = Map(
-        l21 -> Map(l21 -> inputVar, l2 -> secondList, l1 -> makeFirstList)
+        l21 -> Map(l21 -> inputVar, l1 -> secondList, l2 -> makeFirstList)
       )
       
       val result =
         synthesizer.propagate(exampleRoot, subexpressions, inverser)
         
       exampleRoot.isSolved should be (true)
-      exampleRoot.getSolvedNode should be (mergeNode)
-
-      withClue("Got map: " + exampleRoot.getMap.toString) {
-        exampleRoot.getMap should be ('empty)
-//        exampleRoot.getMap("Cons") should have size 1
-//        exampleRoot.getMap("Cons") match {
-//          case (a: AndFragment) :: Nil =>
-//          case _ => fail
-//        }
+      exampleRoot.getSolvedNode match {
+        case af: AndFragment =>
+          af.getChildren match {
+            case (of1: OrFragment) :: (of2: OrFragment) :: Nil =>
+              of1.fragment should be (l1)
+              of2.fragment should be (l2)
+            case _ =>
+              fail
+          }
+        case _ => fail
       }
+
+      exampleRoot.getMap should not be ('empty)
     }
           
   }
