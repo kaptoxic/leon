@@ -49,12 +49,12 @@ object AndOrGraph {
     }
     
     def getSolvedNode = solvedNode
-    
+      
     override def unsolve(n: T) = {
       super.unsolve(n)
       solvedNode = null
-    }
-      
+  }
+   
   }
    
   trait Node[T] extends Base[Node[T]] with Solvable[Node[T]] {
@@ -75,7 +75,7 @@ object AndOrGraph {
     override def setSolved(n: Node[T]) = {
       super.setSolved(n)
       parent.setSolved(this)
-    }
+    }    
 
     override def unsolve(n: Node[T]) = {
       super.unsolve(n)

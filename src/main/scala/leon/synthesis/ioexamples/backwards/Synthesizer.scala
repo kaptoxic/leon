@@ -250,6 +250,13 @@ class Synthesizer(evaluator: Evaluator, funDef: FunDef,
                 case af: AndFragment => af.getChildren.asInstanceOf[List[ExpandableFragment]]            
               }
             }
+          
+//          node.addChildren(nextOp, expandedNodes)
+//          if (nextToCheck.flatten.exists(_.step.stepFun == "rec")) {
+//            assert(!nextToCheck.flatten.find(_.step.stepFun == "rec").get.step.isSolved)
+//            fine("exists!")
+//          }
+
           fine("Enqueueing : " + nextToCheck.flatten)
           queue.enqueue(nextToCheck.flatten: _*)
         }
