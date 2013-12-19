@@ -30,6 +30,8 @@ object AndOrGraph {
       solved = true
     }
     
+    def unsolve = solved = false
+    
     def setSolved = {
       solved = true
     }
@@ -48,7 +50,15 @@ object AndOrGraph {
       
   }
    
-  trait Node[T] extends Base[Node[T]] with Solvable[Node[T]] 
+  trait Node[T] extends Base[Node[T]] with Solvable[Node[T]] {
+    
+    override def unsolve = {
+      super.unsolve
+      for (child <- getChildren)
+        child.unsolve
+    }
+
+  }
 
   trait WithParent[T] {
     def parent: Node[T]
@@ -68,6 +78,11 @@ object AndOrGraph {
       numberOfSolved += 1
       if (numberOfSolved >= children.size)
         super.setSolved(n)
+    }
+        
+    override def unsolve = {
+      super.unsolve
+      numberOfSolved = 0
     }
     
   }
