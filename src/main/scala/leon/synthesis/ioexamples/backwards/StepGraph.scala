@@ -33,6 +33,7 @@ object StepGraph {
     
     override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
       if (solution == null) {
+        assert(getSolvedNode != null, "getSolvedNode is null at " + this)
         val innerSolution = getSolvedNode.getSolution(cst)
         cst(stepFun, List(innerSolution))
       } else
@@ -57,14 +58,14 @@ object StepGraph {
       
   }
   
-  case class AndStep(parent: Step, override val stepFun: String)
+  class AndStep(override val parent: Step, override val stepFun: String)
     extends Step with AndNode[Step] {
         
     override def getSolution(cst: (String, List[Expr]) => Expr): Expr =
       cst(stepFun, children.toList.map(_.asInstanceOf[StepLike].getSolution(cst)))          
   }
   
-  case class OrStep(parent: Step, var _stepFun: String = "none")
+  class OrStep(override val parent: Step, var _stepFun: String = "none")
   extends SingleStep with OrNode[Step] {
     
     override def stepFun = _stepFun
@@ -80,6 +81,13 @@ object StepGraph {
       _solution = solution
       setSolved(null)
     }
+    
+    override def solution_=(sol: Expr) = {      
+      _solution = sol
+      setSolved(null)
+    }
+
+    override def toString = "OrStep - " + stepFun + " solution= " + solution + "[" + this.##
         
 //    override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
 //      assert(solution != null)
