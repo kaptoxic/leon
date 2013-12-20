@@ -32,8 +32,9 @@ object StepGraph {
   abstract class SingleStep extends Step with SingleSolution[Node[Step]] {
     
     override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
+      assert(solution != null || getSolvedNode != null, "getSolvedNode and solution is null at " + this)
+        
       if (solution == null) {
-        assert(getSolvedNode != null, "getSolvedNode is null at " + this)
         val innerSolution = getSolvedNode.getSolution(cst)
         cst(stepFun, List(innerSolution))
       } else
