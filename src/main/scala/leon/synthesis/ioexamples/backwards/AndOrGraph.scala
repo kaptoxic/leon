@@ -13,6 +13,7 @@ import evaluators._
 
 object AndOrGraph {
   
+  // base of all nodes, declares that has children
   trait Base[T] {
     protected var children = m.LinkedList[T]()
     
@@ -21,6 +22,7 @@ object AndOrGraph {
     def getChildren = children.toList
   }
   
+  // solvable node
   trait Solvable[T] {
     def isSolved = solved
   
