@@ -32,14 +32,14 @@ object AndOrGraph {
       solved = true
     }
     
-    def unsolve = solved = false
+    def unsolve(n: T) = solved = false
     
     def setSolved = {
       solved = true
     }
   }
 
-  trait SingleSolution[T] extends Solvable[T] {
+  trait SingleSolution[T >: Null] extends Solvable[T] {
     
     private var solvedNode: T = _
     
@@ -49,16 +49,21 @@ object AndOrGraph {
     }
     
     def getSolvedNode = solvedNode
+    
+    override def unsolve(n: T) = {
+      super.unsolve(n)
+      solvedNode = null
+    }
       
   }
    
   trait Node[T] extends Base[Node[T]] with Solvable[Node[T]] {
     
-    override def unsolve = {
-      super.unsolve
-      for (child <- getChildren)
-        child.unsolve
-    }
+//    override def unsolve = {
+//      super.unsolve
+//      for (child <- getChildren)
+//        child.unsolve
+//    }
 
   }
 
@@ -70,21 +75,27 @@ object AndOrGraph {
     override def setSolved(n: Node[T]) = {
       super.setSolved(n)
       parent.setSolved(this)
-    }    
+    }
+
+    override def unsolve(n: Node[T]) = {
+      super.unsolve(n)
+      parent.unsolve(this)
+    }
+    
   }
   
   trait AndNode[T] extends Node[T] with SolvableWithParent[T] {
-    var numberOfSolved = 0
+    var solvedChildren = m.Set[Node[T]]()
     
     override def setSolved(n: Node[T]) = {      
-      numberOfSolved += 1
-      if (numberOfSolved >= children.size)
+      solvedChildren += n
+      if (solvedChildren.size >= children.size)
         super.setSolved(n)
     }
         
-    override def unsolve = {
-      super.unsolve
-      numberOfSolved = 0
+    override def unsolve(n: Node[T]) = {
+      super.unsolve(n)
+      solvedChildren -= n
     }
     
   }
