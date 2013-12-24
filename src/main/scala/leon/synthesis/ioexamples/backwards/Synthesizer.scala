@@ -39,18 +39,24 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     res
   }
       
+  /**
+   * @param node fragment node to expand
+   * @param stepToExpand step according to which fragment should be expanded
+   * @param inverser function that inverses value according to a given function
+   * @return expanded child nodes for fragment node
+   */
   def expand(node: ExpandableFragment, stepToExpand: Step, inverser: String => Expr => List[List[Expr]]) = {
     fine("Entering explore with " + node)
-    // explore the path
-//    val funDef = node.correspondingNode.solvedNode.funDef
-    val frag = node.fragment
+
     val step = stepToExpand//node.step
     assert(step!=null)
 //    fine("stepFun used is: " + step.stepFun)
     
     // for each inverse example build a child
+    val frag = node.fragment
     fine("Calling inverser with: %s and %s".format(step.stepFun, frag.toString))
     val inverses = inverser(step.stepFun)(frag)
+
     val childNodes =
       for (inverse <- inverses) yield {
         
@@ -75,60 +81,67 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     childNodes
   }
       
+  /**
+   * propagate fragment tree according to the associated operation tree
+   * @param root fragment tree root (references operation tree root)
+   * @param subexpressions determines subexpressions of a given expression 
+   * @param inverser inverses output values to input values for a function
+   * @return map from step nodes to fragment nodes for all leafs in the propagation
+   * require: operation tree should be solved
+   */
   def propagate(root: RootFragment, subexpressions: Map[Expr, Map[Expr, Expr]],
     inverser: String => Expr => List[List[Expr]]) = {
+    assert(root.step.isSolved)
     fine("Entering propagate with " + root)
     
     val mapStepsToFragments = m.Map[Step, ExpandableFragment]()
     
     def rec(node: Fragment): Unit = node match {
+      // recursively propagate all children
       case andNode: AndFragment =>
-//        assert(!andNode.getChildren.isEmpty)
         for (child <- andNode.getChildren)
-          rec(child) 
+          rec(child)
 
+      // propagate according to corresponding step
       case orNode: ExpandableFragment =>
-        val step = orNode.step 
+        val step = orNode.step
         val fragment = orNode.fragment
         val input = orNode.input
         
-        val mapToSubexps = subexpressions(input)
         // if no children then this is a leaf
         fine("orNode.step.getChildren.isEmpty, %s".format(orNode.step.getChildren.isEmpty))
         if (orNode.step.getChildren.isEmpty) {
-          
           mapStepsToFragments += (orNode.step -> orNode)
           
+      		val mapToSubexps = subexpressions(input)
           fine("orNode.step.isSolved(%s), (mapToSubexps contains fragment)(%s)".format(orNode.step.isSolved, (mapToSubexps contains fragment)))
           fine("mapToSubexps(%s) fragment(%s)".format(mapToSubexps, fragment))
+
           if (orNode.step.isSolved) {
-//            assert(mapToSubexps contains fragment, "mapToSubexps(%s) does not contain fragment(%s) for input(%s)"
-//              .format(mapToSubexps, fragment, input))
-  //          assert(orNode.step.isSolved)
-  //          assert(orNode.step.asInstanceOf[SingleStep].getSolvedNode.isInstanceOf[LeafStep],
-  //            "node is: " + orNode + ", while step is " + orNode.step)
-//            assert(orNode.step.asInstanceOf[SingleStep].solution == mapToSubexps(fragment),
-//              "found solutions do not match - %s and %s".format(
-//                orNode.step.asInstanceOf[SingleStep].solution, mapToSubexps(fragment)
-//              ))
-              
-            if((mapToSubexps contains fragment) && orNode.step.asInstanceOf[SingleStep].solution == mapToSubexps(fragment))
+            // this fragment is a subexpression of input and step node is solved we should set
+            // this node as solved
+            if((mapToSubexps contains fragment) &&
+              orNode.step.asInstanceOf[SingleStep].solution == mapToSubexps(fragment))
               orNode.setSolved(orNode)
+            // if not, unsolve the step tree up to the root
             else {
-              fine("setting solution to null at" + orNode)
-              orNode.step.asInstanceOf[SingleStep].solution = null
+              fine("unsolving " + orNode + " and its step " + orNode.step)
+              orNode.step.unsolve(null)
             }
           }
         } else
-        {            
+        { 
+          // NOTE: if step has not children and not solved this is still fine
           val childSteps = orNode.step.getChildren
           
-          // for all steps, not already explored, explore them
-          for (childStep <- childSteps; stepFun = childStep.stepFun; if ! orNode.getMap.contains(stepFun)) {
+          // for all child steps, not already explored, explore them
+          for (childStep <- childSteps; stepFun = childStep.stepFun;
+        		if ! orNode.getMap.contains(stepFun)) {
             
             val exploredNodes = expand(orNode, childStep, inverser)
-            
+            // add expanded children
             orNode.addChildren(stepFun, exploredNodes)
+            // propagate recursively
             for ( exploredChild <- exploredNodes )
               rec(exploredChild)
           }
@@ -136,16 +149,20 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     }
     
     rec(root)
+
     mapStepsToFragments
   }
   
-  def explore(root: RootFragment,
-    functions: Expr => List[String], 
-    subexpressions: Map[Expr, Map[Expr, Expr]],
-    inverser: String => Expr => List[List[Expr]]    
-  ): m.Queue[Step] =
-    explore(root, functions, subexpressions, inverser, m.Queue(root))    
-  
+  /**
+   * explores the fragment and step tree and build them at the same time, stops when
+   * fragment tree is solved
+   * @param root
+   * @param functions
+   * @param subexpressions
+   * @param inverser
+   * @param existingQueue queue that is used for traversal
+   * @return state of the traversal queue and leaf solved nodes
+   */
   def explore(root: RootFragment,
     functions: Expr => List[String], 
     subexpressions: Map[Expr, Map[Expr, Expr]],
@@ -154,11 +171,11 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
   ): m.Queue[Step] = {
     fine("Entering explore with " + root)
     
-//    type Element = (ExpandableFragment, String)
     type Element = ExpandableFragment
     val queue = existingQueue
     val solvedNodesQueue = m.Queue[Step]()
     
+    // visit expandable fragment
     def process(node: ExpandableFragment): Unit = {
       fine("process node " + node + ", with step = " + node.step)
       val step = node.step
@@ -168,19 +185,15 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
       val input = node.input
       val mapToSubexps = subexpressions(input)
       
+      // current fragment is a subexpression of input
       if (mapToSubexps contains fragment) {
+        // fragment and step node are solved        
         node.setSolved(null)
+//        assert(!node.step.isSolved)
         node.step.setSolved(null)
+        node.step.asInstanceOf[SingleStep].solution = mapToSubexps(fragment)
         fine("setting solution " + mapToSubexps(fragment) + " of " + node.step + " to " + mapToSubexps(fragment))
-        if (node.step.isInstanceOf[RootStep])
-          node.step.asInstanceOf[SingleStep].solution = mapToSubexps(fragment)
-        else {
-          node.step.asInstanceOf[OrStep].solution = mapToSubexps(fragment)
-          node.step.asInstanceOf[OrStep].parent.setSolved(node.step)          
-          if (node.step.asInstanceOf[OrStep].parent.isInstanceOf[OrStep])
-            assert(node.step.asInstanceOf[OrStep].parent.asInstanceOf[OrStep].getSolvedNode != null)
-        }
-//        node.step.setSolved(null)
+        
         assert(node.step.getChildren.isEmpty)
         solvedNodesQueue enqueue node.step
       }
@@ -188,21 +201,22 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
       {
         fine("mapToSubexps(%s) does not contains fragment(%s)".format(mapToSubexps, fragment))
           
-          // reset to no longer solved
-          fine("seetting soution to null " + node.step)
-          if (node.step.isSolved && node.step.isInstanceOf[SingleStep])
-            node.step.asInstanceOf[SingleStep].solution = null
+        // reset to no longer solved
+        fine("setting soution to null " + node.step)
+        node.step.unsolve(null)
 
+        // for all applicable functions, expand this fragment
         val applicableOps = functions(fragment)
         fine("applicable functions are: " + applicableOps)
         for (nextOp <- applicableOps) {
           fine("nextOp is " + nextOp)
-          
         
+          // get inverses for the function on this fragment
           val inverses = inverser(nextOp)(node.fragment)
-          assert(inverses.size >= 1)
-          assert(inverses.map(l => l.size).forall(_ == inverses.head.size))
+          assert(inverses.size >= 1, "should have at least one inverse")
+          assert(inverses.map(l => l.size).forall(_ == inverses.head.size), "all inverses should be of the same size")
           
+          // create new step node for this function
           val newStepNode =
             if (inverses.head.size > 1) {            
               val andNode = new AndStep(step, nextOp)
@@ -218,11 +232,13 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
               val orNode = new OrStep(step, nextOp)
               orNode
             }
-          
+          // add this new child step node
           step.addChild(newStepNode)
-            
+          // expand fragment node according to the new step node 
           val expandedNodes = expand(node, newStepNode, inverser)
+          node.addChildren(nextOp, expandedNodes)
           
+          // add all new expandable fragments to the queue to check
           val nextToCheck =
             for (expandedNode <- expandedNodes) yield {
               expandedNode match {
@@ -230,19 +246,13 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
                 case af: AndFragment => af.getChildren.asInstanceOf[List[ExpandableFragment]]            
               }
             }
-          
-          node.addChildren(nextOp, expandedNodes)
-          if (nextToCheck.flatten.exists(_.step.stepFun == "rec")) {
-            assert(!nextToCheck.flatten.find(_.step.stepFun == "rec").get.step.isSolved)
-            fine("exists!")
-          }
-          
           fine("Enqueueing : " + nextToCheck.flatten)
           queue.enqueue(nextToCheck.flatten: _*)
         }
       }
     }
     
+    // traversal
     while (!root.isSolved && !queue.isEmpty) {
       val element = queue.dequeue
       
@@ -251,8 +261,16 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     fine("exited while root solved is: " + root.isSolved)
     fine("exited while queue is: " + queue.mkString("\n"))
     
+    // all solved nodes (search stopped there) and current queue
     solvedNodesQueue ++ queue.map(_.step)
   }
+  
+  def explore(root: RootFragment,
+    functions: Expr => List[String], 
+    subexpressions: Map[Expr, Map[Expr, Expr]],
+    inverser: String => Expr => List[List[Expr]]    
+  ): m.Queue[Step] =
+    explore(root, functions, subexpressions, inverser, m.Queue(root))
     
   var branches = new m.LinkedList[Branch]
   
@@ -370,7 +388,7 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
           assert( step == mapStepsForThisExample(step).step )
         }
         
-        branch.operationRoot.unsolve
+        branch.operationRoot.unsolve(null)
     
         operationQueue =
           explore(fragmentRoot, nextFunctions, subexpressions, nextInverses,

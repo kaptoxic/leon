@@ -21,6 +21,8 @@ object StepGraph {
     
     def getSolution(cst: (String, List[Expr]) => Expr): Expr
     
+    override def toString = "Step(" + stepFun + ")" + "#" + this.##
+    
   }
   
   abstract class Step extends Node[Step] with StepLike {
@@ -38,7 +40,7 @@ object StepGraph {
         val innerSolution = getSolvedNode.getSolution(cst)
         cst(stepFun, List(innerSolution))
       } else
-        solution
+        cst(stepFun, List(solution))
     }
     
     override def getSolvedNode = super.getSolvedNode.asInstanceOf[Step]
@@ -50,6 +52,11 @@ object StepGraph {
     def solution = _solution
     
     protected var _solution: Expr = null
+    
+    override def unsolve(n: Node[Step]) = {
+      super.unsolve(n)
+      _solution = null
+    }
     
   }
   
@@ -88,7 +95,7 @@ object StepGraph {
       setSolved(null)
     }
 
-    override def toString = "OrStep - " + stepFun + " solution= " + solution + "[" + this.##
+    override def toString = super.toString + "-solution= " + solution
         
 //    override def getSolution(cst: (String, List[Expr]) => Expr): Expr = {
 //      assert(solution != null)
