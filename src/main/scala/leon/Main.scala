@@ -263,6 +263,8 @@ object Main {
         debug("-"*80)
       }
 
+      println("time: " + smtlib.SMTLIBSolver.time)
+
     } catch {
       case LeonFatalError(None) =>
         sys.exit(1)

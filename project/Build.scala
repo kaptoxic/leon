@@ -16,7 +16,7 @@ object Leon extends Build {
   def ldLibraryDir64 = file(".") / "lib-bin" / "64"
 
   val cleanTask = TaskKey[Unit]("clean", "Cleans up the generated binaries and scripts.") <<= (streams, clean) map { (s,c) =>
-    c
+    //c
     if(scriptFile.exists && scriptFile.isFile) {
       scriptFile.delete
     }
@@ -98,7 +98,7 @@ object Leon extends Build {
         fw.close
         file.setExecutable(true)
       } catch {
-        case e => s.log.error("There was an error while generating the script file: " + e.getLocalizedMessage)
+        case (e: Throwable) => s.log.error("There was an error while generating the script file: " + e.getLocalizedMessage)
       }
     }
   }
@@ -119,5 +119,13 @@ object Leon extends Build {
     id = "leon",
     base = file("."),
     settings = Project.defaultSettings ++ LeonProject.settings
-  )
+  ).dependsOn(GitHubProjects.scalaSmtLib)
+
+  lazy val leonLibrary = Project(id = "leon-library", base = file("./library"))
+
+}
+
+object GitHubProjects {
+  private val scalaSmtLibVersion = "160a635e3677a185e2d5bd84669be98fcda8c574"
+  lazy val scalaSmtLib = RootProject(uri("git://github.com/regb/scala-smtlib.git#%s".format(scalaSmtLibVersion)))
 }
