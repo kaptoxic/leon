@@ -42,6 +42,3 @@ javaOptions in test += "-Xss32M"
 parallelExecution in Test := false
 
 sourcesInBase in Compile := false
-
-// do not skip parent Eclipse project definition
-EclipseKeys.skipParents in ThisBuild := false

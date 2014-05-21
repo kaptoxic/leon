@@ -12,7 +12,8 @@ case class Settings(
   val xlang: Boolean                   = false,
   val verify: Boolean                  = true,
   val injectLibrary: Boolean           = false,
-  val classPath: List[String]          = Settings.defaultClassPath()
+  val classPath: List[String]          = Settings.defaultClassPath(),
+  val selectedSolvers: Set[String]     = Set("fairz3")
 )
 
 object Settings {

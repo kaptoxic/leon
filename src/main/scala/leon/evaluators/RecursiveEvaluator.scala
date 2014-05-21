@@ -12,6 +12,7 @@ import purescala.TypeTrees._
 import solvers.TimeoutSolver
 
 import xlang.Trees._
+import solvers.SolverFactory
 
 abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evaluator(ctx, prog) {
   val name = "evaluator"
@@ -365,7 +366,6 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
       gv
 
     case choose: Choose =>
-      import solvers.z3.FairZ3Solver
       import purescala.TreeOps.simplestValue
 
       implicit val debugSection = utils.DebugSectionSynthesis
@@ -376,14 +376,15 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
 
       val tStart = System.currentTimeMillis;
 
-      val solver = (new FairZ3Solver(ctx, program) with TimeoutSolver).setTimeout(10000L)
+      val solver = SolverFactory.getFromSettings(ctx, program).getNewSolver
 
-      val inputsMap = p.as.map {
+      val eqs = p.as.map {
         case id =>
           Equals(Variable(id), rctx.mappings(id))
       }
 
-      solver.assertCnstr(And(Seq(p.pc, p.phi) ++ inputsMap))
+      val cnstr = And(eqs ::: p.pc :: p.phi :: Nil)
+      solver.assertCnstr(cnstr)
 
       try {
         solver.check match {
