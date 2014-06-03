@@ -9,6 +9,8 @@ import leon.verification.{AnalysisPhase,VerificationReport}
 import leon.frontends.scalac.ExtractionPhase
 import leon.utils.PreprocessingPhase
 
+import _root_.smtlib.interpreters._
+
 import java.io.File
 
 class PureScalaVerificationRegression extends LeonTestSuite {
@@ -47,7 +49,6 @@ class PureScalaVerificationRegression extends LeonTestSuite {
           pipeline.run(ctx)(file.getPath :: Nil)
         }
       } else {
-
         val report = pipeline.run(ctx)(file.getPath :: Nil)
 
         block(Output(report, ctx.reporter))
@@ -60,11 +61,33 @@ class PureScalaVerificationRegression extends LeonTestSuite {
       "regression/verification/purescala/" + cat,
       _.endsWith(".scala"))
 
+    val isZ3Available = try {
+      new Z3Interpreter()
+      true
+    } catch {
+      case e: java.io.IOException =>
+        false
+    }
+
+    val isCVC4Available = try {
+      new CVC4Interpreter()
+      //true
+      false
+    } catch {
+      case e: java.io.IOException =>
+        false
+    }
+
     for(f <- fs) {
       mkTest(f, List("--feelinglucky", "--library=no"), forError)(block)
       mkTest(f, List("--codegen", "--evalground", "--feelinglucky", "--library=no"), forError)(block)
       mkTest(f, List("--solvers=fairz3,enum", "--codegen", "--evalground", "--feelinglucky", "--library=no"), forError)(block)
-      mkTest(f, List("--solvers=smt-z3", "--library=no"), forError)(block)
+      if (isZ3Available) {
+        mkTest(f, List("--solvers=smt-z3", "--feelinglucky", "--library=no"), forError)(block)
+      }
+      if (isCVC4Available) {
+        mkTest(f, List("--solvers=smt-cvc4", "--feelinglucky", "--library=no"), forError)(block)
+      }
     }
   }
   
