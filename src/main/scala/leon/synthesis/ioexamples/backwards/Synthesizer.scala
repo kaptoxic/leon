@@ -13,11 +13,15 @@ import evaluators._
 
 import insynth.util.logging.HasLogger
 
-class Synthesizer(evaluator: Evaluator) extends HasLogger {
+class Synthesizer(evaluator: Evaluator, funDef: FunDef,
+  termSynthesizer: TypeTree => List[Expr]) extends HasLogger {
 
   type IO = (Expr, Expr)
   import Util._
   implicit var sortMap = m.Map[IO, Int]()
+  
+  assert(funDef.args.size == 1)
+  val inputVar: Identifier = funDef.args.head.id
   
   // and/or graphs
   import AndOrGraph._
@@ -274,7 +278,7 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     
   var branches = new m.LinkedList[Branch]
   
-  case class Branch(condition: Expr) {
+  case class Branch(var condition: Expr) {
     
     var examples = new m.LinkedList[IO]
     var operationRoot = new RootStep
@@ -288,87 +292,84 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
     def covers(expr: Expr): Boolean = {
       if (condition == BooleanLiteral(true)) true
       else { 
-        throw new RuntimeException
-//          evaluate(condition, mapping)
+        // NOTE this is hacked
+        evaluate(condition, Map(funDef.args.head.id -> expr) ) match {
+          case BooleanLiteral(res) => res          
+        }
       }
     }
     
-//      def search: Boolean = {        
-//        var found = false
-//        
-//        while (!found && !nodes.isEmpty) {
-//          val headNode = nodes.head
-//          
-//          found =
-//            examples.forall( ex =>
-//              evaluate(headNode.expr, Map(inputVar -> ex._1)) == ex._2
-//            )
-//            
-//          headNode.resolved = found          
-//          
-//          if(!found) {
-//            nodes.dequeue
-//            // for all applicable inverses
-//            for(fun <- functions())
-//          }
-//        }
-//        
-//        found
-//      }
   }
   
+  def getAllExamples = branches.flatMap( br => br.examples )
+  
+  /**
+   * given a sequence of examples, synthesizes a (recursive) function that explains it
+   * @param examples
+   * @param functions for each expression, determine which function is applicable (in reverse)
+   * @param subexpressions for each input gives a map of subexpressions to functions on that input
+   * @param cst constructor function for constructing body of the function, given a function name and
+   * expressions it constructs a new expression
+   * @param inverser inverses expressions according to given function name
+   * @return
+   */
   def synthesize(
-    inputVar: Identifier,
     examples: List[IO],
     functions: Expr => List[String],
     subexpressions: Map[Expr, Map[Expr, Expr]],
     cst: (String, List[Expr]) => Expr,
-    inverser: String => Expr => List[List[Expr]],
-    partition: List[IO] => (Expr, List[IO], List[IO]) = null
+    inverser: String => Expr => List[List[Expr]]
   ): Option[Expr] = {
     
-    val branch = Branch(BooleanLiteral(true))
-    branches :+= branch
+    // start with a single branch that covers all examples
+    val initialBranch = Branch(BooleanLiteral(true))
+    branches :+= initialBranch
     
+    // first example and its fragment root
     val headExample = examples.head
-    val fragmentRoot = new RootFragment(branch.operationRoot, headExample)
-    branch.examples :+= headExample
+    val fragmentRoot = new RootFragment(initialBranch.operationRoot, headExample)
+    initialBranch.examples :+= headExample
     
     var operationQueue = m.Queue[Step]()
     var mapStepsToFragments = m.Map[(Step, Expr), ExpandableFragment]()
     
+    // explore first example
     operationQueue = explore(fragmentRoot, functions, subexpressions, inverser, 
       m.Queue(fragmentRoot))
-//    assert(branch.operationRoot.getChildren.isEmpty)
     fine("after first, solution: " + fragmentRoot.step.getSolution(cst))
     
+    // process other examples
     for (ex <- examples.tail) {
-      val branch = branches.head
-      assert(branch.covers(ex._1))
+      // TODO determine which branch covers this example
+      val currentBranch = branches.head
+      assert(currentBranch.covers(ex._1))
     
+      // modify inverses function to include recursive call if one of the existing example outputs is seen
+      def nextFunctions(e: Expr) = {
+        val res =
+          e match {        
+            case _ if getAllExamples.map(_._2) contains e => "rec" :: functions(e) 
+            case _ => functions(e)          
+          }        
+        fine("nextFunctions for " + e + " = " + res + "\nex is %s, branch examples is (%s), e is %s"
+          .format(ex, getAllExamples, e) )
+        res
+      }
+      
       def nextInverses(name: String)(e: Expr): List[List[Expr]] = {
         val res = 
-          if (name == "rec" && branch.examples.map(_._2).contains(e)) {        
-            val addEl = branch.examples.find(_._2 == e).get._1
+          if (name == "rec" && getAllExamples.map(_._2).contains(e)) {        
+            val addEl = getAllExamples.find(_._2 == e).get._1
             List(addEl) :: inverser(name)(e)
           } else inverser(name)(e)
         fine("nextInverses called for " + name + ", " + e + " and got " + res)
         res
       }
-      
-      def nextFunctions(e: Expr) = {
-        val res =
-          e match {        
-            case _ if branch.examples.map(_._2) contains e => "rec" :: functions(e) 
-            case _ => functions(e)          
-          }        
-        fine("nextFunctions for " + e + " = " + res + "\nex is %s, branch examples is (%s), e is %s"
-          .format(ex, branch.examples, e) )
-        res
-      }
 
-      val fragmentRoot = new RootFragment(branch.operationRoot, ex)
-      
+      // fragment root for this example
+      val fragmentRoot = new RootFragment(currentBranch.operationRoot, ex)
+      currentBranch.roots += (ex -> fragmentRoot)
+      // propagate the example
       val mapStepsForThisExample =
         propagate(fragmentRoot, subexpressions, nextInverses)
       fine("mapStepsForThisExample is " + mapStepsForThisExample)
@@ -378,8 +379,8 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
         "operationQueue=(%s), while mapStepsForThisExample=(%s)"
           .format(operationQueue.mkString("\n"), mapStepsForThisExample.mkString("\n")))
         
+      // check if this example fragment root is solved
       val searchFlag = fragmentRoot.isSolved
-            
       fine("For example " + ex + " search result is " + searchFlag)
       if (!searchFlag) {
         for (step <- operationQueue) {
@@ -388,14 +389,34 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
           assert( step == mapStepsForThisExample(step).step )
         }
         
-        branch.operationRoot.unsolve(null)
-    
+        // explore operations for this fragment root
         operationQueue =
           explore(fragmentRoot, nextFunctions, subexpressions, nextInverses,
             operationQueue.map(o => mapStepsForThisExample(o)))
         fine("nextSubexpressions used " + subexpressions)
         assert(fragmentRoot.isSolved, "fragment root not solved for " + fragmentRoot)
         
+        // try to propagate other IO pairs
+        val propagationVector =
+          currentBranch.roots.values map { fragmentRoot =>
+            propagate(fragmentRoot, subexpressions, nextInverses)
+            fragmentRoot.isSolved
+          }
+        
+        // if some did not propagate, try to find an appropriate branch condition
+        if (! propagationVector.forall( identity )) {
+          val booleanSnippets = termSynthesizer(BooleanType)
+          
+          var snippetMatches = false
+          for (snippet <- booleanSnippets; if !snippetMatches) {
+          	assert(currentBranch.examples.size == propagationVector.size)
+          	snippetMatches = propagationVector.zip(currentBranch.examples).forall {
+        	    el =>
+        	      val (flag, io) = el
+        	    	flag == evaluate(snippet, Map(inputVar -> io._1) )
+          	}	
+          }
+        }
 //        val (conditionForPreviousBranch, goodExamples, badExamples) = partition(examples)
 //        val newBrach = Branch(conditionForPreviousBranch)
 //        newBrach.examples ++= goodExamples
@@ -412,9 +433,10 @@ class Synthesizer(evaluator: Evaluator) extends HasLogger {
 //        }
       }
 
-      branch.examples :+= ex
+      currentBranch.examples :+= ex
     }
     
-    branch.getBody(cst)
+    // TODO fix this
+    initialBranch.getBody(cst)
   }
 }
