@@ -9,6 +9,11 @@ import leon.purescala.Common.Identifier
 
 import insynth.util.logging.HasLogger
 
+/**
+ * @author ivcha
+ * Extracts examples
+ *
+ */
 object ExamplesExtraction extends HasLogger {
   
   type InputOutputExample = ((Identifier, Expr), (Identifier, Expr))

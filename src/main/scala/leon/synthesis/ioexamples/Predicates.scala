@@ -14,6 +14,8 @@ object Predicates extends HasLogger {
   import TreeOps._
   import Extractors._
     
+  // for two given expressions, return an expression, that, when evaluated,
+  // for one returns an atom w and for the other (w.w)
   def structureDifference(expr1: Expr, expr2: Expr) = {
     def rec(e1: Expr, e2: Expr, ctx: Expr => Expr): List[Expr => Expr] = (e1, e2) match {
       case (Atom(a1), Atom(a2)) => Nil
@@ -28,10 +30,11 @@ object Predicates extends HasLogger {
   
   /**
    * finds a covering chain [Summers, 1971]
-   * @param inputExamples sequence of trees <x_i, ..., x_j> such that x_i < x_i+1 for all i<i<j (well ordered examples)
+   * @param inputExamples sequence of trees <x_i, ..., x_j> such that x_i < x_i+1 for all i<i<j (well ordered
+   * examples)
    * while intervals [x_i, x_i+1] are well ordered (well ordered intervals)
-   * @return for a sequence of trees <y_1 = x_i, ..., x_j = y_n> returns a covering chain <y2, ..., y_n> (excluding first,
-   * including last tree)
+   * @return for an example interval x_i to x_{i+1} = y_n, for the sequence of trees <y_1 = x_i, ..., x_j = y_n>
+   * returns a covering chain <y2, ..., y_n> (excluding first, including last tree)
    */
   def findChain(inputExamples: List[Expr]) = {
   	import u.w
