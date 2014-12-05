@@ -41,3 +41,15 @@ javaOptions in (Test,run) += "-Xss32M"
 parallelExecution in test := false
 
 sourcesInBase in Compile := false
+
+// Wolfram
+libraryDependencies += "commons-codec" % "commons-codec" % "1.10"
+
+libraryDependencies += "org.apache.httpcomponents" % "httpcore" % "4.3.3"
+
+libraryDependencies += "org.apache.httpcomponents" % "httpclient" % "4.3.6"
+
+libraryDependencies += "commons-logging" % "commons-logging" % "1.2"
+
+// Scala parser combinators
+libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.2"
