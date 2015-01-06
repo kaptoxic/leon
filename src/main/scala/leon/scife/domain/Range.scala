@@ -3,8 +3,11 @@ package scife.domain
 
 import purescala.Common._
 import purescala.Trees._
+import purescala.TypeTrees._
 
-case class Range(range: scala.Range, exclusive: Boolean = true) extends Domain[Int] {
+case class Range(range: scala.Range, exclusive: Boolean = true) extends Domain {
+  
+  override val tpe = Int32Type
   
   // inclusive range => exclusive flag
   assert(
@@ -20,6 +23,6 @@ case class Range(range: scala.Range, exclusive: Boolean = true) extends Domain[I
     else
       throw new RuntimeException
 
-  def values = range.toList
+  def values = range.toList map (x => IntLiteral(x))
 
 }

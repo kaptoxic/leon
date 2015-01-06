@@ -18,5 +18,10 @@ object SortedList {
   def invariant(l: List) = isSorted(l)
   
   def enumerator = choose{ (res: List) => true }
+  
+  def size(l: List): Int = l match {
+    case Nil => 0
+    case Cons(x, xs) => 1 + size(xs)
+  }
 
 }
