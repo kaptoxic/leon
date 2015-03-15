@@ -374,14 +374,15 @@ class FairZ3Solver(val context : LeonContext, val program: Program)
             val toRelease = unrollingBank.getBlockersToUnlock
 
             reporter.debug(" - more unrollings")
+            Console.readLine()
 
             val newClauses = unrollingBank.unrollBehind(toRelease)
+
 
             for(ncl <- newClauses) {
               solver.assertCnstr(ncl)
             }
 
-            //readLine()
 
             reporter.debug(" - finished unrolling")
           }
