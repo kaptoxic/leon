@@ -23,10 +23,10 @@ object HanoiObject {
 	    Map[Hanoi, State](
           Hanoi(0, Src, Aux, Dst, Initial) -> Move(0, Src, Dst, Initial),
           Hanoi(1, Src, Aux, Dst, Initial) ->
-		    Move(0, Aux, Dst,
-    		  Move(1, Src, Dst,
-			    Move(0, Src, Aux, Initial)
-			  )
+    		    Move(0, Aux, Dst,
+        		  Move(1, Src, Dst,
+    			    Move(0, Src, Aux, Initial)
+    			  )
     		),
           Hanoi(2, Src, Aux, Dst, Initial) -> 
 			  Move(0, Src, Dst, 

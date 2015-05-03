@@ -34,7 +34,7 @@ import scala.util.control.Breaks.breakable
 import lesynth.examples._
 import lesynth.ranker._
 
-case class SynthesizerForRuleExamples(
+case class SynthesizerExamplesImprove(
   // some synthesis instance information
   val program: Program,
   val desiredType: LeonType,
@@ -99,6 +99,9 @@ case class SynthesizerForRuleExamples(
   // filtering/ranking with examples support
   var exampleRunner: ExampleRunner = _
   var counterExamples = Seq[Example]()
+  
+  // after which iteration to start algorithmic procedures
+  val StartAlgorithmicAfter = 1
 
   def getCurrentBuilder = new InitialEnvironmentBuilder(allDeclarations)
 
@@ -226,6 +229,38 @@ case class SynthesizerForRuleExamples(
 
     results
   }
+  
+  
+        def evaluateCandidateToResult(snippet: Expr, example: Example) = {
+          val mapping = example.getMapping
+          
+          val oldPreconditionSaved = holeFunDef.precondition
+          val oldBodySaved = holeFunDef.body
+      
+          // restore initial precondition
+          holeFunDef.precondition = Some(initialPrecondition)
+      
+          // get the whole body (if else...)
+          val accumulatedExpression = accumulatingExpression(snippet)
+          // set appropriate body to the function for the correct evaluation
+          holeFunDef.body = Some(accumulatedExpression)
+      
+          val expressionToCheck =
+            //example.getExpression(accumulatedExpression, holeFunDef.getPostcondition)
+            accumulatedExpression
+      
+          fine("going to evaluate candidate for: " + holeFunDef)
+          println("going to evaluate candidate for: " + expressionToCheck)
+      
+          val results = exampleRunner.evaluateToResult(expressionToCheck, mapping)
+          //    if (snippet.toString == "Cons(l1.head, concat(l1.tail, l2))")
+          //      interactivePause
+      
+          holeFunDef.precondition = oldPreconditionSaved
+          holeFunDef.body = oldBodySaved
+      
+          results
+        }
 
   def synthesize: Report = {
     reporter.info("Synthesis called on file: " + fileName)
@@ -247,6 +282,11 @@ case class SynthesizerForRuleExamples(
     // initial snippets (will update in the loop)
     var snippets = synthesizeBranchExpressions
     var snippetsIterator = snippets.iterator
+    
+    // iterator for algorithmic part
+    val (it1, it2) = snippetsIterator.duplicate
+    snippetsIterator = it1
+    var snippetsIteratorCopy = it2
 
     // ordering of expressions according to passed examples
     var pq = getNewExampleQueue
@@ -266,9 +306,212 @@ case class SynthesizerForRuleExamples(
         reporter.info("# precondition is: " + holeFunDef.precondition.getOrElse(BooleanLiteral(true)))
         reporter.info("# accumulatingPrecondition is: " + accumulatingPrecondition)
         reporter.info("# accumulatingExpression(Unit) is: " + accumulatingExpression(UnitLiteral))
+        reporter.info("# current examples:\n" + counterExamples.mkString("\n"))
         reporter.info("####################################")
 
         var numberOfTested = 0
+        
+        if (iteration > StartAlgorithmicAfter) {
+          reporter.info("Starting algorithmic")
+          reporter.info(counterExamples.mkString(","))
+          
+          val nilClass = program.caseClassDef("Nil")
+          
+          // start from simplest outputs
+          val simplestExample = counterExamples.head.asInstanceOf[InputOutputExample]
+          val (in, out) = (simplestExample.input, simplestExample.output)
+          val restOfExamples = counterExamples.tail
+          reporter.info("Simplest example: " + simplestExample)
+          assert(restOfExamples.size == 1)
+ 
+          val hardcodedMatchChecker =
+            Set(
+              "Cons(Move(Src, Dst), Nil)"
+            )
+            
+          var candidateToActions = Map[Expr, Expr]()
+         
+          var solutions: List[Expr] = Nil
+          
+          // fragment outputs (get a collection)
+          var leftPart: Expr = null
+          var rightPart: Expr = null
+
+          def matchCons(e: Expr) = e match {
+            case FunctionInvocation(funDef, args) if funDef.id.name == "Cons" =>
+              reporter.info("Found cons!")
+              leftPart = args.head
+              rightPart = args(1)
+              None
+            case cc@CaseClass(cDef, args) if cDef.id.name == "Cons" =>
+              reporter.info("Found cons!")
+              // assume decomposition under "concat"
+              leftPart =
+                CaseClass(cDef, args.head :: CaseClass(nilClass, Nil) :: Nil)
+
+              rightPart = args(1)
+              Some(cc)
+            case _ =>
+              None
+          }
+          
+          reporter.info("Starting algorithmic")
+//          interactivePause
+          
+          TreeOps.searchAndReplace(matchCons, false)(out)
+          reporter.info("left: " + leftPart + " right: " + rightPart)
+          
+          // try to find matching input transformation part by part (recursive)
+          val candidates = snippetsIteratorCopy.take(200).toList
+          var passCandidates =
+            (for (candidate <- candidates) yield {
+              val toEvaluate = Equals(candidate.getSnippet, leftPart)
+              val exampleToEvaluate = InputOutputExample(in, leftPart)
+              val res = evaluateCandidate(candidate.getSnippet, exampleToEvaluate)
+              reporter.info("Evaluation of candidate: " + candidate + ", : " + res)
+              (candidate, res)
+            }) filter { _._2 } map { _._1 } toList
+          
+          reporter.info("pass candidates: " + passCandidates.mkString("\n"))
+          
+          // rest is hardcoded
+          assert(restOfExamples.size == 1)
+          var resultsOnOtherInputs =
+            for (candidate <- passCandidates) yield {
+              val toEvaluate = candidate.getSnippet
+              reporter.info("Evaluate: " + toEvaluate)
+              val res = evaluateCandidateToResult(toEvaluate, restOfExamples.head)
+              
+//              val oldList: List[Expr] = if (candidateToActions contains candidate.getSnippet)
+//                candidateToActions(List(candidate.getSnippet)) else Nil
+              candidateToActions = candidateToActions +
+                (candidate.getSnippet -> res.result.get)
+            }
+
+//          reporter.info("resultsOnOtherInputs: " + resultsOnOtherInputs.mkString("\n"))
+          reporter.info("candidateToActions: " + candidateToActions.map(_._2).mkString("\n"))
+          // check if matches
+          var output = List(
+            "Move(Src, Dst)"
+          )
+          var outputString = output.map("Cons(" + _ + ", Nil)").mkString("", ", ", "")
+          assert(candidateToActions.map(_._2.toString).toSet contains outputString)
+          
+          reporter.info("going into phase 2")
+//          interactivePause
+          var currentExpr = rightPart
+          
+          TreeOps.searchAndReplace(matchCons, false)(currentExpr)
+          reporter.info("left: " + leftPart + " right: " + rightPart)
+
+          passCandidates =
+            (for (candidate <- candidates) yield {
+              val toEvaluate = Equals(candidate.getSnippet, leftPart)
+              val exampleToEvaluate = InputOutputExample(in, leftPart)
+              val res = evaluateCandidate(candidate.getSnippet, exampleToEvaluate)
+              reporter.info("Evaluation of candidate: " + candidate + ", : " + res)
+              (candidate, res)
+            }) filter { _._2 } map { _._1 } toList
+          
+          reporter.info("pass candidates: " + passCandidates.mkString("\n"))
+          
+          // rest is hardcoded
+          assert(restOfExamples.size == 1)
+          var keys = candidateToActions.keys
+          candidateToActions = Map()
+          resultsOnOtherInputs =
+            for (candidate <- passCandidates;
+                existingCandidate <- keys) yield {
+              reporter.info("existingCandidate=" + existingCandidate)
+              val toEvaluate =
+                FunctionInvocation(
+                  program.definedFunctions.find( f => f.id.name  == "concat" ).get,
+                  existingCandidate :: candidate.getSnippet :: Nil
+                )
+              reporter.info("Evaluate 2nd round: " + toEvaluate)
+              val res = evaluateCandidateToResult(toEvaluate, restOfExamples.head)
+              reporter.info("result got " + res)
+              
+              if (res.isInstanceOf[leon.evaluators.EvaluationResults.Successful])
+              candidateToActions = candidateToActions +
+                (toEvaluate -> res.result.get)
+            }
+          reporter.info("candidateToActions: " + candidateToActions.map(_._2).mkString("\n"))
+          output = List(
+            "Move(Src, Dst)",
+            "Move(Aux, Dst)",
+            "Move(Src, Dst)"
+          )
+          outputString = output.foldRight("Nil")({ case (el, res) => "Cons(" + el + ", " + res + ")" })
+          reporter.info("Output string = " + outputString)
+          assert(candidateToActions.map(_._2.toString).toSet contains outputString)
+
+          reporter.info("Going into part 3")
+//          interactivePause
+          currentExpr = rightPart
+          
+          TreeOps.searchAndReplace(matchCons, false)(currentExpr)
+          reporter.info("left: " + leftPart + " right: " + rightPart)
+
+          passCandidates =
+            (for (candidate <- candidates) yield {
+              val toEvaluate = Equals(candidate.getSnippet, leftPart)
+              val exampleToEvaluate = InputOutputExample(in, leftPart)
+              val res = evaluateCandidate(candidate.getSnippet, exampleToEvaluate)
+              reporter.info("Evaluation of candidate: " + candidate + ", : " + res)
+              (candidate, res)
+            }) filter { _._2 } map { _._1 } toList
+          
+          reporter.info("pass candidates: " + passCandidates.mkString("\n"))
+          
+          // rest is hardcoded
+          assert(restOfExamples.size == 1)
+          keys = candidateToActions.keys
+          candidateToActions = Map()
+          resultsOnOtherInputs =
+            for (candidate <- passCandidates;
+                existingCandidate <- keys) yield {
+              reporter.info("existingCandidate=" + existingCandidate)
+              val toEvaluate =
+                FunctionInvocation(
+                  program.definedFunctions.find( f => f.id.name  == "concat" ).get,
+                  existingCandidate :: candidate.getSnippet :: Nil
+                )
+              reporter.info("Evaluate 2nd round: " + toEvaluate)
+              val res = evaluateCandidateToResult(toEvaluate, restOfExamples.head)
+              reporter.info("result got " + res)
+              
+              if (res.isInstanceOf[leon.evaluators.EvaluationResults.Successful])
+              candidateToActions = candidateToActions +
+                (toEvaluate -> res.result.get)
+            }
+          reporter.info("candidateTOActions values size " + candidateToActions.size)
+          
+//          interactivePause
+
+          output = List(
+            "Move(Src, Dst)",
+            "Move(Aux, Dst)",
+            "Move(Aux, Src)",
+            "Move(Src, Dst)",
+            "Move(Dst, Aux)",
+            "Move(Src, Aux)",
+            "Move(Src, Dst)"
+          )
+          outputString = output.foldRight("Nil")({ case (el, res) => "Cons(" + el + ", " + res + ")" })
+          reporter.info("Output string = " + outputString)
+          assert(candidateToActions.map(_._2.toString).toSet contains outputString)
+          
+          val res = candidateToActions.find( p =>
+            p._2.toString == outputString
+          )
+          assert( candidateToActions.count( p =>
+            p._2.toString == outputString
+          ) == 1, candidateToActions.count( p => p._2.toString == outputString))
+          reporter.info("results: " + res.get._1)
+
+          interactivePause
+        }
 
         // just printing of expressions and pass counts        
         info({
