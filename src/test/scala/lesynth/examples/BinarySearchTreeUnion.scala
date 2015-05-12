@@ -17,7 +17,7 @@ import lesynth.rules._
 import org.scalatest.FunSuite
 import org.scalatest.matchers.ShouldMatchers._
 
-class HanoiProblemImproveTest extends FunSuite {
+class BinarySearchTreeUnion extends FunSuite {
 
   def forProgram(content: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
 
@@ -62,57 +62,56 @@ class HanoiProblemImproveTest extends FunSuite {
     
   	for ((sctx, f, p) <- forProgram(
 	    """
-		import leon.Utils._
+		import scala.collection.immutable.Set
 
-object HanoiImprovedObject {
-  
-  sealed abstract class List
-  case class Cons(head: Move, tail: List) extends List
-  case object Nil extends List
-  
-  def concat(l1: List, l2: List) : List = l1 match {
-    case Nil => l2
-    case Cons(h, t) =>
-      Cons(h, concat(t, l2))
-  } 
-    
-  sealed abstract class Peg
-  case object Src extends Peg
-  case object Aux extends Peg
-  case object Dst extends Peg
-  
-  case class Move(src: Peg, dst: Peg)
-  
-  case class Hanoi(disks: Int, src: Peg, aux: Peg, dst: Peg)
-  
-  def dec(value: Int) = value - 1
-  
-  def isZero(value: Int) = value == 0
-  
-  def solve(hanoi: Hanoi) = choose {
-    (res: List) =>
-      passes(
-        Map[Hanoi, List]( (Hanoi(0, Src, Aux, Dst) -> Cons(Move(Src, Dst), Nil)),
-    (Hanoi(1, Src, Aux, Dst) ->
-      Cons(Move(Aux, Dst),
-        Cons(Move(Src, Dst),
-          Cons(Move(Src, Aux), Nil)))
-    ),
-    (Hanoi(2, Src, Aux, Dst) -> 
-      Cons(Move(Src, Dst), 
-      Cons(Move(Aux, Dst),
-      Cons(Move(Aux, Src),
-      Cons(Move(Src, Dst), 
-      Cons(Move(Dst, Aux),
-      Cons(Move(Src, Aux),
-      Cons(Move(Src, Dst),
-        Nil)))))))
-    ) ),
-        hanoi, res
-      )
+import leon.Annotations._
+import leon.Utils._
+
+object BinarySearchTree {
+  sealed abstract class Tree
+  case class Node(left: Tree, value: Int, right: Tree) extends Tree
+  case class Leaf() extends Tree
+
+  def contents(tree: Tree): Set[Int] = tree match {
+    case Leaf() => Set.empty[Int]
+    case Node(l, v, r) => contents(l) ++ Set(v) ++ contents(r)
   }
-    
+ 
+  case class Pair(t1: Tree, t2: Tree)
+
+  def insert(tree: Tree, value: Int): Node = {
+    tree match {
+      case Leaf() => Node(Leaf(), value, Leaf())
+      case n @ Node(l, v, r) => if (v < value) {
+        Node(l, v, insert(r, value))
+      } else if (v > value) {
+        Node(insert(l, value), v, r)
+      } else {
+        n
+      }
+    }
+  }
+  
+  def union(p: Pair): Tree = choose {
+    (res: Tree) =>
+      passes(
+      Map[Pair, Tree](
+          Pair(Leaf(), Node(Leaf(), 5, Leaf())) -> Node(Leaf(), 5, Leaf()),
+          Pair(Node(Leaf(), 4, Leaf()), Node(Leaf(), 5, Leaf())) ->
+            Node(Node(Leaf(), 4, Leaf()), 5, Leaf()),
+          Pair(Node(Node(Leaf(), 3, Leaf()), 4, Leaf()), Node(Leaf(), 5, Leaf())) ->
+            Node(Node(Leaf(),3,Node(Leaf(),4,Leaf())),5,Leaf()),
+          Pair(Node(Leaf(), 4, Node(Leaf(), 5, Leaf())), Node(Leaf(), 8, Leaf())) ->
+            Node(Node(Node(Leaf(),4,Leaf()),5,Leaf()),8,Leaf()),
+          Pair(Node(Node(Leaf(), 3, Leaf()), 4, Node(Leaf(), 5, Leaf())), Node(Leaf(), 8, Leaf())) ->
+            Node(Node(Node(Leaf(),3,Node(Leaf(),4,Leaf())),5,Leaf()),8,Leaf())
+        ),
+        p, res
+    )
+  }
+  
 }
+
 	    """
     )) {
   	  val predicate = p.phi

@@ -36,7 +36,7 @@ case class ImmediateExpression( name: String, expr:  Expr ) extends Reconstructi
   
   def apply( ) = expr
   
-	def getSimpleName: String = name
+	def getSimpleName: String = expr.toString()//name
   
 }
 
