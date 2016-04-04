@@ -237,6 +237,81 @@ trait CodeExtraction extends ASTExtractors {
     private def createLeonUnit(u: ScalaUnit): UnitDef = {
       val ScalaUnit(name, pack, _, defs, isPrintable) = u
 
+      def extractObject(t: global.Tree, obj: (String, Template), doRec: Boolean): Some[Definition] = {
+        val (n, templ) = obj
+        val id = FreshIdentifier(n)
+
+        val extractRegular: PartialFunction[global.Tree, Option[Definition]] = {
+          case t if isIgnored(t.symbol) =>
+            // ignore
+            None
+
+          case ExAbstractClass(_, sym, _) =>
+            Some(getClassDef(sym, t.pos))
+
+          case ExCaseClass(_, sym, _, _) =>
+            Some(getClassDef(sym, t.pos))
+
+          // Functions
+          case ExFunctionDef(sym, _, _, _, _) =>
+            Some(defineFunDef(sym)(DefContext()))
+
+          // Default value functions
+          case ExDefaultValueFunction(sym, _, _, _, _, _, _) =>
+            val fd = defineFunDef(sym)(DefContext())
+            fd.addFlag(IsSynthetic)
+
+            Some(fd)
+
+          // Lazy vals
+          case ExLazyAccessorFunction(sym, _, _) =>
+            Some(defineFieldFunDef(sym, true)(DefContext()))
+
+          // Normal vals
+          case ExFieldDef(sym, _, _) =>
+            Some(defineFieldFunDef(sym, false)(DefContext()))
+
+          // All these are expected, but useless
+          case ExCaseClassSyntheticJunk()
+            | ExConstructorDef()
+            | ExLazyFieldDef()
+            | ExFieldAccessorFunction() =>
+            None
+          case d if (d.symbol.isImplicit && d.symbol.isSynthetic) =>
+            None
+
+        }
+
+        val extractOutOfSubset: PartialFunction[global.Tree, Option[Definition]] = {
+          // Everything else is unexpected
+          case tree =>
+            println(tree)
+            throw new ImpureCodeEncounteredException(tree.pos, "Unexpected Unit body", Some(tree))
+          //              outOfSubsetError(tree, "Don't know what to do with this. Not purescala?");
+        }
+        
+        val extractObjectCase: PartialFunction[global.Tree, Option[Definition]] = {
+          case t @ ExObjectDef(n, templ) =>
+            extractObject(t, (n, templ), false)
+        }
+
+        val leonDefs =
+          if (doRec)
+            templ.body.flatMap { t =>
+              if (extractRegular.isDefinedAt(t)) extractRegular(t)
+              else if (extractObjectCase.isDefinedAt(t)) extractObjectCase(t)
+              else extractOutOfSubset(t)
+            }
+          else
+            templ.body.flatMap { t =>
+              if (extractRegular.isDefinedAt(t)) extractRegular(t)
+              else extractOutOfSubset(t)
+            }
+            
+
+        Some(LeonModuleDef(id, leonDefs, id.name == "package"))
+      }
+
       val leonDefs = defs flatMap {
         case t if isIgnored(t.symbol) =>
           // ignore
@@ -250,62 +325,17 @@ trait CodeExtraction extends ASTExtractors {
 
         case t @ ExObjectDef(n, templ) =>
           // Module
-          val id = FreshIdentifier(n)
-          val leonDefs = templ.body.flatMap {
-            case t if isIgnored(t.symbol) =>
-              // ignore
-              None
-
-            case ExAbstractClass(_, sym, _) =>
-              Some(getClassDef(sym, t.pos))
-
-            case ExCaseClass(_, sym, _, _) =>
-              Some(getClassDef(sym, t.pos))
-
-            // Functions
-            case ExFunctionDef(sym, _, _, _, _) =>
-              Some(defineFunDef(sym)(DefContext()))
-
-            // Default value functions
-            case ExDefaultValueFunction(sym, _, _, _ ,_ , _, _) =>
-              val fd = defineFunDef(sym)(DefContext())
-              fd.addFlag(IsSynthetic)
-
-              Some(fd)
-
-            // Lazy vals
-            case ExLazyAccessorFunction(sym, _, _)  =>
-              Some(defineFieldFunDef(sym, true)(DefContext()))
-
-            // Normal vals
-            case ExFieldDef(sym, _, _) =>
-              Some(defineFieldFunDef(sym, false)(DefContext()))
-
-            // All these are expected, but useless
-            case ExCaseClassSyntheticJunk()
-               | ExConstructorDef()
-               | ExLazyFieldDef()
-               | ExFieldAccessorFunction() =>
-              None
-            case d if (d.symbol.isImplicit && d.symbol.isSynthetic) =>
-              None
-
-            // Everything else is unexpected
-            case tree =>
-              println(tree)
-              outOfSubsetError(tree, "Don't know what to do with this. Not purescala?");
-          }
-
-          Some(LeonModuleDef(id, leonDefs, id.name == "package"))
+          extractObject(t, (n, templ), true)
 
         // Expected, but useless
-        case ExCaseClassSyntheticJunk() | ExConstructorDef() => None
+        case ExCaseClassSyntheticJunk() | ExConstructorDef()    => None
         case d if (d.symbol.isImplicit && d.symbol.isSynthetic) => None
 
         // Unexpected
         case tree =>
           println(tree)
-          outOfSubsetError(tree, "Don't know what to do with this. Not purescala?");
+          throw new ImpureCodeEncounteredException(tree.pos, "Unexpected Unit body", Some(tree))
+        //          outOfSubsetError(tree, "Don't know what to do with this. Not purescala?");
       }
 
       // we only resolve imports once we have the full program
