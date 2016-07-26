@@ -4,6 +4,8 @@ package leon
 
 import scala.annotation.StaticAnnotation
 
+import xps._
+
 package object annotation {
   @ignore
   class library    extends StaticAnnotation
@@ -21,4 +23,12 @@ package object annotation {
   class compose    extends StaticAnnotation
   @ignore
   class internal   extends StaticAnnotation
+  
+  @ignore
+  class dataLocation(owner: Node) extends StaticAnnotation
+
+  @ignore
+  class replicated extends StaticAnnotation
+
+  
 }
