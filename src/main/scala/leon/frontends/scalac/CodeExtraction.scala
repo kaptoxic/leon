@@ -174,7 +174,7 @@ trait CodeExtraction extends ASTExtractors {
             ScalaUnit(name, pack, imps, lst, !isLibrary(u))
 
           case _ =>
-            outOfSubsetError(u.body, "Unexpected Unit body")
+            outOfSubsetError(u.body, "Unexpected Unit body (expecting package)")
         }}
 
         // Phase 1, we discover and define objects/classes/types
@@ -226,6 +226,9 @@ trait CodeExtraction extends ASTExtractors {
 
             case ExCaseClass(_, sym, args, tmpl) =>
               seenClasses += sym -> ((args, tmpl))
+
+            case ExRegularClass(_, sym, tmpl) =>
+              seenClasses += sym -> ((Nil, tmpl))
 
             case _ =>
           }
@@ -284,6 +287,22 @@ trait CodeExtraction extends ASTExtractors {
 
         val extractOutOfSubset: PartialFunction[global.Tree, Option[Definition]] = {
           // Everything else is unexpected
+          case ExRegularClass(_, sym, _) =>
+            val pos = t.pos
+            val res = 
+              classesToClasses.get(sym) match {
+                case Some(cd) => cd
+                case None =>
+                  if (seenClasses contains sym) {
+                    val (args, tmpl) = seenClasses(sym)
+        
+                    extractRegClassDef(sym, args, tmpl)
+                  } else {
+                    outOfSubsetError(pos, "Class "+sym.fullName+" not defined?")
+                  }
+              }
+            Some(res)
+//            Some(getClassDef(sym, t.pos))
           case tree =>
             println(tree)
             throw new ImpureCodeEncounteredException(tree.pos, "Unexpected Unit body", Some(tree))
@@ -334,7 +353,7 @@ trait CodeExtraction extends ASTExtractors {
         // Unexpected
         case tree =>
           println(tree)
-          throw new ImpureCodeEncounteredException(tree.pos, "Unexpected Unit body", Some(tree))
+          throw new ImpureCodeEncounteredException(tree.pos, "Unexpected Unit body (in create Leon unit)", Some(tree))
         //          outOfSubsetError(tree, "Don't know what to do with this. Not purescala?");
       }
 
@@ -634,6 +653,78 @@ trait CodeExtraction extends ASTExtractors {
       }
 
       //println(s"End body $sym")
+
+      cd
+    }
+    
+    def extractRegClassDef(sym: Symbol, args: Seq[(Symbol, ValDef)], tmpl: Template): LeonClassDef = {
+
+      //println(s"Extracting $sym")
+
+      val id = FreshIdentifier(sym.name.toString).setPos(sym.pos)
+
+      val tparamsMap = sym.tpe match {
+        case TypeRef(_, _, tps) =>
+          extractTypeParams(tps)
+        case _ =>
+          Nil
+      }
+
+      val parent = sym.tpe.parents.headOption match {
+        case Some(TypeRef(_, parentSym, tps)) if seenClasses contains parentSym =>
+          getClassDef(parentSym, sym.pos) match {
+            case acd: AbstractClassDef =>
+              val defCtx = DefContext(tparamsMap.toMap)
+              val newTps = tps.map(extractType(_)(defCtx, sym.pos))
+              val zip = (newTps zip tparamsMap.map(_._2))
+              if (newTps.size != tparamsMap.size) {
+                outOfSubsetError(sym.pos, "Child classes should have the same number of type parameters as their parent")
+                None
+              } else if (zip.exists {
+                case (TypeParameter(_), _) => false
+                case _ => true
+              }) {
+                outOfSubsetError(sym.pos, "Child class type params should have a simple mapping to parent params")
+                None
+              } else if (zip.exists {
+                case (TypeParameter(id), ctp) => id.name != ctp.id.name
+                case _ => false
+              }) {
+                outOfSubsetError(sym.pos, "Child type params should be identical to parent class's (e.g. C[T1,T2] extends P[T1,T2])")
+                None
+              } else {
+                Some(acd.typed -> acd.tparams)
+              }
+
+            case cd =>
+              outOfSubsetError(sym.pos, s"Class $id cannot extend ${cd.id}")
+              None
+          }
+
+        case p =>
+          None
+      }
+
+      val tparams = parent match {
+        case Some((p, tparams)) => tparams
+        case None => tparamsMap.map(t => TypeParameterDef(t._2))
+      }
+
+      val defCtx = DefContext((tparamsMap.map(_._1) zip tparams.map(_.tp)).toMap)
+
+      // Extract class
+      val cd = if (sym.isAbstractClass) {
+        AbstractClassDef(id, tparams, parent.map(_._1))
+      } else  {
+        CaseClassDef(id, tparams, parent.map(_._1), sym.isModuleClass)
+      }
+      cd.setPos(sym.pos)
+      //println(s"Registering $sym")
+      classesToClasses += sym -> cd
+      cd.addFlags(annotationsOf(sym).map { case (name, args) => ClassFlag.fromName(name, args) }.toSet)
+
+      // Register parent
+      parent.map(_._1).foreach(_.classDef.registerChild(cd))
 
       cd
     }

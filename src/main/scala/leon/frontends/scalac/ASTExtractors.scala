@@ -349,6 +349,16 @@ trait ASTExtractors {
       }
     }
 
+    // for XPS
+    object ExRegularClass {
+      def unapply(cd: ClassDef): Option[(String, Symbol, Template)] = cd match {
+        // regular class (can check if subclass of Node?)
+        case ClassDef(_, name, tparams, impl) => Some((name.toString, cd.symbol, impl))
+
+        case _ => None
+      }
+    }
+
     /** Returns true if the class definition is a case class */
     private def isCaseClass(cd: ClassDef): Boolean = {
       cd.symbol.isCase && !cd.symbol.isAbstractClass && cd.impl.body.size >= 8
