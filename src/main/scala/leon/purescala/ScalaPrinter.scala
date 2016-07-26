@@ -36,7 +36,7 @@ class ScalaPrinter(opts: PrinterOptions,
       case SubsetOf(subset,superset) => p"$subset.subsetOf($superset)"
 
       case MapUnion(l,r)             => optP { p"$l ++ $r" }
-      case m @ FiniteMap(els, k, v)  => p"Map[$k,$v]($els)"
+//      case m @ FiniteMap(els, k, v)  => p"Map[$k,$v]($els)"
 
       case InfiniteIntegerLiteral(v) => p"BigInt($v)"
       case a@FiniteArray(elems, oDef, size) =>
@@ -75,6 +75,11 @@ class ScalaPrinter(opts: PrinterOptions,
         super.pp(tree)
     }
   }
+  
+//  override protected def requiresParentheses(ex: Tree, within: Option[Tree]): Boolean = {
+//    println("got called")
+//    super.requiresParentheses(ex, within)
+//  }
 }
 
 object ScalaPrinter extends PrettyPrinterFactory {

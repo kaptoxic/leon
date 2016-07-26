@@ -56,6 +56,17 @@ class PrettyPrinter(opts: PrinterOptions,
   private val dbquote = "\""
 
   def pp(tree: Tree)(implicit ctx: PrinterContext): Unit = {
+    
+    // get string without affecting the buffer
+    // it's weird the framework is forcing me to write such a thing
+    def toStringCtx(someTree: Tree) = {
+      // either I don't understand the point of this or this is poorly thought of
+      val originalLength = ctx.printer.sb.length
+      pp(someTree)
+      val stringThatWeWant = ctx.printer.sb.substring(originalLength, ctx.printer.sb.length)
+      ctx.printer.sb.delete(originalLength, ctx.printer.sb.length)
+      stringThatWeWant
+    }
 
     if (requiresBraces(tree, ctx.parent) && !ctx.parent.contains(tree)) {
       p"""|{
@@ -312,7 +323,7 @@ class PrettyPrinter(opts: PrinterOptions,
       case RealTimes(l,r)            => optP { p"$l * $r" }
       case RealDivision(l,r)         => optP { p"$l / $r" }
       case fs @ FiniteSet(rs, _)     => p"{${rs.toSeq}}"
-      case fm @ FiniteMap(rs, _, _)  => p"{$rs}"
+      case fm @ FiniteMap(rs, _, _)  => p"${rs map { case (k, v) => (toStringCtx(k), toStringCtx(v)) } }"
       case Not(ElementOfSet(e,s))    => p"$e \u2209 $s"
       case ElementOfSet(e,s)         => p"$e \u2208 $s"
       case SubsetOf(l,r)             => p"$l \u2286 $r"
@@ -539,7 +550,14 @@ class PrettyPrinter(opts: PrinterOptions,
           p"def ${fd.id}${nary(fd.tparams, ", ", "[", "]")}(${fd.params}): "
         }
 
-        p"${fd.returnType} = ${fd.fullBody}"
+//        fd.fullBody match {
+//          case _: PartialLambda =>
+//            p"""|${fd.returnType} =
+//                |  ${fd.fullBody}"""
+//          case _ => 
+            p"${fd.returnType} = "
+            p"${fd.fullBody}"
+//        }
 
       case (tree: PrettyPrintable) => tree.printWith(ctx)
 
