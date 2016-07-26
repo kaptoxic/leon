@@ -40,8 +40,8 @@ object FiniteDistributions {
   def sumMod(dist1: FiniteDist, dist2: FiniteDist): FiniteDist = {
     require(isDist(dist1) && isDist(dist2) && dist1.size == dist2.size)
 
-    def 
-    rotate(1)
+//    def 
+//    rotate(1)
   }
 
   def uniformSumProperties1(dice1: DiceDist, dice2: DiceDist): Boolean = {

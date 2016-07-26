@@ -23,8 +23,8 @@ object UnificationTest {
   case class F(t1: Term, t2: Term, t3: Term, t4: Term) extends Term
   case class G(s1: Term, s2: Term) extends Term
   case class H(r1: Term, r2: Term) extends Term
-  case class A extends Term
-  case class B extends Term
+//  case class A extends Term
+//  case class B extends Term
 
   def examplePage268(x1: Term, x2: Term, x3: Term, x4: Term, x5: Term) = {
     F(G(H(A(), x5), x2), x1, H(A(), x4), x4)

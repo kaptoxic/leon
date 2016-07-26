@@ -25,7 +25,7 @@ object PropositionalLogic {
   }) ensuring(isSimplified(_))
 
   def isSimplified(f: Formula): Boolean = f match {
-    
+    case _ => ???
   }
 
   def nnf(formula: Formula): Formula = (formula match {
@@ -41,7 +41,7 @@ object PropositionalLogic {
   }) ensuring(isNNF(_))
 
   def isNNF(f: Formula): Boolean = f match {
-    
+    case _ => ???
   }
 
   def evalLit(id : BigInt) : Boolean = (id == 42) // could be any function
