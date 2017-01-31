@@ -16,6 +16,9 @@ import insynth.util.logging.HasLogger
  */
 object Fragmenter extends HasLogger {
   
+  // same is in the Synthesizer
+  type IO = (Expr, Expr)
+  
   val u = Util
   import TreeOps._
   import Extractors._

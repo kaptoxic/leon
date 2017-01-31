@@ -46,10 +46,11 @@ class FragmenterTest extends FunSuite {
     constructFragments((iExamples zip oExamples), x) should be (givenFragments)
   }
   
-  import benchmarks._
-  
-  for ( bench <- List( last ) ) {
-    constructFragments(bench.ioPairs, x) should be (bench.fragments)
-  }
+  // this is probably "last" example from ILP
+//  import benchmarks._
+//  
+//  for ( bench <- List( last ) ) {
+//    constructFragments(bench.ioPairs, x) should be (bench.fragments)
+//  }
 
 }
