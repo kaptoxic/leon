@@ -1104,5 +1104,11 @@ object Expressions {
       Some((alts, (es: Seq[Expr]) => Hole(tpe, es).setPos(this)))
     }
   }
+  
+  /* S-expressions */
+  case class NilList(baseType: TypeTree) extends Expr with Terminal
+  case class Cons(head: Expr, tail: Expr) extends Expr 
+  case class Car(list: Expr) extends Expr 
+  case class Cdr(list: Expr) extends Expr 
 
 }

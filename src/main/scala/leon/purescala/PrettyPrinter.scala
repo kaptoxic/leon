@@ -499,11 +499,9 @@ class PrettyPrinter(opts: PrinterOptions,
         p"$lit"
 
       case Car(l) =>
-        sb.append("Car")
-        ppUnary(l, "(", ")", lvl)
+        p"Car($l)"
       case Cdr(l) =>
-        sb.append("Cdr")
-        ppUnary(l, "(", ")", lvl) 
+        p"Cdr($l)"
 
       // Types
       case Untyped               => p"<untyped>"

@@ -88,8 +88,8 @@ object Extractors {
         Some((Seq(expr), (es: Seq[Expr]) => BVWideningCast(es.head, newType)))
       
       // S-Expressions
-      case Car(t) => Some((t,Car))
-      case Cdr(t) => Some((t,Cdr))
+      case Car(t) => Some((Seq(t), (exprs: Seq[Expr]) => Car(exprs.head)))
+      case Cdr(t) => Some((Seq(t), (exprs: Seq[Expr]) => Car(exprs.head)))
 
       /* Binary operators */
       case LetDef(fds, rest) => Some((
