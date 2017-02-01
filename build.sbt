@@ -201,3 +201,8 @@ lazy val root = (project in file(".")).
   settings(inConfig(GenCTest)(Defaults.testTasks ++ testSettings): _*).
   settings(inConfig(Test)(Defaults.testTasks ++ testSettings): _*)
 
+// logging facilities
+libraryDependencies ++= Seq(
+  "ch.qos.logback" % "logback-classic" % "1.1.7",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
+)
