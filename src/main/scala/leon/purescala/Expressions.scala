@@ -1106,9 +1106,30 @@ object Expressions {
   }
   
   /* S-expressions */
-  case class NilList(baseType: TypeTree) extends Expr with Terminal
-  case class Cons(head: Expr, tail: Expr) extends Expr 
-  case class Car(list: Expr) extends Expr 
-  case class Cdr(list: Expr) extends Expr 
+  case class NilList(baseType: TypeTree) extends Expr with Terminal {
+    val getType = ListType(baseType)
+  }
+  // assume by default list of UnitType
+  case class Cons(head: Expr, tail: Expr) extends Expr {
+    val getType = ListType(UnitType)
+  }
+
+//  object Cons {
+//    def apply(head: Expr, tail: Expr, getType: TypeTree = ListType(UnitType)) = 
+//      new Cons(head, tail, getType)
+//  }
+
+  case class Car(list: Expr) extends Expr {
+    val getType = list.getType match {
+      case ListType(tpe) => ListType(tpe)
+      case _ => Untyped
+    }
+  }
+  case class Cdr(list: Expr) extends Expr  {
+    val getType = list.getType match {
+      case ListType(tpe) => ListType(tpe)
+      case _ => Untyped
+    }
+  }
 
 }

@@ -183,5 +183,8 @@ object Types {
   }
 
   def optionToType(tp: Option[TypeTree]) = tp getOrElse Untyped
+  
+  /* S expressions */
+  case class ListType(base: TypeTree) extends TypeTree
 
 }
