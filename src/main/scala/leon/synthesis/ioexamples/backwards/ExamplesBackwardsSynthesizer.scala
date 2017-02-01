@@ -1,28 +1,33 @@
-package leon.synthesis
+package leon
+package synthesis
 package ioexamples
 package backwards
 
-import leon.purescala.Trees._
-import leon.purescala.Common._
-import leon.purescala.TypeTrees._
-import leon.purescala.TreeOps._
-import leon.purescala.Extractors._
-import leon.purescala.Definitions._
-import leon.synthesis._
-import leon.solvers._
-import leon.evaluators.CodeGenEvaluator
+import purescala._
+import Expressions._
+import Common._
+import Types._
+import ExprOps._
+import Extractors._
+import Definitions._
 
-import leon.StopwatchCollections
+import solvers._
+import evaluators.CodeGenEvaluator
+
+import leon.utils.Timer
 
 case object ExamplesBackwardsSynthesizer extends
   Rule("Input/output example synthesis, backwards discovery method (two phase).") {
 
-  def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
+  def instantiateOn(implicit sctx: SearchContext, p: Problem): Traversable[RuleInstantiation] = {
 
     p.xs match {
       case givenVariable :: Nil =>
-        List(new RuleInstantiation(p, this, SolutionBuilder.none, "Backwards discovery (IO examples)") {
-          def apply(sctx: SynthesisContext): RuleApplicationResult = {
+        new RuleInstantiation(
+          "Backwards discovery (IO examples)"
+//          SolutionBuilder.none
+        ) (p, this) {
+          def apply(sctx: SearchContext): RuleApplication = {
             try {
               val program = sctx.program
               val reporter = sctx.reporter
@@ -52,11 +57,11 @@ case object ExamplesBackwardsSynthesizer extends
 					        
 					      case _ =>
                   sctx.reporter.warning("Bad form of passes for IO synthesis")
-					        RuleApplicationImpossible
+					        RuleFailed()
 					    }
             }
           }
-        })
+        } :: Nil
       case _ =>
         Nil
     }

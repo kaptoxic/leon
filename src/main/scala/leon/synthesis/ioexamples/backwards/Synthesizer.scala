@@ -4,24 +4,24 @@ package backwards
 
 import scala.collection.{ mutable => m }
 
-import purescala.Trees._
-import purescala.TypeTrees._
 import purescala._
-import purescala.Definitions._
-import purescala.Common._
+import Expressions._
+import Types._
+import Definitions._
+import Common._
 import evaluators._
 
-import insynth.util.logging.HasLogger
+import utils.logging.HasLogger
 
-class Synthesizer(evaluator: Evaluator, funDef: FunDef,
+class Synthesizer(val evaluator: Evaluator, funDef: FunDef,
   termSynthesizer: TypeTree => List[Expr]) extends HasLogger {
 
   type IO = (Expr, Expr)
   import Util._
   implicit var sortMap = m.Map[IO, Int]()
   
-  assert(funDef.args.size == 1)
-  val inputVar: Identifier = funDef.args.head.id
+  assert(funDef.params.size == 1)
+  val inputVar: Identifier = funDef.params.head.id
   
   // and/or graphs
   import AndOrGraph._
@@ -300,7 +300,7 @@ class Synthesizer(evaluator: Evaluator, funDef: FunDef,
       if (condition == BooleanLiteral(true)) true
       else { 
         // NOTE this is hacked
-        evaluate(condition, Map(funDef.args.head.id -> expr) ) match {
+        evaluate(condition, Map(funDef.params.head.id -> expr) ) match {
           case BooleanLiteral(res) => res          
         }
       }

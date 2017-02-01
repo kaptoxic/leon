@@ -3,27 +3,27 @@ package synthesis.ioexamples
 
 import scala.collection.mutable.{ Map => MMap, TreeSet }
 
-import purescala.{ Trees => ot }
-import purescala.Trees._
-import purescala.TypeTrees._
-import purescala.TreeOps
-import purescala.Common.FreshIdentifier
-import purescala.Extractors
+import purescala._
+import purescala.{ Expressions => ot }
+import Expressions._
+import Types._
+import ExprOps._
+import Common.FreshIdentifier
+import Extractors._
 
 object Util {
   
   import Extractors._
-  import TreeOps._
   
   // avoid typing problems
   val listType = ListType(BooleanType)
   
-  val w = Variable(FreshIdentifier("w")).setType(listType)
-  val nil = ot.NilList(listType)
+  val w = Variable(FreshIdentifier("w", listType))
+  val nil = NilList(listType)
   
-  def Cons(h: Expr, t: Expr) = ot.Cons(h, t).setType(listType)
-  def Car(l: Expr) = ot.Car(l).setType(listType)
-  def Cdr(l: Expr) = ot.Cdr(l).setType(listType)
+  def Cons(h: Expr, t: Expr) = ot.Cons(h, t)
+  def Car(l: Expr) = ot.Car(l)
+  def Cdr(l: Expr) = ot.Cdr(l)
   
   def isAtom(e: Expr) = e match {
 	  case Atom(_) => true
@@ -35,7 +35,7 @@ object Util {
 	  case _ => None
 	}
   
-  def substituteAllAtom(e: Expr) = searchAndReplace( substituteAtom )(e)
+  def substituteAllAtom(e: Expr) = postMap( substituteAtom )(e)
 
 //  def substituteAtom(e: Expr) = e match {
 //	  case Atom(_) => w
@@ -65,16 +65,16 @@ object Util {
   }
 
   def allSubexpressions(tree: Expr): Set[Expr] = {
-        
-    collect({
-      case nl: NilList => nl
-      case c: Cons => c
-      case car: Car => car
-      case cdr: Cdr => cdr
+    
+    collect[Expr]({
+      case nl: NilList => Set(nl)
+      case c: Cons => Set(c)
+      case car: Car => Set(car)
+      case cdr: Cdr => Set(cdr)
       // variable supported as atoms
-      case v: Variable => v
+      case v: Variable => Set(v)
       case _ => throw new RuntimeException("Not supported")
-    })(tree).toSet
+    })(tree)
     
   }
 

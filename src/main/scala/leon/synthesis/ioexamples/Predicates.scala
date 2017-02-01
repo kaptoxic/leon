@@ -3,15 +3,14 @@ package synthesis.ioexamples
 
 import scala.collection.mutable.{ Map => MMap, TreeSet }
 
-import purescala.Trees._
 import purescala._
+import Expressions._
 
-import insynth.util.logging.HasLogger
+import utils.logging.HasLogger
 
 object Predicates extends HasLogger {
   
   val u = Util
-  import TreeOps._
   import Extractors._
     
   // for two given expressions, return an expression, that, when evaluated,

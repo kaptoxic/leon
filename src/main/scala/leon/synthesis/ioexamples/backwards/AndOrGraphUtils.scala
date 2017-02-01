@@ -8,21 +8,16 @@ import scala.text.Document
 import Document._
 import scala.text.DocNil
 
-import insynth.streams.Streamable
-import insynth.streams.unordered._
-import insynth.streams.ordered 
-
-import insynth.util.format._
-import insynth.util.format.FormatHelpers._
-
 import scala.collection.{ mutable => m }
 
-import purescala.Trees._
-import purescala.TypeTrees._
 import purescala._
-import purescala.Definitions._
-import purescala.Common._
+import Expressions._
+import Types._
+import Definitions._
+import Common._
 import evaluators._
+
+import leon.utils._
 
 object AndOrGraphUtils {
 

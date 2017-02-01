@@ -2,17 +2,17 @@ package leon
 package synthesis
 package ioexamples
 
-import leon.purescala.Trees._
-import leon.purescala.TreeOps._
-import leon.purescala.Definitions._
-import leon.purescala.Common.Identifier
+import purescala._
+import Expressions._
+import ExprOps._
+import Definitions._
+import Common.Identifier
 
-import insynth.util.logging.HasLogger
+import leon.utils.logging.HasLogger
 
 /**
  * @author ivcha
  * Extracts examples
- *
  */
 object ExamplesExtraction extends HasLogger {
   
@@ -54,11 +54,15 @@ object ExamplesExtraction extends HasLogger {
     }
 
     // Look for passes()
-    treeCatamorphism(
-      x => Nil,
-      (l1: Seq[InputOutputExample], l2: Seq[InputOutputExample]) => l1 ++ l2,
-      extractMapping,
-      predicate)
+    collect[InputOutputExample]({
+      case e =>
+        extractMapping(e, Nil).toSet
+    })(predicate).toSeq
+//    treeCatamorphism(
+//      x => Nil,
+//      (l1: Seq[InputOutputExample], l2: Seq[InputOutputExample]) => l1 ++ l2,
+//      extractMapping,
+//      predicate)
   }
   
   def transformMappings(mappings: Seq[InputOutputExample]) = {

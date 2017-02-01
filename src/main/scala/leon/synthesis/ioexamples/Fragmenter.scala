@@ -3,10 +3,10 @@ package synthesis.ioexamples
 
 import scala.collection.mutable.{ Map => MMap, TreeSet }
 
-import purescala.Trees._
 import purescala._
+import Expressions._
 
-import insynth.util.logging.HasLogger
+import utils.logging.HasLogger
 
 /*
  * Computes the decomposed input set
@@ -20,7 +20,7 @@ object Fragmenter extends HasLogger {
   type IO = (Expr, Expr)
   
   val u = Util
-  import TreeOps._
+  import ExprOps._
   import Extractors._
   
   // compute fragments for each given example pair
@@ -41,7 +41,7 @@ object Fragmenter extends HasLogger {
     val modifiedMap = map.mapValues(Some(_))
     
     // for each detected subexpression (the largest one first) substitute
-    searchAndReplace({ e => modifiedMap.getOrElse(e, None) }, false)(tree)
+    postMap({ e => modifiedMap.getOrElse(e, None) }, false)(tree)
   }
 
 }

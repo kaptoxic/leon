@@ -4,11 +4,11 @@ package ioexamples.backwards
 
 import scala.collection.{ mutable => m }
 
-import purescala.Trees._
-import purescala.TypeTrees._
 import purescala._
-import purescala.Definitions._
-import purescala.Common._
+import Expressions._
+import Types._
+import Definitions._
+import Common._
 import evaluators._
 
 object AndOrGraph {

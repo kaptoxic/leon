@@ -3,12 +3,12 @@ package synthesis.ioexamples
 
 import scala.collection.mutable.{ Map => MMap, TreeSet }
 
-import purescala.Trees._
 import purescala._
-import purescala.Definitions._
-import purescala.Common._
+import Expressions._
+import Definitions._
+import Common._
 
-import insynth.util.logging.HasLogger
+import utils.logging.HasLogger
 
 class Synthesizer extends HasLogger {
 
@@ -17,7 +17,7 @@ class Synthesizer extends HasLogger {
   
   implicit var sortMap = MMap[IO, Int]()
   
-  def synthesize(examples: List[IO]): Option[(Expr, FunDef)] = {
+  def synthesize(examples: List[IO]): Option[(Expr, TypedFunDef)] = {
 //    val allIds = (Set[Variable]() /: examples) {
 //      case (res, (in, out)) =>
 //        res ++ TreeOps.collect({ case x: Variable => x })(in) ++
@@ -28,7 +28,7 @@ class Synthesizer extends HasLogger {
 //    if (allIds.size != 1)
 //      return None
       
-    val inputVariable = Variable(FreshIdentifier("x", true)).setType(listType)
+    val inputVariable = Variable(FreshIdentifier("x", listType))
     val sortedExamples = sort(examples, { x: IO => x._1 })    
     
     val fragments = calculateFragments(sortedExamples, inputVariable)
@@ -39,12 +39,17 @@ class Synthesizer extends HasLogger {
         if (fragments.size == p.size) {
           val resType = examples.head._2.getType
          
-          val newFun = new FunDef(FreshIdentifier("rec", true), resType, Seq(VarDecl(inputVariable.id, inputVariable.getType)) )
+          val newFun = new FunDef(
+            FreshIdentifier("rec"),
+            Nil,
+            ValDef(inputVariable.id) :: Nil,
+            resType
+          ).typed(Nil)
 
           val recursiveFragment =
             a(FunctionInvocation(newFun, Seq(b)))
           
-          newFun.body = Some(
+          newFun.fd.body = Some(
             IfExpr(p.last, fragments.last, recursiveFragment)
           )
           
@@ -54,7 +59,7 @@ class Synthesizer extends HasLogger {
                 IfExpr(pred, frag, elseExpr) 
             }          
           
-          Some(ifExpr, newFun)
+          Some((ifExpr, newFun))
         } else
           throw new Exception("Do not know how to combine fragments in this case.")
       case _ =>
