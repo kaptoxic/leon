@@ -197,6 +197,8 @@ object Extractors {
         Some(Seq(body, post), (es: Seq[Expr]) => Ensuring(es(0), es(1)))
       case Assert(const, oerr, body) =>
         Some(Seq(const, body), (es: Seq[Expr]) => Assert(es(0), oerr, es(1)))
+        
+      case Cons(head, tail) => Some((Seq(head, tail), (es: Seq[Expr]) => Cons(es(0), es(1))))
 
       /* Other operators */
       case fi @ FunctionInvocation(fd, args) => Some((args, FunctionInvocation(fd, _)))
