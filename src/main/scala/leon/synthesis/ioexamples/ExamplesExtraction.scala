@@ -13,56 +13,26 @@ import leon.utils.logging.HasLogger
 /**
  * @author ivcha
  * Extracts examples
+ * NOTE: currently works with 1 input, 1 output
  */
-object ExamplesExtraction extends HasLogger {
+class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
   
   type InputOutputExample = ((Identifier, Expr), (Identifier, Expr))
   
-  def extract(predicate: Expr): Seq[InputOutputExample] = {
-    info("extracting examples from predicate: " + predicate)
+  def extract(problem: Problem): Seq[InputOutputExample] = {
+    require(problem.as.size == 1)
+    require(problem.xs.size == 1)
+    info("extracting examples from problem: " + problem)
+    
+    val eFinder = new ExamplesFinder(ctx, program)
 
-    def extractMapping(e: Expr, otherSeq: Seq[InputOutputExample]): Seq[InputOutputExample] = e match {
-      case passAnd @ And(exprs) if exprs.forall(
-        _ match {
-          case Implies(Equals(inE, _: Variable), Equals(_: Variable, outE)) 
-//          if {
-//            fine("allIdentifiers(rin): " + variablesOf(rin) + "arguments: " + arguments)
-//            variablesOf(rin) == arguments
-//          }
-          	=> true
-          case _ => false
-        }) => {
-        fine("found needed And: " + passAnd)
-        val mappingsInThisAnd =
-	        (for (expr <- exprs)
-	          yield expr match {
-		          case Implies(Equals(f, Variable(idIn)), Equals(Variable(idOut), t)) => ((idIn -> f), (idOut -> t))
-	//	          case Implies(Equals(exprTuple@Tuple(valExpr), idType@Tuple(idExprs)), Equals(rout, t))
-	//	          	if valExpr.size == arguments.size && idExprs.forall(_.isInstanceOf[Variable]) => {
-	//	            val idMap =
-	//	              (for ((idExpr, valExpr) <- idExprs zip valExpr;
-	//            		  val id = idExpr.asInstanceOf[Variable].id) yield	                
-	//	                (id, valExpr)).toMap
-	//	            InputOutputExample(idMap, t)	            
-	//	          }
-	        	})
-	        	
-        mappingsInThisAnd	++ otherSeq
-      }
-      case _ =>
-        otherSeq
-    }
-
-    // Look for passes()
-    collect[InputOutputExample]({
-      case e =>
-        extractMapping(e, Nil).toSet
-    })(predicate).toSeq
-//    treeCatamorphism(
-//      x => Nil,
-//      (l1: Seq[InputOutputExample], l2: Seq[InputOutputExample]) => l1 ++ l2,
-//      extractMapping,
-//      predicate)
+    val chooseEb = eFinder.extractFromProblem(problem)
+    
+    info(s"chooseEb.valids ${chooseEb.valids}")
+    chooseEb.valids.collect({
+      case InOutExample(in :: Nil, out :: Nil) =>
+        ((problem.as.head, in), (problem.xs.head, out))
+    })
   }
   
   def transformMappings(mappings: Seq[InputOutputExample]) = {
@@ -79,7 +49,4 @@ object ExamplesExtraction extends HasLogger {
     } else None
   }
   
-//  implicit def pairToInputOutputExample(pair: (Map[Identifier, Expr], Expr)) =
-//    InputOutputExample(pair._1, pair._2)
-
 }

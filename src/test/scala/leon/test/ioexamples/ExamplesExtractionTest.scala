@@ -2,9 +2,10 @@ package leon.test
 package ioexamples
 
 import leon._
-import leon.purescala.Definitions._
-import leon.purescala.Trees._
-import leon.purescala.TreeOps._
+import purescala._
+import Expressions._
+import Definitions._
+import Types._
 import leon.solvers.z3._
 import leon.solvers.Solver
 import leon.synthesis._
@@ -13,268 +14,218 @@ import leon.synthesis.ioexamples._
 
 import leon.test.condabd.util._
 
-import org.scalatest.FunSuite
-import org.scalatest.matchers.ShouldMatchers._
+import org.scalatest._
+import org.scalatest.Matchers._
 
 import java.io.{ BufferedWriter, FileWriter, File }
 
-class ExamplesExtractionTest extends FunSuite {
+class ExamplesExtractionTest extends FunSpec with Inside {
 
   import Scaffold._
 
   val lesynthTestDir = "testcases/synthesis/"
-  
-  test("expected trees from passes should be returned") {
-   
+
+  describe("parsing input-output examples specs") {
+
     val problems = forFile(lesynthTestDir + "ExamplesAsSpecifications.scala").toList
-    problems.size should be (3)
-    
-    {
-	    val (sctx, funDef, problem) = problems.head
-	    
-	    problem.as.size should be (1)
-	    val in = problem.as.head.toVariable
-	    problem.xs.size should be (1)
-	    val out = problem.xs.head.toVariable
-	    
-	    problem.phi match {
-	      case And(
-	    		Implies(Equals(IntLiteral(-1), `in`), Equals(`out`, IntLiteral(-1))) ::
-	    		Implies(Equals(IntLiteral(0), `in`), Equals(`out`, IntLiteral(0))) ::
-	    		Implies(Equals(IntLiteral(42), `in`), Equals(`out`, IntLiteral(42))) :: Nil
-	      ) =>
-	      case _ => fail("Predicate was:\n" + problem.phi + "\nWe expected:\n" + And(
-	    		Implies(Equals(IntLiteral(-1), in), Equals(out, IntLiteral(-1))) ::
-	    		Implies(Equals(IntLiteral(0), in), Equals(out, IntLiteral(0))) ::
-	    		Implies(Equals(IntLiteral(42), in), Equals(out, IntLiteral(42))) :: Nil
-	      ))
-	    }
+
+    describe("expected trees from passes should be returned") {
+
+      it("should parse all problems") {
+        problems.size should be(3)
+      }
     }
-  }
-  
-  test("expected  mappings should be extracted") {
-   
-    val problems = forFile(lesynthTestDir + "ExamplesAsSpecifications.scala").toList
-    problems.size should be (3)
-    
-    {
-	    val (sctx, funDef, problem) = problems.head
-	    
-	    val mappings = ExamplesExtraction.extract(problem.phi)
-	    
-	    val ioExamples = ExamplesExtraction.transformMappings(mappings)
-	    
-	    ioExamples match {
-	      case Some(((inId, outId), exampleList)) =>
-	        inId should be (problem.as.head)
-	        outId should be (problem.xs.head)
-	        exampleList.size should be (3)
-	      case _ => fail
-	    }
+
+    describe("should parse passes with map") {
+      val (sctx, funDef, problem) = problems.head
+
+      it("should correctly construct identity") {
+
+        problem.as.size should be(1)
+        val in = problem.as.head
+        problem.xs.size should be(1)
+        val out = problem.xs.head
+
+        withClue(problem) {
+          val extraction = new ExamplesExtraction(sctx, sctx.program)
+          val examples = extraction.extract(problem)
+
+          withClue(examples) {
+            examples should not be ('empty)
+
+            examples should contain allOf (
+              ((in, IntLiteral(-1)), (out, IntLiteral(-1))),
+              ((in, IntLiteral(0)), (out, IntLiteral(0))),
+              ((in, IntLiteral(42)), (out, IntLiteral(42))))
+          }
+        }
+      }
     }
-    
-    {
-      val (sctx, funDef, problem) = problems.find(_._2.id.name == "tail").get
-      
-      val program = sctx.program
-      
-//      val listClass = program.caseClassDef("List")
-      val consClass = program.caseClassDef("Cons")
-      val nilClass = program.caseClassDef("Nil")
-      
-      val nilExp = CaseClass(nilClass, Nil): Expr
-      
-      val mappings = ExamplesExtraction.extract(problem.phi)
-      
-      val ioExamples = ExamplesExtraction.transformMappings(mappings)
-      
-      ioExamples match {
-        case Some(((inId, outId), exampleList)) =>
-          inId should be (problem.as.head)
-          outId should be (problem.xs.head)
-          exampleList.size should be (3)
-          
-          exampleList should contain (
-            (CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil): Expr, nilExp)
-          )
-          exampleList should contain (
+
+    describe("should parse problems with match passes") {
+
+      it("should correctly construct tail") {
+        val (sctx, funDef, problem) = problems.find(_._2.id.name == "tail").get
+
+        val program = sctx.program
+
+        val consClass = program.caseClassDef("Cons").typed
+        val nilClass = program.caseClassDef("Nil").typed
+        val nilExp = CaseClass(nilClass, Nil): Expr
+
+        withClue(problem) {
+
+          val extraction = new ExamplesExtraction(sctx, sctx.program)
+          val examples = extraction.extract(problem)
+
+          for (ioExample <- examples) {
+            inside(ioExample) {
+              case (in, out) =>
+                inside(in) {
+                  case (inId, inExpr) => inId.name shouldBe "in"
+                }
+                inside(out) {
+                  case (outId, _) => outId.name shouldBe "out"
+                }
+            }
+          }
+
+          examples.size should be(3)
+          examples.map { ex =>
+            (ex._1._2, ex._2._2)
+          } should contain allOf (
+            (CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil): Expr, nilExp),
             (CaseClass(consClass, IntLiteral(0) ::
               (CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil))
               :: Nil): Expr,
-            CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil): Expr)
-          )
-        case _ => fail
+              CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil): Expr))
+        }
       }
     }
   }
-    
-//    {
-//	    val (sctx, funDef, problem) = problems.toList(1)
-//	    
-//	    problem.as.size should be (1)
-//	    val in = problem.as.head.toVariable
-//	    problem.xs.size should be (1)
-//	    val out = problem.xs.head.toVariable
-//	    
-//	    problem.phi match {
-//	      case And(
-//	    		Implies(Equals(IntLiteral(-1), `in`), Equals(`out`, IntLiteral(-1))) ::
-//	    		Implies(Equals(IntLiteral(0), `in`), Equals(`out`, IntLiteral(0))) ::
-//	    		Implies(Equals(IntLiteral(42), `in`), Equals(`out`, IntLiteral(42))) :: Nil
-//	      ) =>
-//	      case _ => fail("Predicate was:\n" + problem.phi + "\nWe expected:\n" + And(
-//	    		Implies(Equals(IntLiteral(-1), in), Equals(out, IntLiteral(-1))) ::
-//	    		Implies(Equals(IntLiteral(0), in), Equals(out, IntLiteral(0))) ::
-//	    		Implies(Equals(IntLiteral(42), in), Equals(out, IntLiteral(42))) :: Nil
-//	      ))
-//	    }
-//    }
-//    
-//    {
-//	    val (sctx, funDef, problem) = problems.toList(2)
-//	    
-//	    problem.as.size should be (1)
-//	    val in = problem.as.head.toVariable
-//	    problem.xs.size should be (1)
-//	    val out = problem.xs.head.toVariable
-//	    
-//	    problem.phi match {
-//	      case And(
-//	    		Implies(Equals(IntLiteral(-1), `in`), Equals(`out`, IntLiteral(-1))) ::
-//	    		Implies(Equals(IntLiteral(0), `in`), Equals(`out`, IntLiteral(0))) ::
-//	    		Implies(Equals(IntLiteral(42), `in`), Equals(`out`, IntLiteral(42))) :: Nil
-//	      ) =>
-//	      case _ => fail("Predicate was:\n" + problem.phi + "\nWe expected:\n" + And(
-//	    		Implies(Equals(IntLiteral(-1), in), Equals(out, IntLiteral(-1))) ::
-//	    		Implies(Equals(IntLiteral(0), in), Equals(out, IntLiteral(0))) ::
-//	    		Implies(Equals(IntLiteral(42), in), Equals(out, IntLiteral(42))) :: Nil
-//	      ))
-//	    }
-//    }
-//  }
-  
-//
-//  test("simple one-argument passes") {
-//
-//    for (
-//      (sctx, f, p) <- forProgram(
-//        """
-//  	    import leon.Utils._
-//
-//				object TestObject {
-//				  				  
-//				  abstract class A
-//				  case object B extends A
-//				  case class C(a: Int, b: Int) extends A
-//				  
-//				  def testFun(in: A) = choose {
-//				    (res: C) =>
-//				      passes(
-//					    Map[A, C](
-//				          B -> C(1, 2),
-//				          C(1, 0) -> C(1, 1)
-//				    		),
-//			        in, res
-//					  )
-//				  }
-//  			}
-//	    """)
-//    ) {
-//      val predicate = p.phi
-//      val arguments = f.args.map(_.id).toSet
-//      
-//      val result = ExamplesExtraction.extract(predicate, arguments).toSet
-//      
-//      expect(2) {
-//        result.size
-//      }
-//    }
-//  }
-//  
-//  test("passes with tuple argument") {
-//
-//    for (
-//      (sctx, f, p) <- forProgram(
-//        """
-//  	    import leon.Utils._
-//
-//		object TestObject {
-//		  				  
-//		  abstract class A
-//		  case object B extends A
-//		  case class C(a: Int, b: Int) extends A
-//  	    
-//  		  case class X(x: Int)
-//		  
-//		  def testFun(in: (A, A, X)) = choose {
-//		    (res: C) =>
-//		      passes(
-//    		  Map[(A, A, X), C](
-//		          (B, B, X(1)) -> C(1, 2),
-//		          (C(1, 0), B, X(2)) -> C(1, 1)
-//		    		),
-//	        in, res
-//			  )
-//		  }
-//  			}
-//	    """)
-//    ) {
-//      val predicate = p.phi
-//      val arguments = f.args.map(_.id).toSet
-//      
-//      val result = ExamplesExtraction.extract(predicate, arguments).toSet
-//      expect(2) {
-//        result.size
-//      }
-//      
-//      for(exp <- "InputOutputExample(Map(in -> (B, B, X(1))),C(1, 2))" ::
-//	    "InputOutputExample(Map(in -> (C(1, 0), B, X(2))),C(1, 1))" :: Nil)
-//        result.map(_.toString).contains(exp)
-//    }
-//  }
-//  
-//  test("passes with tuple") {
-//
-//    for (
-//      (sctx, f, p) <- forProgram(
-//        """
-//  	    import leon.Utils._
-//
-//		object TestObject {
-//		  				  
-//		  abstract class A
-//		  case object B extends A
-//		  case class C(a: Int, b: Int) extends A
-//  	    
-//  		  case class X(x: Int)
-//		  
-//		  def testFun(in1: A, in2: A, in3: X) = choose {
-//		    (res: C) =>
-//		      passes(
-//    		  Map[(A, A, X), C](
-//		          (B, B, X(1)) -> C(1, 2),
-//		          (C(1, 0), B, X(2)) -> C(1, 1)
-//		    		),
-//	        (in1, in2, in3), res
-//			  )
-//		  }
-//  			}
-//	    """)
-//    ) {
-//      val predicate = p.phi
-//      val arguments = f.args.map(_.id).toSet
-//      
-//      val result = ExamplesExtraction.extract(predicate, arguments).toSet
-//      
-//      expect(2) {
-//        result.size
-//      }
-//      
-//      for(exp <- "InputOutputExample(Map(in1 -> B, in2 -> B, in3 -> X(1)),C(1, 2))" ::
-//	    "InputOutputExample(Map(in1 -> C(1, 0), in2 -> B, in3 -> X(2)),C(1, 1))" :: Nil)
-//        result.map(_.toString).contains(exp)
-//       
-//    }
-//  }
+
+  //
+  //  test("simple one-argument passes") {
+  //
+  //    for (
+  //      (sctx, f, p) <- forProgram(
+  //        """
+  //  	    import leon.Utils._
+  //
+  //				object TestObject {
+  //				  				  
+  //				  abstract class A
+  //				  case object B extends A
+  //				  case class C(a: Int, b: Int) extends A
+  //				  
+  //				  def testFun(in: A) = choose {
+  //				    (res: C) =>
+  //				      passes(
+  //					    Map[A, C](
+  //				          B -> C(1, 2),
+  //				          C(1, 0) -> C(1, 1)
+  //				    		),
+  //			        in, res
+  //					  )
+  //				  }
+  //  			}
+  //	    """)
+  //    ) {
+  //      val predicate = p.phi
+  //      val arguments = f.args.map(_.id).toSet
+  //      
+  //      val result = ExamplesExtraction.extract(predicate, arguments).toSet
+  //      
+  //      expect(2) {
+  //        result.size
+  //      }
+  //    }
+  //  }
+  //  
+  //  test("passes with tuple argument") {
+  //
+  //    for (
+  //      (sctx, f, p) <- forProgram(
+  //        """
+  //  	    import leon.Utils._
+  //
+  //		object TestObject {
+  //		  				  
+  //		  abstract class A
+  //		  case object B extends A
+  //		  case class C(a: Int, b: Int) extends A
+  //  	    
+  //  		  case class X(x: Int)
+  //		  
+  //		  def testFun(in: (A, A, X)) = choose {
+  //		    (res: C) =>
+  //		      passes(
+  //    		  Map[(A, A, X), C](
+  //		          (B, B, X(1)) -> C(1, 2),
+  //		          (C(1, 0), B, X(2)) -> C(1, 1)
+  //		    		),
+  //	        in, res
+  //			  )
+  //		  }
+  //  			}
+  //	    """)
+  //    ) {
+  //      val predicate = p.phi
+  //      val arguments = f.args.map(_.id).toSet
+  //      
+  //      val result = ExamplesExtraction.extract(predicate, arguments).toSet
+  //      expect(2) {
+  //        result.size
+  //      }
+  //      
+  //      for(exp <- "InputOutputExample(Map(in -> (B, B, X(1))),C(1, 2))" ::
+  //	    "InputOutputExample(Map(in -> (C(1, 0), B, X(2))),C(1, 1))" :: Nil)
+  //        result.map(_.toString).contains(exp)
+  //    }
+  //  }
+  //  
+  //  test("passes with tuple") {
+  //
+  //    for (
+  //      (sctx, f, p) <- forProgram(
+  //        """
+  //  	    import leon.Utils._
+  //
+  //		object TestObject {
+  //		  				  
+  //		  abstract class A
+  //		  case object B extends A
+  //		  case class C(a: Int, b: Int) extends A
+  //  	    
+  //  		  case class X(x: Int)
+  //		  
+  //		  def testFun(in1: A, in2: A, in3: X) = choose {
+  //		    (res: C) =>
+  //		      passes(
+  //    		  Map[(A, A, X), C](
+  //		          (B, B, X(1)) -> C(1, 2),
+  //		          (C(1, 0), B, X(2)) -> C(1, 1)
+  //		    		),
+  //	        (in1, in2, in3), res
+  //			  )
+  //		  }
+  //  			}
+  //	    """)
+  //    ) {
+  //      val predicate = p.phi
+  //      val arguments = f.args.map(_.id).toSet
+  //      
+  //      val result = ExamplesExtraction.extract(predicate, arguments).toSet
+  //      
+  //      expect(2) {
+  //        result.size
+  //      }
+  //      
+  //      for(exp <- "InputOutputExample(Map(in1 -> B, in2 -> B, in3 -> X(1)),C(1, 2))" ::
+  //	    "InputOutputExample(Map(in1 -> C(1, 0), in2 -> B, in3 -> X(2)),C(1, 1))" :: Nil)
+  //        result.map(_.toString).contains(exp)
+  //       
+  //    }
+  //  }
 
 }
