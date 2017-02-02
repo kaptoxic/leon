@@ -41,7 +41,14 @@ object Fragmenter extends HasLogger {
     val modifiedMap = map.mapValues(Some(_))
     
     // for each detected subexpression (the largest one first) substitute
-    postMap({ e => modifiedMap.getOrElse(e, None) }, false)(tree)
+//    postMap({ e => modifiedMap.getOrElse(e, None) }, false)(tree)
+    preMapWithContext({ (e: Expr, done: Boolean) =>
+      if (done)
+        (None, true)
+      else if (modifiedMap contains e)
+        (modifiedMap(e), true)
+      else (None, false)
+    }, false)(tree, false)
   }
 
 }

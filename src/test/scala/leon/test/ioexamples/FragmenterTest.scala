@@ -2,18 +2,18 @@ package leon
 package test.ioexamples
 
 import leon.synthesis.ioexamples._
-import purescala.Trees._
 import purescala._
+import Expressions._
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.ShouldMatchers._
+import org.scalatest._
 
-class FragmenterTest extends FunSuite {
+class FragmenterTest extends FunSuite with Matchers {
   
   import ExampleInputs._
   import Extractors._
   import Util._
-  import TreeOps._
+  import ExprOps._
 
   import Fragmenter._
 
@@ -22,12 +22,27 @@ class FragmenterTest extends FunSuite {
     map(e) should be (e)
   }
   
-  test("(A B) fragment") {
-    val x = elABr
+  test("test map of subexpressions") {
+    // (A B)
+    val in = elABr
     
-    expectResult( Cons(Cons(Car(x), nil), Cons(Cdr(x), nil)) ) {
-      constructFragment(ellArlBrr, mapOfSubexpressions(elABr)
-        .filterNot( _._1.isInstanceOf[NilList] ).mapValues(_(elABr)))
+    val subMap = mapOfSubexpressions(elABr)
+    
+    subMap.map({case (k, v) => (k, v(x)) }) should contain (elBr -> Cdr(x))
+    
+  }
+  
+  test("(A B) fragment") {
+    // (A B)
+    val in = elABr
+    // ( (A) (B) )
+    val output = ellArlBrr
+    
+    ellArlBrr should be (Cons(elAr, Cons(elBr, nil)))
+    
+    assertResult( Cons(Cons(Car(in), nil), Cons(Cdr(in), nil)) ) {
+      constructFragment(ellArlBrr, mapOfSubexpressions(in).
+        filterNot( _._1.isInstanceOf[NilList] ).mapValues(_(in)))
     }
   } 
   
