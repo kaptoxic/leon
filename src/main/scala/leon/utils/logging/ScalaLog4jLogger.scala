@@ -1,8 +1,8 @@
 package leon.utils.logging
 
-import com.typesafe.scalalogging.{ Logger => ScalaLogger }
+import org.apache.logging.log4j.{ Logger => Logger4J }
 
-class ScalaLog4jLogger(logger: ScalaLogger) extends Logger {
+class ScalaLog4jLogger(logger: Logger4J) extends Logger {
 
   protected[this] def getMyClass = this.getClass
     

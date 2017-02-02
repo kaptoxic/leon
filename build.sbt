@@ -203,6 +203,6 @@ lazy val root = (project in file(".")).
 
 // logging facilities
 libraryDependencies ++= Seq(
-  "ch.qos.logback" % "logback-classic" % "1.1.7",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
+  "org.apache.logging.log4j" % "log4j-api" % "2.8",
+  "org.apache.logging.log4j" % "log4j-core" %"2.8"
 )

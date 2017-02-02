@@ -2,8 +2,8 @@ package leon.utils.logging
 
 import scala.collection.mutable.{ Map => MutableMap }
 
-import com.typesafe.scalalogging.{ Logger => ScalaLogger }
-import org.slf4j.{ LoggerFactory => S4LogFactory }
+import org.apache.logging.log4j.{ Logger => Logger4J }
+import org.apache.logging.log4j.LogManager
 
 /** 
  * Factory for producing loggers
@@ -27,9 +27,9 @@ object LoggerFactory {
     val className = hasLogger.getMyClass.getName
     
     if (className contains "insynth.streams")
-      new ScalaLog4jLogger(ScalaLogger(S4LogFactory.getLogger(className))) with HashCodeOutput
+      new ScalaLog4jLogger(LogManager.getLogger(className)) with HashCodeOutput
     else
-    	new ScalaLog4jLogger(ScalaLogger(S4LogFactory.getLogger(className)))
+    	new ScalaLog4jLogger(LogManager.getLogger(className))
     //(new DummyLogger, null)
   }
 
