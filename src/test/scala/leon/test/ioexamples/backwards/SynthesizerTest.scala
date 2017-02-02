@@ -3,7 +3,7 @@
 //
 //import leon.purescala.Definitions._
 //import leon.purescala.Trees._
-//import leon.purescala.TreeOps._
+//import leon.purescala.ExprOps._
 //import leon.solvers.z3._
 //import leon.solvers.Solver
 //import leon.synthesis.{ Synthesizer => _, _ }
@@ -15,7 +15,7 @@
 //import leon.test.condabd.util._
 //
 //import org.scalatest.FunSuite
-//import org.scalatest.matchers.ShouldMatchers._
+//import org.scalatest.Matchers._
 //
 //import java.io.{ BufferedWriter, FileWriter, File }
 //

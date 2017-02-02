@@ -6,7 +6,7 @@
 		</Console>
 	</appenders>
 	<loggers>
-		<logger name="leon.synthesis.ioexamples" level="all" additivity="false">
+		<logger name="leon.synthesis.ioexamples" level="off" additivity="false">
 			<appender-ref ref="Console" />
 		</logger>
 		<root level="error">
