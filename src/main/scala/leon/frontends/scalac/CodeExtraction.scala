@@ -1375,6 +1375,20 @@ trait CodeExtraction extends ASTExtractors {
             case other => ctx.reporter.fatalError(other.getPos, "Only i/o variables are allowed in i/o examples")
           }
           passes(ine, oute, rc)
+          
+        case ExPassesMap(in, out, map) =>
+          
+          val rexs = extractTree(map).asInstanceOf[FiniteMap]
+          val rin  = extractTree(in)
+          val rout = extractTree(out)
+
+          // And(rexs.pairs.toSeq.map { case (f, t) => Implies(Equals(f, rin), Equals(rout, t)) })
+          val cases =
+            rexs.pairs.toSeq.map {
+              case (f: Expressions.Literal[_], t) =>
+                SimpleCase(LiteralPattern(None, f), t)
+            }
+          passes(rin, rout, cases)
 
         case ExArrayLiteral(tpe, args) =>
           finiteArray(args.map(extractTree), None, extractType(tpe)(dctx, current.pos))

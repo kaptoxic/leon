@@ -56,7 +56,24 @@ package object lang {
     val (in, out) = io
     def passes(tests : A => B ) : Boolean =
       try { tests(in) == out } catch { case _ : MatchError => true }
+
   }
+  
+  @ignore
+  implicit def mapToPartial[A,B](m: Map[A, B]): PartialFunction[A, B] = m
+
+//  @ignore
+//  implicit class PassesMap[A,B](io : (A,B)) {
+//    val (in, out) = io
+//
+//    def passesMap(tests: Map[A, B]) = {
+//      if (tests.isDefinedAt(in)) {
+//        tests(in) == out
+//      } else {
+//        true
+//      }
+//    }
+//  }
 
   @ignore
   def byExample[A, B](in: A, out: B): Boolean = {

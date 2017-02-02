@@ -338,7 +338,8 @@ trait ASTExtractors {
                 ))
               )
           => Some((in, out, tests))
-        case _ => None
+        case _ => 
+          None
       }
     }
 
@@ -1190,7 +1191,7 @@ trait ASTExtractors {
         case _ => None
       }
     }
-
+    
     object ExLiteralMap {
       def unapply(tree: Apply): Option[(Tree, Tree, Seq[Tree])] = tree match {
         case Apply(TypeApply(ExSelected("scala", "Predef", "Map", "apply"), fromTypeTree :: toTypeTree :: Nil), args) =>
@@ -1199,6 +1200,7 @@ trait ASTExtractors {
           None
       }
     }
+
     object ExEmptyMap {
       def unapply(tree: TypeApply): Option[(Tree, Tree)] = tree match {
         case TypeApply(ExSelected("scala", "collection", "immutable", "Map", "empty"), fromTypeTree :: toTypeTree :: Nil) =>
@@ -1236,7 +1238,10 @@ trait ASTExtractors {
           Some((tptFrom, tptTo, args))
         case Apply(TypeApply(ExSelected("leon", "lang", "Map", "apply"), Seq(tptFrom, tptTo)), args) =>
           Some((tptFrom, tptTo, args))
-        case _ => None
+        case Apply(TypeApply(ExSelected("scala", "Predef", "Map", "apply"), List(tptFrom, tptTo)), args) =>
+          Some((tptFrom, tptTo, args))
+        case _ =>
+          None
       }
     }
 
@@ -1306,6 +1311,30 @@ trait ASTExtractors {
              ) =>
             Some((baseType, length, defaultValue))
         case _ => None
+      }
+    }
+    
+    /** Extracts the `(input, output) passes { Map(...) }` and returns (input, output, list of tuples) */
+    object ExPassesMap {
+      def unapply(tree : Apply) : Option[(Tree, Tree, Tree)] = tree match {
+        case  Apply(
+                Select(
+                  Apply(
+                    TypeApply(
+                      ExSelected("leon", "lang", "package", "Passes"),
+                      List(_, _)
+                    ),
+                    List(ExpressionExtractors.ExTuple(_, Seq(in,out)))
+                  ),
+                  ExNamed("passes")
+                ),
+                m :: Nil
+              )
+          =>
+//            println(scala.reflect.runtime.universe showRaw m)
+            Some((in, out, m))
+        case _ => 
+          None
       }
     }
   }
