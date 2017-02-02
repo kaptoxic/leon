@@ -114,7 +114,14 @@ object Predicates extends HasLogger {
     
     assert( differences forall { _.size == 1})
     
-    (x: Expr) => Or(differences.map(_.head(x)).toSeq)
+    (x: Expr) => {
+      val sequence = differences.map(_.head(x)).toSeq
+      assert(sequence.size > 0)
+      if (sequence.size >= 2) 
+        Or(sequence)
+      else
+        sequence.head
+    }
   }
   
   def calculatePredicates(inputExamples: List[Expr]) = {

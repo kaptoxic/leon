@@ -1,9 +1,9 @@
 package leon
 package test.ioexamples
 
-import purescala.Trees._
-import purescala.TypeTrees._
-import purescala.TreeOps
+import purescala._
+import Expressions._
+import Types._
 import purescala.Common.FreshIdentifier
 
 import synthesis.ioexamples.Util
@@ -12,15 +12,15 @@ object ExampleInputs {
   
   import Util._
   
-  val identifierA = FreshIdentifier("A")
-  val identifierB = FreshIdentifier("B")
-  val identifierC = FreshIdentifier("C")
-  val identifierX = FreshIdentifier("x")
+  val identifierA = FreshIdentifier("A", Int32Type)
+  val identifierB = FreshIdentifier("B", Int32Type)
+  val identifierC = FreshIdentifier("C", Int32Type)
+  val identifierX = FreshIdentifier("x", Int32Type)
   
-  val varA = Variable(identifierA).setType(Int32Type)
-  val varB = Variable(identifierB).setType(Int32Type)
-  val varC = Variable(identifierC).setType(Int32Type)
-  val x = Variable(identifierX).setType(Int32Type)
+  val varA = Variable(identifierA)
+  val varB = Variable(identifierB)
+  val varC = Variable(identifierC)
+  val x = Variable(identifierX)
   
   // ()
   val elr = nil

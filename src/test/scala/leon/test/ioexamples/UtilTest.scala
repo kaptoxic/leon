@@ -2,11 +2,12 @@ package leon
 package test.ioexamples
 
 import leon.synthesis.ioexamples._
-import purescala.Trees._
+
 import purescala._
+import Expressions._
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.ShouldMatchers._
+import org.scalatest.Matchers._
 
 // TODO codegen evaluator params should be used but not yet in master
 class UtilTest extends FunSuite {
@@ -16,7 +17,7 @@ class UtilTest extends FunSuite {
   import Extractors._
 
   import Util._
-  import TreeOps._
+  import ExprOps._
 
   def assertExpressionMapping(e: Expr)(implicit map: Map[Expr, Expr]) = {
     assert(map contains e)

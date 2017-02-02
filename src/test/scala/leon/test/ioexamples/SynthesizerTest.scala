@@ -2,19 +2,20 @@ package leon
 package test.ioexamples
 
 import leon.synthesis.ioexamples._
-import purescala.Trees._
-import purescala.Definitions._
+
 import purescala._
+import Expressions._
+import purescala.Definitions._
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.ShouldMatchers._
+import org.scalatest.Matchers._
 
 class SynthesizerTest extends FunSuite {
   
   import ExampleInputs._
   import Extractors._
   import Util._
-  import TreeOps._
+  import ExprOps._
 
   test("predicate recursion on unpack") {
     val synthesizer = new Synthesizer
@@ -56,17 +57,19 @@ class SynthesizerTest extends FunSuite {
       oeunpack1, oeunpack2, oeunpack3, oeunpack4  
     )
     
-    synthesizer.synthesize(iExamples zip oExamples) match { 
-      case Some((IfExpr(x: Variable, nil, fi@FunctionInvocation(f1, args)),
-        f2: FunDef
-      )) => 
-        assert(f1 == f2)
-        f2.body should be (Some(
-          IfExpr(Cdr(`x`), Cons(`x`, nil), Cons(Cons(Car(`x`), nil), 
-          FunctionInvocation(f2, Seq(Cdr(`x`)))))
-        ))
-      case _ =>
-        fail
+    val res = synthesizer.synthesize(iExamples zip oExamples)
+    
+    withClue(res) {
+      res match { 
+        case Some((IfExpr(x: Variable, nil, fi@FunctionInvocation(f1, args)), f2)) => 
+          assert(f1 == f2)
+          f2.body should be (Some(
+            IfExpr(Cdr(`x`), Cons(`x`, nil), Cons(Cons(Car(`x`), nil), 
+            FunctionInvocation(f2, Seq(Cdr(`x`)))))
+          ))
+        case _ =>
+          fail
+      }
     }
   }
 

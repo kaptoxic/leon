@@ -74,7 +74,7 @@ object Scaffold {
       pipeline.run(ctx, file :: Nil)
     } catch {
       case LeonFatalError(msg) =>
-        fail(s"Compilation failed: ${msg.getOrElse("")}")
+        fail(s"Compilation failed for file $file: ${msg.getOrElse("")}")
     }
     
     val chooses = SourceInfo.extractFromProgram(newCtx, program)

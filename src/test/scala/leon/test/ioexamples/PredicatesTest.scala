@@ -2,18 +2,19 @@ package leon
 package test.ioexamples
 
 import leon.synthesis.ioexamples._
-import purescala.Trees._
+
 import purescala._
+import Expressions._
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.ShouldMatchers._
+import org.scalatest.Matchers._
 
 class PredicatesTest extends FunSuite {
   
   import ExampleInputs._
   import Extractors._
   import Util._
-  import TreeOps._
+  import ExprOps._
   
   import Predicates._
 
@@ -35,7 +36,10 @@ class PredicatesTest extends FunSuite {
     // ensure all input examples have atoms replaced with w
     for (ex <- inputExamples) {
       val gathered = (List[Expr]() /: allSubexpressions(ex)) {
-        (res, el) => res ++ collect({ case Atom(e) => e })(el)
+        (res, el) => res ++ collect({
+          case Atom(e) => Set(e)
+          case _ => Set[Expr]()
+        })(el)
       }.distinct
       gathered.size should be (1)
       gathered.head should be (w)

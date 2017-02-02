@@ -2,18 +2,18 @@ package leon
 package test.ioexamples
 
 import leon.synthesis.ioexamples._
-import purescala.Trees._
 import purescala._
+import Expressions._
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.ShouldMatchers._
+import org.scalatest.Matchers._
 
 class DifferencerTest extends FunSuite {
   
   import ExampleInputs._
   import Extractors._
   import Util._
-  import TreeOps._
+  import ExprOps._
 
   import Differencer._
   
