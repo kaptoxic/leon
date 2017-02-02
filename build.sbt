@@ -44,7 +44,7 @@ val libisabelleVer = "0.4"
 
 libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-compiler" % scalaVer,
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test",
+  "org.scalatest" %% "scalatest" % "2.2.6" % "test",
   "com.typesafe.akka" %% "akka-actor" % "2.3.4",
   "info.hupel" %% "libisabelle" % libisabelleVer,
   "info.hupel" %% "libisabelle-setup" % libisabelleVer,
