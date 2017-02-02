@@ -161,7 +161,7 @@ class PrettyPrinter(opts: PrinterOptions,
       case e @ CaseClass(cct, args) =>
         opgm.flatMap { pgm => isListLiteral(e)(pgm) } match {
           case Some((tpe, elems)) =>
-            if(elems.length > 0 && elems.forall { x => x.getType == tpe }) {
+            if (elems.length > 0 && elems.forall { x => x.getType == tpe }) {
               printNameWithPath(opgm.get.library.List.get)
               p"($elems)"
             } else {
@@ -328,64 +328,64 @@ class PrettyPrinter(opts: PrinterOptions,
           }
         }
 
-      case Plus(l, r)               => optP { p"$l + $r" }
-      case Minus(l, r)              => optP { p"$l - $r" }
-      case Times(l, r)              => optP { p"$l * $r" }
-      case Division(l, r)           => optP { p"$l / $r" }
-      case Remainder(l, r)          => optP { p"$l % $r" }
-      case Modulo(l, r)             => optP { p"$l mod $r" }
-      case LessThan(l, r)           => optP { p"$l < $r" }
-      case GreaterThan(l, r)        => optP { p"$l > $r" }
-      case LessEquals(l, r)         => optP { p"$l <= $r" }
-      case GreaterEquals(l, r)      => optP { p"$l >= $r" }
-      case BVPlus(l, r)             => optP { p"$l + $r" }
-      case BVMinus(l, r)            => optP { p"$l - $r" }
-      case BVTimes(l, r)            => optP { p"$l * $r" }
-      case BVDivision(l, r)         => optP { p"$l / $r" }
-      case BVRemainder(l, r)        => optP { p"$l % $r" }
-      case BVAnd(l, r)              => optP { p"$l & $r" }
-      case BVOr(l, r)               => optP { p"$l | $r" }
-      case BVXOr(l, r)              => optP { p"$l ^ $r" }
-      case BVShiftLeft(l, r)        => optP { p"$l << $r" }
-      case BVAShiftRight(l, r)      => optP { p"$l >> $r" }
-      case BVLShiftRight(l, r)      => optP { p"$l >>> $r" }
+      case Plus(l, r)                    => optP { p"$l + $r" }
+      case Minus(l, r)                   => optP { p"$l - $r" }
+      case Times(l, r)                   => optP { p"$l * $r" }
+      case Division(l, r)                => optP { p"$l / $r" }
+      case Remainder(l, r)               => optP { p"$l % $r" }
+      case Modulo(l, r)                  => optP { p"$l mod $r" }
+      case LessThan(l, r)                => optP { p"$l < $r" }
+      case GreaterThan(l, r)             => optP { p"$l > $r" }
+      case LessEquals(l, r)              => optP { p"$l <= $r" }
+      case GreaterEquals(l, r)           => optP { p"$l >= $r" }
+      case BVPlus(l, r)                  => optP { p"$l + $r" }
+      case BVMinus(l, r)                 => optP { p"$l - $r" }
+      case BVTimes(l, r)                 => optP { p"$l * $r" }
+      case BVDivision(l, r)              => optP { p"$l / $r" }
+      case BVRemainder(l, r)             => optP { p"$l % $r" }
+      case BVAnd(l, r)                   => optP { p"$l & $r" }
+      case BVOr(l, r)                    => optP { p"$l | $r" }
+      case BVXOr(l, r)                   => optP { p"$l ^ $r" }
+      case BVShiftLeft(l, r)             => optP { p"$l << $r" }
+      case BVAShiftRight(l, r)           => optP { p"$l >> $r" }
+      case BVLShiftRight(l, r)           => optP { p"$l >>> $r" }
       case BVNarrowingCast(e, Int32Type) => p"$e.toInt"
       case BVNarrowingCast(e, Int8Type)  => p"$e.toByte"
       case BVWideningCast(e, Int32Type)  => p"$e.toInt"
       case BVWideningCast(e, Int8Type)   => p"$e.toByte"
-      case RealPlus(l, r)           => optP { p"$l + $r" }
-      case RealMinus(l, r)          => optP { p"$l - $r" }
-      case RealTimes(l, r)          => optP { p"$l * $r" }
-      case RealDivision(l, r)       => optP { p"$l / $r" }
-      case fs @ FiniteSet(rs, _)    => p"{${rs.toSeq}}"
-      case fs @ FiniteBag(rs, _)    => p"{$rs}"
-      case fm @ FiniteMap(rs, _, _) => p"{${rs.toSeq}}"
-      case Not(ElementOfSet(e, s))  => p"$e \u2209 $s"
-      case ElementOfSet(e, s)       => p"$e \u2208 $s"
-      case SubsetOf(l, r)           => p"$l \u2286 $r"
-      case Not(SubsetOf(l, r))      => p"$l \u2288 $r"
-      case SetAdd(s, e)             => p"$s \u222A {$e}"
-      case SetUnion(l, r)           => p"$l \u222A $r"
-      case BagUnion(l, r)           => p"$l \u222A $r"
-      case MapUnion(l, r)           => p"$l \u222A $r"
-      case SetDifference(l, r)      => p"$l \\ $r"
-      case BagDifference(l, r)      => p"$l \\ $r"
-      case SetIntersection(l, r)    => p"$l \u2229 $r"
-      case BagIntersection(l, r)    => p"$l \u2229 $r"
-      case SetCardinality(s)        => p"$s.size"
-      case BagAdd(b, e)             => p"$b + $e"
-      case MultiplicityInBag(e, b)  => p"$b($e)"
-      case MapApply(m, k)           => p"$m($k)"
-      case MapIsDefinedAt(m, k)     => p"$m.isDefinedAt($k)"
-      case ArrayLength(a)           => p"$a.length"
-      case ArraySelect(a, i)        => p"$a($i)"
-      case ArrayUpdated(a, i, v)    => p"$a.updated($i, $v)"
+      case RealPlus(l, r)                => optP { p"$l + $r" }
+      case RealMinus(l, r)               => optP { p"$l - $r" }
+      case RealTimes(l, r)               => optP { p"$l * $r" }
+      case RealDivision(l, r)            => optP { p"$l / $r" }
+      case fs @ FiniteSet(rs, _)         => p"{${rs.toSeq}}"
+      case fs @ FiniteBag(rs, _)         => p"{$rs}"
+      case fm @ FiniteMap(rs, _, _)      => p"{${rs.toSeq}}"
+      case Not(ElementOfSet(e, s))       => p"$e \u2209 $s"
+      case ElementOfSet(e, s)            => p"$e \u2208 $s"
+      case SubsetOf(l, r)                => p"$l \u2286 $r"
+      case Not(SubsetOf(l, r))           => p"$l \u2288 $r"
+      case SetAdd(s, e)                  => p"$s \u222A {$e}"
+      case SetUnion(l, r)                => p"$l \u222A $r"
+      case BagUnion(l, r)                => p"$l \u222A $r"
+      case MapUnion(l, r)                => p"$l \u222A $r"
+      case SetDifference(l, r)           => p"$l \\ $r"
+      case BagDifference(l, r)           => p"$l \\ $r"
+      case SetIntersection(l, r)         => p"$l \u2229 $r"
+      case BagIntersection(l, r)         => p"$l \u2229 $r"
+      case SetCardinality(s)             => p"$s.size"
+      case BagAdd(b, e)                  => p"$b + $e"
+      case MultiplicityInBag(e, b)       => p"$b($e)"
+      case MapApply(m, k)                => p"$m($k)"
+      case MapIsDefinedAt(m, k)          => p"$m.isDefinedAt($k)"
+      case ArrayLength(a)                => p"$a.length"
+      case ArraySelect(a, i)             => p"$a($i)"
+      case ArrayUpdated(a, i, v)         => p"$a.updated($i, $v)"
       case a @ FiniteArray(es, d, s) => {
         def ppBigArray(): Unit = {
           if (es.isEmpty) {
             val simplest = a.getType match {
               case ArrayType(underlying) => simplestValue(underlying)
-              case _ => NoTree
+              case _                     => NoTree
             }
             val default = d.getOrElse(simplest)
             p"Array($default, $default, $default, ..., $default) (of size $s)"
@@ -438,6 +438,15 @@ class PrettyPrinter(opts: PrinterOptions,
               |  $e
               |}"""
         }
+
+      case Cons(h, t) =>
+        p"""Cons${nary(h :: t :: Nil, ",", "(", ")")}"""
+      case NilList(tpe) =>
+        p"Nil"
+      case Car(l) =>
+        p"Car($l)"
+      case Cdr(l) =>
+        p"Cdr($l)"
 
       case LetPattern(p, s, rhs) =>
         p"""|val $p = $s
@@ -498,11 +507,6 @@ class PrettyPrinter(opts: PrinterOptions,
         ob foreach { b => p"$b @ " }
         p"$lit"
 
-      case Car(l) =>
-        p"Car($l)"
-      case Cdr(l) =>
-        p"Cdr($l)"
-
       // Types
       case Untyped               => p"<untyped>"
       case UnitType              => p"Unit"
@@ -522,6 +526,7 @@ class PrettyPrinter(opts: PrinterOptions,
       case c: ClassType =>
         printNameWithPath(c.classDef)
         p"${nary(c.tps, ", ", "[", "]")}"
+      case ListType(t)           => p"List[$t]"
 
       // Definitions
       case Program(units) =>
