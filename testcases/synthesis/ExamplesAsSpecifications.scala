@@ -1,4 +1,5 @@
-import leon.Utils._
+import leon.lang.{ Map => _, _ }
+import leon.lang.synthesis._
 
 object ExamplesAsSpecification {
 
@@ -6,25 +7,22 @@ object ExamplesAsSpecification {
   case class Cons(head: Int, tail: List) extends List
   case class Nil() extends List
 
-
   def identity(in: Int) = choose {
-    (out: Int) => passes(Map(-1 -> -1, 0 -> 0, 42 -> 42), in, out)
+    (out: Int) => (in, out) passes Map(-1 -> -1, 0 -> 0, 42 -> 42)
   }
 
   def tail(in: List) = choose {
-    (out: List) =>
-      passes(Map[List, List](
-        Cons(0, Nil())                   -> Nil(),
-        Cons(0, Cons(1, Nil()))          -> Cons(1, Nil()),
-        Cons(0, Cons(1, Cons(2, Nil()))) -> Cons(1, Cons(2, Nil()))
-      ), in, out)
+    (out: List) => (in, out) passes {
+      case Cons(0, Nil())                   => Nil()
+      case Cons(0, Cons(1, Nil()))          => Cons(1, Nil())
+      case Cons(0, Cons(1, Cons(2, Nil()))) => Cons(1, Cons(2, Nil()))
+    }
   }
 
   def nil(in : List) = choose {
-    (out : List) =>
-      passes(Map[List,List](
-        Nil() -> Nil(),
-        Cons(0, Nil()) -> Nil()
-      ), in, out)
+    (out : List) => (in, out) passes {
+      case Nil() => Nil() 
+      case Cons(0, Nil()) => Nil()
+    }
   }
 }
