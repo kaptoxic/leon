@@ -23,85 +23,140 @@ class ExamplesExtractionTest extends FunSpec with Inside {
 
   import Scaffold._
 
-  val lesynthTestDir = "testcases/synthesis/"
+  val ioExamplesTestcaseDir = "testcases/synthesis/io-examples/"
 
   describe("parsing input-output examples specs") {
 
-    val problems = forFile(lesynthTestDir + "ExamplesAsSpecifications.scala").toList
+    describe("ExamplesAsSpecifications testcase") {
 
-    describe("expected trees from passes should be returned") {
+      val problems = forFile(ioExamplesTestcaseDir + "ExamplesAsSpecifications.scala").toList
 
-      it("should parse all problems") {
-        problems.size should be(3)
-      }
-    }
+      describe("expected trees from passes should be returned") {
 
-    describe("should parse passes with map") {
-      val (sctx, funDef, problem) = problems.head
-
-      it("should correctly construct identity") {
-
-        problem.as.size should be(1)
-        val in = problem.as.head
-        problem.xs.size should be(1)
-        val out = problem.xs.head
-
-        withClue(problem) {
-          val extraction = new ExamplesExtraction(sctx, sctx.program)
-          val examples = extraction.extract(problem)
-
-          withClue(examples) {
-            examples should not be ('empty)
-
-            examples should contain allOf (
-              ((in, IntLiteral(-1)), (out, IntLiteral(-1))),
-              ((in, IntLiteral(0)), (out, IntLiteral(0))),
-              ((in, IntLiteral(42)), (out, IntLiteral(42))))
-          }
+        it("should parse all problems") {
+          problems.size should be(3)
         }
       }
-    }
 
-    describe("should parse problems with match passes") {
+      describe("should parse passes with map") {
+        val (sctx, funDef, problem) = problems.head
 
-      it("should correctly construct tail") {
-        val (sctx, funDef, problem) = problems.find(_._2.id.name == "tail").get
+        it("should correctly construct identity") {
 
-        val program = sctx.program
+          problem.as.size should be(1)
+          val in = problem.as.head
+          problem.xs.size should be(1)
+          val out = problem.xs.head
 
-        val consClass = program.caseClassDef("Cons").typed
-        val nilClass = program.caseClassDef("Nil").typed
-        val nilExp = CaseClass(nilClass, Nil): Expr
+          withClue(problem) {
+            val extraction = new ExamplesExtraction(sctx, sctx.program)
+            val examples = extraction.extract(problem)
 
-        withClue(problem) {
+            withClue(examples) {
+              examples should not be ('empty)
 
-          val extraction = new ExamplesExtraction(sctx, sctx.program)
-          val examples = extraction.extract(problem)
-
-          for (ioExample <- examples) {
-            inside(ioExample) {
-              case (in, out) =>
-                inside(in) {
-                  case (inId, inExpr) => inId.name shouldBe "in"
-                }
-                inside(out) {
-                  case (outId, _) => outId.name shouldBe "out"
-                }
+              examples should contain allOf (
+                ((in, IntLiteral(-1)), (out, IntLiteral(-1))),
+                ((in, IntLiteral(0)), (out, IntLiteral(0))),
+                ((in, IntLiteral(42)), (out, IntLiteral(42))))
             }
           }
+        }
+      }
 
-          examples.size should be(3)
-          examples.map { ex =>
-            (ex._1._2, ex._2._2)
-          } should contain allOf (
-            (CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil): Expr, nilExp),
-            (CaseClass(consClass, IntLiteral(0) ::
-              (CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil))
-              :: Nil): Expr,
-              CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil): Expr))
+      describe("should parse problems with match passes") {
+
+        it("should correctly construct tail") {
+          val (sctx, funDef, problem) = problems.find(_._2.id.name == "tail").get
+
+          val program = sctx.program
+
+          val consClass = program.caseClassDef("Cons").typed
+          val nilClass = program.caseClassDef("Nil").typed
+          val nilExp = CaseClass(nilClass, Nil): Expr
+
+          withClue(problem) {
+
+            val extraction = new ExamplesExtraction(sctx, sctx.program)
+            val examples = extraction.extract(problem)
+
+            for (ioExample <- examples) {
+              inside(ioExample) {
+                case (in, out) =>
+                  inside(in) {
+                    case (inId, inExpr) => inId.name shouldBe "in"
+                  }
+                  inside(out) {
+                    case (outId, _) => outId.name shouldBe "out"
+                  }
+              }
+            }
+
+            examples.size should be(3)
+            examples.map { ex =>
+              (ex._1._2, ex._2._2)
+            } should contain allOf (
+              (CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil): Expr, nilExp),
+              (CaseClass(consClass, IntLiteral(0) ::
+                (CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil))
+                :: Nil): Expr,
+                CaseClass(consClass, IntLiteral(1) :: nilExp :: Nil): Expr))
+          }
         }
       }
     }
+
+    describe("editor testcase") {
+
+      val problems = forFile(ioExamplesTestcaseDir + "Editor.scala").toList
+
+      describe("expected trees from passes should be returned") {
+
+        it("should parse all problems") {
+          problems.size should be (1)
+        }
+
+      }
+
+      describe("should parse passes with map") {
+
+        val (sctx, funDef, problem) = problems.head
+
+        it("should correctly construct identity") {
+
+          problem.as.size should be(1)
+          val in = problem.as.head
+          problem.xs.size should be(1)
+          val out = problem.xs.head
+
+          withClue(problem) {
+            val extraction = new ExamplesExtraction(sctx, sctx.program)
+            val examples = extraction.extract(problem)
+
+            withClue(examples) {
+              examples should not be ('empty)
+
+              val program = sctx.program
+    
+              val consClass = program.caseClassDef("Cons").typed
+              val nilClass = program.caseClassDef("Nil").typed
+              val nilExp = CaseClass(nilClass, Nil): Expr
+
+              examples should contain
+                (
+                  CaseClass(consClass, IntLiteral(0) ::
+                    CaseClass(consClass, IntLiteral(2) :: nilExp :: Nil) :: Nil)
+                ,
+                  CaseClass(consClass, IntLiteral(2) :: nilExp :: Nil)
+                )
+              
+            }
+          }
+        }
+      }
+
+    }
+
   }
 
   //

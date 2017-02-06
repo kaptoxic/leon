@@ -3,10 +3,9 @@
 package leon.test.condabd
 package util
 
-import org.scalatest.FunSuite
-import org.scalatest.Matchers._
-
 import java.io.{BufferedWriter, FileWriter, File}
+
+import org.scalatest.Assertions._
 
 import leon._
 import leon.test._
@@ -75,6 +74,7 @@ object Scaffold {
     } catch {
       case LeonFatalError(msg) =>
         fail(s"Compilation failed for file $file: ${msg.getOrElse("")}")
+//        throw new Exception(s"Compilation failed for file $file: ${msg.getOrElse("")}")
     }
     
     val chooses = SourceInfo.extractFromProgram(newCtx, program)
