@@ -56,9 +56,9 @@ class ExamplesExtractionTest extends FunSpec with Inside {
               examples should not be ('empty)
 
               examples should contain allOf (
-                ((in, IntLiteral(-1)), (out, IntLiteral(-1))),
-                ((in, IntLiteral(0)), (out, IntLiteral(0))),
-                ((in, IntLiteral(42)), (out, IntLiteral(42))))
+                ((in, IntLiteral(-1)) :: Nil, (out, IntLiteral(-1))),
+                ((in, IntLiteral(0)) :: Nil, (out, IntLiteral(0))),
+                ((in, IntLiteral(42)) :: Nil, (out, IntLiteral(42))))
             }
           }
         }
@@ -84,7 +84,7 @@ class ExamplesExtractionTest extends FunSpec with Inside {
               inside(ioExample) {
                 case (in, out) =>
                   inside(in) {
-                    case (inId, inExpr) => inId.name shouldBe "in"
+                    case (inId, inExpr) :: Nil => inId.name shouldBe "in"
                   }
                   inside(out) {
                     case (outId, _) => outId.name shouldBe "out"
@@ -94,7 +94,7 @@ class ExamplesExtractionTest extends FunSpec with Inside {
 
             examples.size should be(3)
             examples.map { ex =>
-              (ex._1._2, ex._2._2)
+              (ex._1.head._2, ex._2._2)
             } should contain allOf (
               (CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil): Expr, nilExp),
               (CaseClass(consClass, IntLiteral(0) ::

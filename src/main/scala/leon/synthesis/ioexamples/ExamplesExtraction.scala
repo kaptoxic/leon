@@ -17,10 +17,10 @@ import leon.utils.logging.HasLogger
  */
 class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
   
-  type InputOutputExample = ((Identifier, Expr), (Identifier, Expr))
+  type InputOutputExample = (List[(Identifier, Expr)], (Identifier, Expr))
+		  def extract(problem: Problem): Seq[InputOutputExample] = {
   
-  def extract(problem: Problem): Seq[InputOutputExample] = {
-    require(problem.as.size == 1)
+//    require(problem.as.size == 1)
     require(problem.xs.size == 1)
     info("extracting examples from problem: " + problem)
     
@@ -30,16 +30,17 @@ class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
     
     info(s"chooseEb.valids ${chooseEb.valids}")
     chooseEb.valids.collect({
-      case InOutExample(in :: Nil, out :: Nil) =>
-        ((problem.as.head, in), (problem.xs.head, out))
+      case InOutExample(ins, out :: Nil) =>
+        (ins.map({ in => (problem.as.head, in)}).toList, (problem.xs.head, out))
     })
   }
   
   def transformMappings(mappings: Seq[InputOutputExample]) = {
     val idsAndExamples =
-      ((Set[(Identifier, Identifier)](), Set[(Expr, Expr)]()) /: mappings) {
-      	case ((setIds, setIOs), ((inId, inE), (outId, outE))) =>
-      	  ( setIds + ((inId, outId)), setIOs + ((inE, outE)) )
+      ((Set[(List[Identifier], Identifier)](), Set[(List[Expr], Expr)]()) /: mappings) {
+      	case ((setIds, setIOs), (inIdEs, (outId, outE))) =>
+      	  ( setIds + ((inIdEs.map(_._1), outId)),
+    	      setIOs + ((inIdEs.map(_._2), outE)) )
     	  case _ =>
     	    (Set.empty, Set.empty)
     	}
