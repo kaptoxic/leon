@@ -36,7 +36,10 @@ object Scaffold {
     )
 //    Settings.showIDs = true
 
-    val pipeline = TemporaryInputPhase andThen scalac.ExtractionPhase andThen SynthesisProblemExtractionPhase
+    val pipeline = TemporaryInputPhase andThen
+      scalac.ExtractionPhase andThen
+      new leon.utils.PreprocessingPhase andThen
+      SynthesisProblemExtractionPhase
 
     val (newCtx, (program, results)) = try {
       pipeline.run(ctx, (content :: Nil, Nil))
