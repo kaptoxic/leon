@@ -191,8 +191,9 @@ class ExamplesFinder(ctx0: LeonContext, program: Program) {
         Set()
     }(e)
 
-
-    consolidateTests(allTests)
+    allTests
+    // wat?
+//    consolidateTests(allTests)
   }
   
   private def expand(e: Expr): Expr=  {
