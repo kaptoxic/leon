@@ -2,11 +2,12 @@
 <configuration status="WARN">
 	<appenders>
 		<Console name="Console" target="SYSTEM_OUT">
-			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+<!-- 			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" /> -->
+			<PatternLayout pattern="%logger{3}[%-5level]: %msg%n" />
 		</Console>
 	</appenders>
 	<loggers>
-		<logger name="leon.synthesis.ioexamples" level="off" additivity="false">
+		<logger name="leon.synthesis.ioexamples.backwards" level="off" additivity="false">
 			<appender-ref ref="Console" />
 		</logger>
 		<root level="error">
