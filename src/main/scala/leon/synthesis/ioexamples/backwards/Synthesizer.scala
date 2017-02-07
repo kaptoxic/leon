@@ -14,7 +14,7 @@ import evaluators._
 import utils.logging.HasLogger
 
 class Synthesizer(val evaluator: Evaluator, funDef: FunDef,
-  termSynthesizer: TypeTree => List[Expr]) extends HasLogger {
+  termSynthesizer: Seq[TypeTree] => Iterable[Expr]) extends HasLogger {
 
   type IO = (Expr, Expr)
   import Util._
@@ -175,7 +175,6 @@ class Synthesizer(val evaluator: Evaluator, funDef: FunDef,
   ): m.Queue[Step] = {
     fine("Entering explore with " + root)
     
-    type Element = ExpandableFragment
     val queue = existingQueue
     val solvedNodesQueue = m.Queue[Step]()
     
@@ -218,7 +217,8 @@ class Synthesizer(val evaluator: Evaluator, funDef: FunDef,
           // get inverses for the function on this fragment
           val inverses = inverser(nextOp)(node.fragment)
           assert(inverses.size >= 1, "should have at least one inverse")
-          assert(inverses.map(l => l.size).forall(_ == inverses.head.size), "all inverses should be of the same size")
+          assert(inverses.map(l => l.size).forall(_ == inverses.head.size),
+            "all inverses should be of the same size")
           
           // create new step node for this function
           val newStepNode =
@@ -412,7 +412,7 @@ class Synthesizer(val evaluator: Evaluator, funDef: FunDef,
         
         // if some did not propagate, try to find an appropriate branch condition
         if (! propagationVector.forall( identity )) {
-          val booleanSnippets = termSynthesizer(BooleanType)
+          val booleanSnippets = termSynthesizer(BooleanType :: Nil)
           
           var snippetMatches = false
           for (snippet <- booleanSnippets; if !snippetMatches) {
