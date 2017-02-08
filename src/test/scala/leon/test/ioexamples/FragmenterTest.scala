@@ -40,9 +40,8 @@ class FragmenterTest extends FunSuite with Matchers {
     
     ellArlBrr should be (Cons(elAr, Cons(elBr, nil)))
     
-    assertResult( Cons(Cons(Car(in), nil), Cons(Cdr(in), nil)) ) {
-      constructFragment(ellArlBrr, mapOfSubexpressions(in).
-        filterNot( _._1.isInstanceOf[NilList] ).mapValues(_(in)))
+    assertResult( Cons(Cons(Car(x), nil), Cons(Cdr(x), nil)) :: Nil ) {
+      constructFragments((in :: Nil, ellArlBrr) :: Nil, x :: Nil)
     }
   } 
   
@@ -58,7 +57,7 @@ class FragmenterTest extends FunSuite with Matchers {
       fragUnpack1, fragUnpack2, fragUnpack3, fragUnpack4 
     )
         
-    constructFragments((iExamples zip oExamples), x) should be (givenFragments)
+    constructFragments((iExamples.map(_ :: Nil) zip oExamples), x :: Nil) should be (givenFragments)
   }
   
   // this is probably "last" example from ILP

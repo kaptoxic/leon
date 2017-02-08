@@ -81,6 +81,13 @@ object Util {
     
     map.toMap
   }
+  
+  
+  def mapOfSubexpressions(exs: Iterable[Expr]): Iterable[Map[Expr, (Expr => Expr)]] =
+//    (Map.empty[Expr, (Expr => Expr)] /: (for (ex <- exs) yield mapOfSubexpressions(ex))) {
+//      case (current, map) => map ++ current 
+//    }
+    for (ex <- exs) yield mapOfSubexpressions(ex)
 
   def allSubexpressions(tree: Expr): Set[Expr] = {
     

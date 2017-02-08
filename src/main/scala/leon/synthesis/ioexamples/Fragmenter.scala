@@ -17,36 +17,43 @@ import utils.logging.HasLogger
 object Fragmenter extends HasLogger {
   
   // same is in the Synthesizer
-  type IO = (Expr, Expr)
+  type IO = (List[Expr], Expr)
   
   val u = Util
   import ExprOps._
   import Extractors._
   
   // compute fragments for each given example pair
-  def constructFragments(examples: List[IO], inputVariable: Variable): List[Expr] = {
+  def constructFragments(examples: List[IO], inputVariables: List[Variable]): List[Expr] = {
     for ((ie, oe) <- examples) yield {
       // all subexpressions of input
-      val subexprMap = u.mapOfSubexpressions(ie)
+      val subexprMaps = u.mapOfSubexpressions(ie)
       // we do not need to substitute for nil
-      val modifiedMap = subexprMap.filterNot( _._1.isInstanceOf[NilList]  )
+      val modifiedMaps = subexprMaps.map(_.filterNot( _._1.isInstanceOf[NilList] ))
+      
+      val mapped = for ((modifiedMap, inputVariable) <- (modifiedMaps zip inputVariables)) yield
+        modifiedMap.mapValues(_(inputVariable))
       
       // map output examples and make input variable in place of placeholder
-      constructFragment(oe, modifiedMap.mapValues(_(inputVariable)))
+      constructFragment(oe, mapped)
     }
   }
   
-  def constructFragment(tree: Expr, map: Map[Expr, Expr]) = {
+  def constructFragment(tree: Expr, maps: Iterable[Map[Expr, Expr]]) = {
         
-    val modifiedMap = map.mapValues(Some(_))
+    val cumulativeMap = 
+      (Map.empty[Expr, Expr] /: maps) {
+        case (current, map) => current ++ map
+      }.mapValues(Some(_))
     
     // for each detected subexpression (the largest one first) substitute
 //    postMap({ e => modifiedMap.getOrElse(e, None) }, false)(tree)
     preMapWithContext({ (e: Expr, done: Boolean) =>
+      // check done to stop recursing
       if (done)
         (None, true)
-      else if (modifiedMap contains e)
-        (modifiedMap(e), true)
+      else if (cumulativeMap contains e)
+        (cumulativeMap(e), true)
       else (None, false)
     }, false)(tree, false)
   }
