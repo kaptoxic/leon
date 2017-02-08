@@ -46,6 +46,21 @@ object Util {
     var map = MMap[Expr, (Expr => Expr)]()
     
     def transform(tree: Expr, ctx: Expr => Expr): Unit = tree match {
+      // Scala Case classes
+      case nl@CaseClass(nilClass, args) if args.size == 0 =>
+        map += nl -> ctx
+          
+      case cons@CaseClass(consClass, args) =>
+        map += cons -> ctx
+        assert(args.size == consClass.fields.size)
+        for ((arg, f) <- args zip consClass.fields) {
+          transform(arg, se => CaseClassSelector(consClass, se, f.id))
+        }
+        
+      case _: CaseClassSelector =>
+        throw new RuntimeException("Subtree should not be in example")
+      
+      // S-expressions and hardcoded lists
       case nl: NilList => map += nl -> ctx
       case cons@Cons(h, t) =>
         map += cons -> ctx
@@ -56,7 +71,10 @@ object Util {
         map += v -> ctx
       case _: Car | _: Cdr =>
         throw new RuntimeException("Subtree should not be in example")
-      case _ => throw new RuntimeException("Not supported")
+      case e =>
+        map += e -> ctx
+//      case _ =>
+//        throw new RuntimeException("Not supported")
     }
     
     transform(ex, identity)

@@ -108,5 +108,53 @@ class UtilTest extends FunSuite {
       sort(permutation) should be (inputExamples)
     }
   }
+  
+  test("case classes (list type)") {
+    
+    import leon.test.condabd.util.Scaffold._
+    import ExampleInputs._
+    
+    for (
+          (sctx, f, p) <- forProgram(
+            """
+      	    import leon.lang.{ Map => _, _ }
+            import leon.lang.synthesis._
+            
+            object Test {
+            
+              sealed abstract class List
+              case class Cons(head: Int, tail: List) extends List
+              case class Nil() extends List
+              
+              def lst() = Cons(0, Nil())
+            
+              def rec(in: List) = in match {
+                case Nil() => Nil()
+                case Cons(h, t) => choose {
+                  (out : List) => true
+                }
+              }
+
+            }
+    	    """)
+        ) {
+    
+      val program = sctx.program
+  
+      val consClass = program.caseClassDef("Cons").typed
+      val nilClass = program.caseClassDef("Nil").typed
+      val nilExp = CaseClass(nilClass, Nil): Expr
+      
+      val expr = CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil)
+      val list = mapOfSubexpressions(expr).map({ case(e, f) => (e, f(x))})
+       
+      withClue(list.mkString("\n")) {
+        list.size should be (3)
+        
+        list.map(_._1) should contain (IntLiteral(0))
+      }
+
+    }
+  }
 
 }
