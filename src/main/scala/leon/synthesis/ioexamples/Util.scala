@@ -54,11 +54,11 @@ object Util {
         map += cons -> ctx
         assert(args.size == consClass.fields.size)
         for ((arg, f) <- args zip consClass.fields) {
-          transform(arg, se => CaseClassSelector(consClass, se, f.id))
+          transform(arg, se => CaseClassSelector(consClass, ctx(se), f.id))
         }
         
-      case _: CaseClassSelector =>
-        throw new RuntimeException("Subtree should not be in example")
+//      case _: CaseClassSelector =>
+//        throw new RuntimeException(s"Subtree $tree should not be in example")
       
       // S-expressions and hardcoded lists
       case nl: NilList => map += nl -> ctx
@@ -69,8 +69,8 @@ object Util {
       // variable supported as atoms
       case v: Variable =>
         map += v -> ctx
-      case _: Car | _: Cdr =>
-        throw new RuntimeException("Subtree should not be in example")
+//      case _: Car | _: Cdr =>
+//        throw new RuntimeException(s"Subtree $tree should not be in example")
       case e =>
         map += e -> ctx
 //      case _ =>

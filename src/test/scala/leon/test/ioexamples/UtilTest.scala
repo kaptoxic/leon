@@ -50,7 +50,7 @@ class UtilTest extends FunSuite {
   
   test("(A B) map to subexpressions with substitutions") {
     
-    val list = allSubexpressionsWithSubst(elABr)
+    val list = mapOfSubexpressions(elABr)
         
     list.size should be (5)
     
@@ -152,6 +152,15 @@ class UtilTest extends FunSuite {
         list.size should be (3)
         
         list.map(_._1) should contain (IntLiteral(0))
+      }
+      
+      val expr2 = CaseClass(consClass, IntLiteral(1) :: expr :: Nil)
+      val list2 = mapOfSubexpressions(expr2).map({ case(e, f) => (e, f(x))})
+       
+      withClue(list2.mkString("\n")) {
+        list2.size should be (5)
+        
+        list2.map(_._1) should contain (IntLiteral(0))
       }
 
     }
