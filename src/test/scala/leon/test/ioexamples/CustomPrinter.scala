@@ -39,11 +39,11 @@ class CustomPrinter(opts: PrinterOptions,
           
         val h :: t = args
           
-        info(ctx.toString)
+        finest(ctx.toString)
         if (ctx.parents.find({
           case CaseClass(consClass, _) if consClass.classDef.id.name == "Cons" => true
         }).isEmpty) {
-          info(s"expression is $tree and parents are ${ctx.parents}")
+          finer(s"expression is $tree and parents are ${ctx.parents}")
 //          p"[${nary(args, "")}]"
           p"[$h$t]"
         } else {
