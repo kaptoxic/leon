@@ -17,6 +17,11 @@ class DifferencerTest extends FunSuite {
 
   import Differencer._
   
+  test("differences constraints, none") { 
+    val diffs = differenceConstraints(nil, Cons(Cdr(x), nil), w)
+    diffs should be ('empty)
+  }
+  
   test("differences constraints") {
     {
 	    val diffs = differenceConstraints(elWr, Cons(Cdr(w), nil), w)
@@ -38,12 +43,12 @@ class DifferencerTest extends FunSuite {
     val allDiffs =
 	    for((f1, f2) <- fragments zip fragments.tail) yield {
 	      val diffs = differences(f1, f2, x).map(_._1)
-		    assert(diffs contains Cdr(x))
+		    assert(diffs.map(_.values.head).toSet contains Cdr(x))
 		    diffs.toSet
 	    }
     
-    allDiffs(0) intersect allDiffs(1) should be (Set(Cdr(x)))
-    allDiffs(0) union allDiffs(1) should be (Set(Cdr(x), Car(x)))
+    allDiffs(0) intersect allDiffs(1) shouldBe Set(Map() + (x -> Cdr(x)))
+    allDiffs(0) union allDiffs(1) shouldBe Set(Map() + (x -> Cdr(x)), Map() + (x -> Car(x)))
   }
   
   test("differences produced for predicates") {
@@ -52,12 +57,13 @@ class DifferencerTest extends FunSuite {
     val allDiffs =
 	    for((f1, f2) <- fragments zip fragments.tail) yield {
 	      val diffs = differences(f1, f2, w).map(_._1)
-		    assert(diffs contains Cdr(w))
+		    assert(diffs.map(_.values.head).toSet contains Cdr(w))
 		    diffs.toSet
 	    }
     
-    allDiffs(0) intersect allDiffs(1) should be (Set(Cdr(w)))
-    allDiffs(0) union allDiffs(1) should be (Set(Cdr(w)))
+    val hardcodedDiff = (Set(Map() + (w -> Cdr(w))))
+    allDiffs(0) intersect allDiffs(1) shouldBe hardcodedDiff
+    allDiffs(0) union allDiffs(1) shouldBe hardcodedDiff
   }
 
   test("differences for fragments, unpack") {
@@ -66,17 +72,11 @@ class DifferencerTest extends FunSuite {
     val allDiffs =
 	    for((f1, f2) <- fragments zip fragments.tail) yield {
 	      val diffs = differences(f1, f2, x).map(_._1)
-		    assert(diffs contains Cdr(x))
 		    diffs.toSet
 	    }
     
-    allDiffs(0) intersect allDiffs(1) should be (Set(Cdr(x)))
-    allDiffs(0) union allDiffs(1) should be (Set(Cdr(x), Car(x)))
+    allDiffs(0) intersect allDiffs(1) map { _.head._2 } should be (Set(Cdr(x)))
+    allDiffs(0) union allDiffs(1) map { _.head._2 } should be (Set(Cdr(x), Car(x)))
   }
-
-  
-//    val diffs = differenceConstraints(nil, Cons(Cdr(varX), nil), w)
-//    diffs.size should be (1)
-//    diffs shuold be (List())
 
 }
