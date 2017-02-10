@@ -26,16 +26,24 @@ object MergeSort {
 
   def merge(l1: List, l2: List): List = choose {
     (out: List) => ((l1, l2), out) passes {
-      case (Cons(1, Nil), Cons(0, Cons(2, Nil))) =>
-        Cons(0, Cons(1, Cons(2, Nil)))
-      case (Cons(0, Nil), Cons(1, Nil)) =>
-        Cons(0, Cons(1, Nil))
-      case (Cons(0, Nil), Cons(2, Nil)) =>
-        Cons(0, Cons(2, Nil))
-      case (Cons(0, Cons(1, Nil)), Cons(2, Nil)) =>
-        Cons(0, Cons(1, Cons(2, Nil)))
-      case (Cons(0, Cons(2, Nil)), Cons(1, Nil)) =>
-        Cons(0, Cons(1, Cons(2, Nil)))
+      case (Cons(1, Cons(3, Nil)), Cons(0, Cons(2, Nil))) =>
+        Cons(0, Cons(1, Cons(2, Cons(3, Nil))))
+      case (Cons(1, Cons(3, Nil)), Cons(2, Nil)) =>
+        Cons(1, Cons(2, Cons(3, Nil)))
+      case (Cons(3, Nil), Cons(2, Nil)) =>
+        Cons(2, Cons(3, Nil))
+      case (Cons(3, Nil), Nil) =>
+        Cons(3, Nil)
+      case (Nil, Nil) =>
+        Nil
+//      case (Cons(0, Nil), Cons(1, Nil)) =>
+//        Cons(0, Cons(1, Nil))
+//      case (Cons(0, Nil), Cons(2, Nil)) =>
+//        Cons(0, Cons(2, Nil))
+//      case (Cons(0, Cons(1, Nil)), Cons(2, Nil)) =>
+//        Cons(0, Cons(1, Cons(2, Nil)))
+//      case (Cons(0, Cons(2, Nil)), Cons(1, Nil)) =>
+//        Cons(0, Cons(1, Cons(2, Nil)))
     }
   }
 
