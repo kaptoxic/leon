@@ -28,8 +28,12 @@ object Differencer extends HasLogger {
   
   def differenceConstraints(expr1: Expr, expr2: Expr, boundVariables: List[Variable]):
     List[(Variable, Expr)] = {
+    entering("differenceConstraints", expr1, expr2, boundVariables)
+    
     def rec(e1: Expr, e2: Expr): List[(Variable, Expr)] = (e1, e2) match {
 //      case (`boundVariable`, _) => List(e2)
+//      case (v1: Variable, v2: Variable) if v1 == v2 =>
+//        Nil
       case (v: Variable, _) if boundVariables contains v =>
         (v -> e2) :: Nil
       case (_: NilList, _: NilList) => Nil
@@ -66,6 +70,7 @@ object Differencer extends HasLogger {
     }    
   }
   
+  // expr1 <= expr2, wrt to the lattice
   def differences(expr1: Expr, expr2: Expr, boundVariable: Variable):
     Iterable[(Map[Variable, Expr], Expr => Expr)] =
     differences(expr1, expr2, boundVariable :: Nil)
@@ -74,13 +79,13 @@ object Differencer extends HasLogger {
     Iterable[(Map[Variable, Expr], Expr => Expr)] = {
     // TODO expr2 itself is not needed
     // ignore substitutions for bound variables
-    val subexps = u.mapOfSubexpressions(expr2) filterNot ( boundVariables contains _._1 )
+    val subexps = u.mapOfSubexpressions(expr2)// filterNot ( boundVariables contains _._1 )
     info(s"subexps for $expr2:\n${subexps.map({ case (k,v) => (k,v(boundVariables.head)) })
       .mkString("\n")}")
     
     val substs =
 	    for (subexppair <- subexps; subexp = subexppair._1;
-	      _ = info(s"subexpression: $subexp");
+	      _ = info(s"subexpression worked on: $subexp");
   	    constraints = differenceConstraints(expr1, subexp, boundVariables);
   	    constraintsMap = (Map[Variable, Set[Expr]]() /: constraints) {
   	      case (curr, (v, e)) => curr + (v -> (curr.getOrElse(v, Set()) + e))
@@ -96,15 +101,15 @@ object Differencer extends HasLogger {
 	      		(constraintsAsMap, subexppair._2)
 	    		}
     
-    if (substs.isEmpty) {
+//    if (substs.isEmpty) {
       // if no substitutions exist, see if e2 is a subtree of e1
 //    	val ex1subexpressions = u.mapOfSubexpressions(expr1).filter(_._1 == expr2)
 //    	assert(ex1subexpressions.size == 1)
 //    	(Map[Variable, Expr](), ex1subexpressions.head._2) :: Nil
-      ???
-    }
-    else
-    	substs
+//      ???
+//    }
+//    else
+  	substs
   }
   
 //    // all constraints are of the form (x -> Expr)
