@@ -112,6 +112,42 @@ object Differencer extends HasLogger {
   	substs
   }
   
+  def areCompatible(d1: (Map[Variable, Expr], Expr => Expr), d2: (Map[Variable, Expr], Expr => Expr)):
+    Option[(Map[Variable, Expr], Expr => Expr)] = {
+    import u._
+    
+    val (m1, s1) = d1
+    val (m2, s2) = d2
+    
+    val mapsCompatible =
+      (true /: m1.keys) {
+        case (current, key) =>
+          current && (!m2.contains(key) || m2(key) == m1(key))
+      }
+    
+    // we can use 'w' or anything here
+    val subexpressionsCompatible =
+      s1(w) == s2(w)
+      
+    if (mapsCompatible && subexpressionsCompatible)
+      Some(m1 ++ m2, s1)
+    else
+      None
+    
+  }
+  
+//  def areCompatible(differences: (Map[Variable, Expr], Expr => Expr)):
+//    Option[(Map[Variable, Expr], Expr => Expr)] = {
+//    
+//    differences.
+//    
+//    (None /: differences) {
+//      case (current, difference) =>
+//      case (current, difference) =>
+//    }
+//    
+//  }
+  
 //    // all constraints are of the form (x -> Expr)
 //    type Constraint = Expr
 //    // substitution only substitutes x for E

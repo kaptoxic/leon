@@ -90,20 +90,22 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 //    l1
 //    [h(l2),h(l1),ht(l2)t(l1)]
 //    nil
-    val (e4 :: e3 :: e2 :: e5 :: e1 :: Nil) = unorderedFragments
-    val fragments = e1 :: e2 :: e3 :: e4 :: e5 :: Nil
+    val (f4 :: f3 :: f2 :: f5 :: f1 :: Nil) = unorderedFragments
+    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
+    val fragmentNames =
+      (fragments zip (1 to 5).map("f" + _)).toMap
     
-//    println(mapOfSubexpressions(e3))
+//    println(mapOfSubexpressions(f3))
     
     
     {
       // comparing l1 and nil should return nothing
-      val diffs = differences(e1, e2, l1 :: l2 :: Nil)
+      val diffs = differences(f1, f2, l1 :: l2 :: Nil)
       diffs should be ('empty)
     }
     
     {
-      val diffs = differences(e2, e3, l1 :: l2 :: Nil)
+      val diffs = differences(f2, f3, l1 :: l2 :: Nil)
       diffs.size should be (3)
       println(diffs)
       
@@ -113,7 +115,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     }
     
     {
-      val diffs = differences(e3, e4, l1 :: l2 :: Nil)
+      val diffs = differences(f3, f4, l1 :: l2 :: Nil)
       diffs should have size (2)
       
       val (substMap, toSubstitute) = diffs.toSeq(1)
@@ -124,7 +126,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     }
     
     {
-      val diffs = differences(e4, e5, l1 :: l2 :: Nil)
+      val diffs = differences(f4, f5, l1 :: l2 :: Nil)
       diffs should have size (1)
       
       val (substMap, toSubstitute) = diffs.head
@@ -134,21 +136,54 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 //      val newE = ExprOps.replace(substs, expr)
     }
     
+    {
+      val allDiffs =
+  	    for((f1, f2) <- fragments zip fragments.tail) yield {
+  	      val diffs = differences(f1, f2, l1 :: l2 :: Nil).map(_._1)
+  	      info(s"diffs between $f1 and $f2 are $diffs")
+  		    diffs.toSet
+  	    }
+      
+      val intersect = allDiffs.reduce(_ intersect _)
+      val union = allDiffs.reduce(_ union _)
+  
+      intersect should be ('empty)
+      union should not be ('empty)
+      union should contain (Map(l2 -> l2, l1 -> t(l1)))
+      union should contain (Map(l1 -> l1, l2 -> t(l2)))
+      
+      allDiffs.tail.count(_ contains Map(l1 -> l1, l2 -> t(l2))) shouldBe 1
+      allDiffs.tail.count(_ contains Map(l2 -> l2, l1 -> t(l1))) shouldBe 1
+    }
+    
+    
     val allDiffs =
 	    for((f1, f2) <- fragments zip fragments.tail) yield {
-	      val diffs = differences(f1, f2, l1 :: l2 :: Nil).map(_._1)
+	      val diffs = differences(f1, f2, l1 :: l2 :: Nil)
 	      info(s"diffs between $f1 and $f2 are $diffs")
-		    diffs.toSet
+	      (f1, f2, diffs)
 	    }
     
-    val intersect = allDiffs.reduce(_ intersect _)
-    val union = allDiffs.reduce(_ union _)
-
-    intersect should be ('empty)
-    union should not be ('empty)
-    union should contain (Map(l2 -> l2, l1 -> t(l1)))
-    union should contain (Map(l1 -> l1, l2 -> t(l2)))
-
+    val compatibles =
+      for ((f11, f21, diffs1) <- allDiffs.tail;
+        (f12, f22, diffs2) <- allDiffs.drop(2);
+        if f11 != f12;
+        diff1 <- diffs1;
+        diff2 <- diffs2;
+        _ = info(s"Checking diffs: $diff1 and $diff2");
+        merged <- Differencer.areCompatible(diff1, diff2);
+        _ = info(s"compatible!!")
+        ) yield (f11 :: f21 :: f12 :: f22 :: Nil map fragmentNames, merged)
+        
+    info("compatibles: " + compatibles.mkString("\n"))
+    compatibles should have size 1
+    inside(compatibles.head) {
+      case (list, (map, fun)) =>
+        list shouldBe List("f2", "f3", "f4", "f5")
+        map shouldBe Map(l1 -> l1, l2 -> t(l2))
+    }
+    
+  
   }
 
 }
