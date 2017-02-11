@@ -460,8 +460,21 @@ object Extractors {
 
   object Atom {
     def unapply(e: Expr): Option[Expr] = e match {
-      case _: Cons => None
-      case ex => Some(ex)
+      case CaseClass(_, args) if !args.isEmpty =>
+        None
+      case _: Cons =>
+        None
+      case ex =>
+        Some(ex)
+    }
+  }
+
+  object Composite {
+    def unapply(e: Expr): Option[Seq[Expr]] = e match {
+      case CaseClass(_, args) if !args.isEmpty =>
+        Some(args)
+      case Cons(h, t) => Some(h :: t :: Nil)
+      case ex => None
     }
   }
 

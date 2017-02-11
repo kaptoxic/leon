@@ -123,14 +123,21 @@ object Util {
       
       val res = 
 	      (expr1, expr2) match {
-			    case (Cons(h1, t1), Cons(h2, t2)) =>	      
-			      val headRes = rec(h1, h2)
-			      val tailRes = rec(t1, t2)
-			      // if one less, other greater return sign that these two are not comparable
-			      if (headRes * tailRes < 0) throw new Exception
-			      math.signum(headRes + tailRes)
-			    case (Atom(_), _: Cons) => -1
-			    case (_: Cons, Atom(_)) => 1
+          case (Composite(args1), Composite(args2)) =>
+            (0 /: (args1 zip args2)) {
+              case (curr, (arg1, arg2)) =>
+                val newRes = rec(arg1, arg2)
+//			      // if one less, other greater return sign that these two are not comparable
+                if (curr * newRes < 0) throw new Exception
+                math.signum(newRes + curr)
+//              case (0, (arg1, arg2)) =>
+//                rec(arg1, arg2)
+//              case (curr, _) =>
+//                assert(curr == -1 || curr == 1)
+//                curr
+            }
+			    case (Atom(_), Composite(_)) => -1
+			    case (Composite(_), Atom(_)) => 1
 			    case (_, _) => 0			      
 	      }
 	      	      
@@ -152,7 +159,13 @@ object Util {
     (res, mutableMap.toMap)
   }
   
+  // sort in case multiple inputs
+  def sort[T](inputExamples: List[T], convert: T=>Seq[Expr]) = {
+    ???
+  }
+  
   def sort[T](inputExamples: List[T], convert: T=>Expr) = {
+    // this is just to speed things up?
     implicit var map = Map[(Expr, Expr), Int]()
     
     def compFun(a: Expr, b: Expr) = {
