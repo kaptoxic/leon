@@ -24,17 +24,19 @@ object Scaffold {
   val reporter = new TestSilentReporter
   
 //  val parametersToLeon = "--synthesis" :: "--strictCompilation=false" :: Nil
-  val parametersToLeon = "--synthesis" :: Nil
+  // debug prevents printing numbers after ids
+  val parametersToLeon = "--synthesis" :: "--debug=solver" :: Nil
+
+  val forProgramReporter = new TestSilentReporter
+  val ctx = Main.processOptions(parametersToLeon).copy(
+    files = List(),
+    reporter = forProgramReporter,
+    interruptManager = new InterruptManager(forProgramReporter),
+    options = Main.processOptions(parametersToLeon).options diff
+      Seq(LeonOption[Set[DebugSection]](GlobalOptions.optDebug)(Set(DebugSectionTrees)))
+  )
 
   def forProgram(content: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
-
-    val forProgramReporter = new TestSilentReporter
-    val ctx = Main.processOptions(parametersToLeon).copy(
-      files = List(),
-      reporter = forProgramReporter,
-      interruptManager = new InterruptManager(forProgramReporter)
-    )
-//    Settings.showIDs = true
 
     val pipeline = TemporaryInputPhase andThen
       scalac.ExtractionPhase andThen
@@ -53,13 +55,6 @@ object Scaffold {
 
   def forFile(file: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
     val programFile = new File(file)
-
-    val forProgramReporter = new TestSilentReporter
-    val ctx = Main.processOptions(parametersToLeon).copy(
-      files = List(programFile),
-      reporter = forProgramReporter,
-      interruptManager = new InterruptManager(forProgramReporter)
-    )
 
 //    val pipeline = scalac.ExtractionPhase andThen SynthesisProblemExtractionPhase
 //    
