@@ -7,10 +7,10 @@ import purescala._
 import Expressions._
 
 import org.scalatest.FunSuite
-import org.scalatest.Matchers._
+import org.scalatest._
 
 // TODO codegen evaluator params should be used but not yet in master
-class UtilTest extends FunSuite {
+class UtilTest extends FunSuite with Matchers {
   
   import ExampleInputs._
   import Fragmenter._
@@ -50,15 +50,15 @@ class UtilTest extends FunSuite {
   
   test("(A B) map to subexpressions with substitutions") {
     
-    val list = mapOfSubexpressions(elABr)
+    val list = allSubexpressionsWithSubst(elABr)
         
     list.size should be (5)
     
-    for((res, given) <- list zip List((elABr, w), (varA, Cons(w, Cons(varB, nil))),
-      (Cons(varB, nil), Cons(varA, w)), (varB, Cons(varA, Cons(w, nil))), (nil, Cons(varA, Cons(varB, w))))) {
-      res._1 should be (given._1)
-      res._2(w) should be (given._2)
-    }
+    list.map({ case (a, b) => (a, b(w)) }) should contain theSameElementsAs List(
+      (elABr, w),
+      (varA, Cons(w, Cons(varB, nil))), (Cons(varB, nil), Cons(varA, w)),
+      (varB, Cons(varA, Cons(w, nil))), (nil, Cons(varA, Cons(varB, w)))
+    )
   }
 
   test("compare trees") {
