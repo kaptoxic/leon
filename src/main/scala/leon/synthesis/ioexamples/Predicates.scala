@@ -22,6 +22,12 @@ object Predicates extends HasLogger {
       case (Cons(h1, t1), Cons(h2, t2)) =>
         rec(h1, h2, x => ctx(u.Car(x))) ++
         rec(t1, t2, x => ctx(u.Cdr(x)))
+      // TODO previous case is covered by Composite
+      case (CaseClass(ct1, args1), CaseClass(ct2, args2)) if ct1 == ct2 =>
+        (List[Expr => Expr]() /: (args1 zip args2 zip ct1.fields)) {
+          case (acc, ((arg1, arg2), field)) =>
+            acc ++ rec(arg1, arg2, x => ctx(CaseClassSelector(ct1, x, field.id)))
+        }
     }
     
     rec(expr1, expr2, identity)
@@ -53,13 +59,19 @@ object Predicates extends HasLogger {
 //    toDiscover ++= inputExamples
     
     def traverse(x: Expr, x1: Expr): List[Expr] = {  	  
-      if (compFun(x, x1) == 0) Nil
+      entering("traverse", x, x1)
+      if (compFun(x, x1) == 0) {
+        info("0 case")
+        Nil
+      }
       else (x, x1) match {
         case (Atom(_), _) =>
+          info("Atom case")
           // note that we can do this since its total order and thus chain goes extremely left or right
           // remove the first one since it is an atom
         	u.allSubexpressions(x1).toList.sortWith{ case (a, b) => compFun(a, b) < 0 }.tail
         case (Cons(h1, t1), Cons(h2, t2)) =>
+          info("Cons case")
           if (compFun(h1, h2) == 0) {
             val growLeft = Cons(t1, w)
             val growRight = Cons(w, t1)
@@ -89,8 +101,43 @@ object Predicates extends HasLogger {
               
             Cons(successor, t1) +: traverse(successor, h2).map(e => Cons(e, t1))
           }
-        case _ =>
-          throw new Exception("Input examples not in well order or not sorted")
+
+        // TODO for now, this is fixed for size 2
+        case (CaseClass(ct1, h1 :: t1 :: Nil), CaseClass(ct2, h2 :: t2 :: Nil)) if ct1 == ct2 =>
+          info("Case class case")
+          if (compFun(h1, h2) == 0) {
+            val growLeft = CaseClass(ct1, t1 :: w :: Nil)
+            val growRight = CaseClass(ct1, w :: t1 :: Nil)
+//            assert(compFun(t2, growLeft) == 0 || compFun(t2, growRight) == 0,
+//              "t2 " + t2 + " growLeft " + growLeft + " growRight " + growRight +
+//            	"compFun(t2, growLeft) == 0" + (compFun(t2, growLeft) == 0) +
+//              "compFun(t2, growRight) == 0" + (compFun(t2, growRight) == 0))
+            assert(compFun(t2, growLeft) >= 0 || compFun(t2, growRight) >= 0)
+            
+            val successor = 
+              if (compFun(t2, growLeft) == -2) growRight
+              else growLeft
+
+            CaseClass(ct1, h1 :: successor :: Nil) +:
+              traverse(successor, t2).map(e => CaseClass(ct1, h1 :: e :: Nil))
+          } else {
+            // well ordered
+            assert(compFun(t1, t2) == 0)
+            
+            val growLeft = CaseClass(ct1, h1 :: w :: Nil)
+            val growRight = CaseClass(ct1, w :: h1 :: Nil)
+//            assert(compFun(h2, growLeft) == 0 || compFun(h2, growRight) == 0)
+            assert(compFun(h2, growLeft) >= 0 || compFun(h2, growRight) >= 0)
+            
+            val successor = 
+              if (compFun(h2, growLeft) == -2) growRight
+              else growLeft
+              
+            CaseClass(ct1, successor :: t1 :: Nil) +:
+              traverse(successor, h2).map(e => CaseClass(ct1, e :: t1 :: Nil))
+          }
+//        case _ =>
+//          throw new Exception("Input examples not in well order or not sorted")
       }
         
     }

@@ -29,9 +29,14 @@ object UtilCaseClass {
     caseClass.getType match {
       case cct: CaseClassType =>
         val field = cct.fields.find(_.id.name == selector).get.id
-        caseClassSelector(cct, caseClass, field)
-      case _ =>
-        fail(s"Failed to find appropriate case class type")
+        CaseClassSelector(cct, caseClass, field)
+      case at: AbstractClassType =>
+        val cct = at.classDef.knownChildren.find(_.fields.map(_.id.name) contains selector).get.
+          asInstanceOf[CaseClassDef].typed
+        val field = cct.fields.find(_.id.name == selector).get.id
+        CaseClassSelector(cct, caseClass, field)
+      case t =>
+        fail(s"Failed to find appropriate case class type, type is $t, for $caseClass")
     }
   }
   

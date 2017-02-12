@@ -52,6 +52,22 @@ object Scaffold {
     
     extractProblems(newCtx, program, results)
   }
+  
+  def forProgramDefinitions(content: String) = {
+
+    val pipeline = TemporaryInputPhase andThen
+      scalac.ExtractionPhase andThen
+      new leon.utils.PreprocessingPhase
+
+    val (newCtx, program) = try {
+      pipeline.run(ctx, (content :: Nil, Nil))
+    } catch {
+      case _: Throwable =>
+        fail("Error while processing")
+    }
+    
+    (newCtx, program)
+  }
 
   def forFile(file: String): Iterable[(SynthesisContext, FunDef, Problem)] = {
     val programFile = new File(file)

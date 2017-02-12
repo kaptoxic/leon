@@ -30,12 +30,13 @@ object Util {
 	  case _ => false
 	}
 
-  def substituteAtom(e: Expr) = e match {
+  def substituteAtom(w: Expr)(e: Expr) = e match {
 	  case Atom(_) => Some(w)
 	  case _ => None
 	}
   
-  def substituteAllAtom(e: Expr) = postMap( substituteAtom )(e)
+  def substituteAllAtom(e: Expr) = postMap( substituteAtom(w) )(e)
+  def substituteAllAtomWith(e: Expr)(w: Expr) = postMap( substituteAtom(w) )(e)
 
 //  def substituteAtom(e: Expr) = e match {
 //	  case Atom(_) => w
@@ -97,7 +98,8 @@ object Util {
       case car: Car => Set(car)
       case cdr: Cdr => Set(cdr)
       // variable supported as atoms
-      case v: Variable => Set(v)
+      case c@Composite(exprs) => exprs.toSet + c
+      case Atom(v) => Set(v)
       case _ => throw new RuntimeException("Not supported")
     })(tree)
     
