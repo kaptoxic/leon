@@ -27,21 +27,9 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   import Scaffold._
   import Constructors._
+  import Util._
 
   val ioExamplesTestcaseDir = "testcases/synthesis/io-examples/"
- 
-  def caseClassDef(name: String)(implicit pgm: Program): CaseClassDef = {
-    pgm.lookupAll(name).collect {
-      case ccd: CaseClassDef => ccd
-    }.headOption.getOrElse {
-      fail(s"Failed to lookup case class '$name' in program")
-    }
-  } 
-  
-  def cc(name: String)(args: Expr*)(implicit pgm: Program): Expr = {
-    val cct = caseClassDef(name).typed(Seq())
-    CaseClass(cct, args.toSeq)
-  }
 
   test("playing") {
     
@@ -183,7 +171,6 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         map shouldBe Map(l1 -> l1, l2 -> t(l2))
     }
     
-  
   }
 
 }
