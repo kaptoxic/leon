@@ -79,7 +79,7 @@ object Differencer extends HasLogger {
    * differences between expr1 and expr2 in terms of:
    * - mapping of variables into expressions, such that when this substitution is done on expr2
    *  (on it's subexpression as defined consequently), it is equal to expr1
-   * - path to the subexpression of expr2 for which the substitution should happen
+   * - functions such that when evaluated on the found subexpressions return expr2
    */
   def differences(expr1: Expr, expr2: Expr, boundVariables: List[Variable]):
     Iterable[(Map[Variable, Expr], Expr => Expr)] = {

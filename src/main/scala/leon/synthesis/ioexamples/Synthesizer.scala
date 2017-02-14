@@ -41,8 +41,8 @@ class Synthesizer extends HasLogger {
     val examplesByVariable = sortedExamples.map(_._1.head) :: Nil
     val predicates = calculatePredicates(examplesByVariable, inputVariable :: Nil)
     
-    println(fragments.map({ case (a, b, c) => (a, b(w), c)}).mkString("\n"))
-    println(predicates.mkString("\n"))
+    fine(fragments.map({ case (a, b, c) => (a, b(w), c)}).mkString("\n"))
+    fine(predicates.mkString("\n"))
     
     (fragments, predicates) match {
       case (Some((fragments, a, b)), Some(p)) =>
@@ -72,7 +72,7 @@ class Synthesizer extends HasLogger {
             ((p.init zip fragments.init) :\ (FunctionInvocation( newFun, Seq(inputVariable) ): Expr)) {
               case ((pred, frag), elseExpr) =>
                 IfExpr(pred, frag, elseExpr) 
-            }          
+            }
           
           Some((ifExpr, newFun))
         } else
