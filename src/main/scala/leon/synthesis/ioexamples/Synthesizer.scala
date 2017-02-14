@@ -37,27 +37,37 @@ class Synthesizer extends HasLogger {
     val fragments = calculateFragments(sortedExamples, inputVariable :: Nil)
     // TEMPORARY
 //    val predicates = calculatePredicates(sortedExamples map { _._1 }, inputVariable)
-    val predicates = calculatePredicates(sortedExamples map { _._1 }, inputVariable :: Nil)
+    assert(sortedExamples.forall(_._1.size == 1))
+    val examplesByVariable = sortedExamples.map(_._1.head) :: Nil
+    val predicates = calculatePredicates(examplesByVariable, inputVariable :: Nil)
+    
+    println(fragments.map({ case (a, b, c) => (a, b(w), c)}).mkString("\n"))
+    println(predicates.mkString("\n"))
     
     (fragments, predicates) match {
       case (Some((fragments, a, b)), Some(p)) =>
         if (fragments.size == p.size) {
+          // get type as type of output expression
           val resType = examples.head._2.getType
          
+          // create a recursive function definition
           val newFun = new FunDef(
             FreshIdentifier("rec"),
             Nil,
             ValDef(inputVariable.id) :: Nil,
             resType
-          ).typed(Nil)
+          ).typed
 
+          assert(b.size == 1)
           val recursiveFragment =
-            a(FunctionInvocation(newFun, Seq(b.head._1)))
+            a(FunctionInvocation(newFun, Seq(b.head._2)))
           
+          // last if-then case
           newFun.fd.body = Some(
             IfExpr(p.last, fragments.last, recursiveFragment)
           )
           
+          // create final if-then-else expression by folding the "unfolded" fragments
           val ifExpr = 
             ((p.init zip fragments.init) :\ (FunctionInvocation( newFun, Seq(inputVariable) ): Expr)) {
               case ((pred, frag), elseExpr) =>
@@ -127,11 +137,12 @@ class Synthesizer extends HasLogger {
   
   /*
    * list of predicates, where each predicate is for list of variables
+   * each list represents examples for a variable
    */
   def calculatePredicates(inputExamplesList: List[List[Expr]], xs: List[Variable]):
     Option[List[Expr]]= {
     entering("calculatePredicates", inputExamplesList, xs)
-
+    
     val (predicatesList, predicatesFunsList) = (
       for ((inputExamples, x) <- inputExamplesList zip xs) yield {
         val atomExamples = inputExamples.map(substituteAllAtom)

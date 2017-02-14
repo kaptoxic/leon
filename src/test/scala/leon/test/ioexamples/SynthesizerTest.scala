@@ -49,30 +49,30 @@ class SynthesizerTest extends FunSuite {
     }
   }
   
-//  test("synthesize unpack") {
-//    val synthesizer = new Synthesizer
-//
-//    val iExamples = List(
-//      ieunpack1, ieunpack2, ieunpack3, ieunpack4  
-//    )
-//    val oExamples = List(
-//      oeunpack1, oeunpack2, oeunpack3, oeunpack4  
-//    )
-//    
-//    val res = synthesizer.synthesize(iExamples zip oExamples)
-//    
-//    withClue(res) {
-//      res match { 
-//        case Some((IfExpr(x: Variable, nil, fi@FunctionInvocation(f1, args)), f2)) => 
-//          assert(f1 == f2)
-//          f2.body should be (Some(
-//            IfExpr(Cdr(`x`), Cons(`x`, nil), Cons(Cons(Car(`x`), nil), 
-//            FunctionInvocation(f2, Seq(Cdr(`x`)))))
-//          ))
-//        case _ =>
-//          fail
-//      }
-//    }
-//  }
+  test("synthesize unpack") {
+    val synthesizer = new Synthesizer
+
+    val iExamples = List(
+      ieunpack1, ieunpack2, ieunpack3, ieunpack4  
+    )
+    val oExamples = List(
+      oeunpack1, oeunpack2, oeunpack3, oeunpack4  
+    )
+    
+    val res = synthesizer.synthesize(iExamples map (List(_)) zip oExamples)
+    
+    withClue(s"result is: $res;") {
+      res match { 
+        case Some((IfExpr(x: Variable, nil, fi@FunctionInvocation(f1, args)), f2)) => 
+          assert(f1 == f2)
+          f2.body should be (Some(
+            IfExpr(Cdr(`x`), Cons(`x`, nil), Cons(Cons(Car(`x`), nil), 
+            FunctionInvocation(f2, Seq(Cdr(`x`)))))
+          ))
+        case _ =>
+          fail
+      }
+    }
+  }
 
 }
