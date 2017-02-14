@@ -13,8 +13,12 @@ object Predicates extends HasLogger {
   val u = Util
   import Extractors._
     
-  // for two given expressions, return an expression, that, when evaluated,
-  // for one returns an atom w and for the other (w.w)
+  /*
+   * requires expr1 < expr2 ??
+   * returns a list of functions, that, when evaluated on both expr1 and expr2, give
+   *  an atom and a composite, respectively
+   * in the S-expression terminology: for expr1 returns an atom w and for expr2 (w.w)
+   */
   def structureDifference(expr1: Expr, expr2: Expr) = {
     def rec(e1: Expr, e2: Expr, ctx: Expr => Expr): List[Expr => Expr] = (e1, e2) match {
       case (Atom(a1), Atom(a2)) => Nil
@@ -34,15 +38,15 @@ object Predicates extends HasLogger {
   }
   
   /**
-   * finds a covering chain [Summers, 1971]
    * @param inputExamples sequence of trees <x_i, ..., x_j> such that x_i < x_i+1 for all i<i<j (well ordered
    * examples)
    * while intervals [x_i, x_i+1] are well ordered (well ordered intervals)
+   * @param variable w that represents an atom
    * @return for an example interval x_i to x_{i+1} = y_n, for the sequence of trees <y_1 = x_i, ..., x_j = y_n>
    * returns a covering chain <y2, ..., y_n> (excluding first, including last tree)
+   * similar to finding a covering chain [Summers, 1971]
    */
-  def findChain(inputExamples: List[Expr]) = {
-  	import u.w
+  def findChain(inputExamples: List[Expr], w: Expr = u.w) = {
     
     implicit var compareMap = Map[(Expr, Expr), Int]()
     
@@ -150,20 +154,27 @@ object Predicates extends HasLogger {
 	    }
   }
   
+  /*
+   * given a list of expressions (a chain in the lattice),
+   *  returns a function that given an expression x returns a subexpression of x,
+   *  at which the trees in the chain differ
+   */
   def findPredicate(chain: List[Expr]) = {
+    entering("findPredicate", chain)
     require(chain.size >= 2)
 
-    val differences =
+    val differencesLists =
       for( (x, x1) <- chain.zip(chain.tail) ) yield {
         structureDifference(x, x1)
       }
       // map { Atom(_) }
     
-    assert( differences forall { _.size == 1})
+    assert( differencesLists.size > 0 )
+    assert( differencesLists forall { _.size == 1})
+    val differences = differencesLists.map(_.head)
     
     (x: Expr) => {
-      val sequence = differences.map(_.head(x)).toSeq
-      assert(sequence.size > 0)
+      val sequence = differences.map(_(x)).toSeq
       if (sequence.size >= 2) 
         Or(sequence)
       else
@@ -171,8 +182,21 @@ object Predicates extends HasLogger {
     }
   }
   
-  def calculatePredicates(inputExamples: List[Expr]) = {
-    val chain = findChain(inputExamples)
+  def calculatePredicates(inputExamples: List[List[Expr]], vars: List[Variable]):
+    List[List[Expr=>Expr]] = {
+    
+    for((inputExample, v) <- (inputExamples zip vars)) yield
+      calculatePredicates(inputExample, v)
+
+  }
+
+  /*
+   * generate, for each chain x_i, ..., x_n that connects given examples, predicates p_i as paths
+   *  to the subexpression for which p_i(x_i) is atom but p_i(x_(i+1)) is not
+   */
+  def calculatePredicates(inputExamples: List[Expr], v: Variable): List[Expr=>Expr] = {
+    // note that this can find multiple chains
+    val chain = findChain(inputExamples, v)
     val chainIncludingStart = chain.zip(inputExamples.init).map {
       case (chain, start) => start :: chain
     }
