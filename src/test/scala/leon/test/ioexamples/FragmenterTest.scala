@@ -26,7 +26,7 @@ class FragmenterTest extends FunSuite with Matchers {
     // (A B)
     val in = elABr
     
-    val subMap = mapOfSubexpressions(elABr)
+    val subMap = mapOfSubexpressionsToPathFunctions(elABr)
     
     subMap.map({case (k, v) => (k, v(x)) }) should contain (elBr -> Cdr(x))
     

@@ -34,7 +34,7 @@ object Fragmenter extends HasLogger {
   def constructFragments(examples: List[IO], inputVariables: List[Variable]): List[Expr] = {
     for ((ie, oe) <- examples) yield {
       // all subexpressions of input
-      val subexprMaps = u.mapOfSubexpressions(ie)
+      val subexprMaps = u.mapOfSubexpressionsToPathFunctions(ie)
       // we do not need to substitute for nil
       val modifiedMaps = subexprMaps.map(_.filterNot( e => filterOut(e._1) ))
       

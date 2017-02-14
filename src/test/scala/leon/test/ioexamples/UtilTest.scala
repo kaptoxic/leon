@@ -36,7 +36,7 @@ class UtilTest extends FunSuite with Matchers {
   
   test("(A B) map to subexpressions") {
     
-    val map = mapOfSubexpressions(elABr)
+    val map = mapOfSubexpressionsToPathFunctions(elABr)
         
     map.size should be (5)
     
@@ -50,7 +50,7 @@ class UtilTest extends FunSuite with Matchers {
   
   test("(A B) map to subexpressions with substitutions") {
     
-    val list = allSubexpressionsWithSubst(elABr)
+    val list = subexpressionsToContexts(elABr)
         
     list.size should be (5)
     
@@ -146,7 +146,7 @@ class UtilTest extends FunSuite with Matchers {
       val nilExp = CaseClass(nilClass, Nil): Expr
       
       val expr = CaseClass(consClass, IntLiteral(0) :: nilExp :: Nil)
-      val list = mapOfSubexpressions(expr).map({ case(e, f) => (e, f(x))})
+      val list = mapOfSubexpressionsToPathFunctions(expr).map({ case(e, f) => (e, f(x))})
        
       withClue(list.mkString("\n")) {
         list.size should be (3)
@@ -155,7 +155,7 @@ class UtilTest extends FunSuite with Matchers {
       }
       
       val expr2 = CaseClass(consClass, IntLiteral(1) :: expr :: Nil)
-      val list2 = mapOfSubexpressions(expr2).map({ case(e, f) => (e, f(x))})
+      val list2 = mapOfSubexpressionsToPathFunctions(expr2).map({ case(e, f) => (e, f(x))})
        
       withClue(list2.mkString("\n")) {
         list2.size should be (5)

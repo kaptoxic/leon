@@ -43,7 +43,13 @@ object Util {
 //	  case _ => e
 //	}
   
-  def mapOfSubexpressions(ex: Expr): Map[Expr, (Expr => Expr)] = {
+  /**
+   * return subexpressions x of ex as well as expressions that when evaluated on ex,
+   *  return x 
+   * @param ex
+   * @return
+   */
+  def mapOfSubexpressionsToPathFunctions(ex: Expr): Map[Expr, (Expr => Expr)] = {
     var map = MMap[Expr, (Expr => Expr)]()
     
     def transform(tree: Expr, ctx: Expr => Expr): Unit = tree match {
@@ -84,11 +90,11 @@ object Util {
   }
   
   
-  def mapOfSubexpressions(exs: Iterable[Expr]): Iterable[Map[Expr, (Expr => Expr)]] =
+  def mapOfSubexpressionsToPathFunctions(exs: Iterable[Expr]): Iterable[Map[Expr, (Expr => Expr)]] =
 //    (Map.empty[Expr, (Expr => Expr)] /: (for (ex <- exs) yield mapOfSubexpressions(ex))) {
 //      case (current, map) => map ++ current 
 //    }
-    for (ex <- exs) yield mapOfSubexpressions(ex)
+    for (ex <- exs) yield mapOfSubexpressionsToPathFunctions(ex)
 
   def allSubexpressions(tree: Expr): Set[Expr] = {
     
@@ -105,12 +111,29 @@ object Util {
     
   }
 
-  def allSubexpressionsWithSubst(tree: Expr): List[(Expr, Expr => Expr)] = {
+  /**
+   * return subexpressions x of ex as well as functions that when evaluated on x,
+   *  return ex
+   * @param ex
+   * @return
+   */
+  def subexpressionsToContexts(tree: Expr): List[(Expr, Expr => Expr)] = {
     
     def rec(e: Expr, ctx: Expr => Expr): List[(Expr, Expr => Expr)] = e match {
       case Atom(a1) => List((e, ctx))
       case Cons(h2, t2) =>
         (e, ctx) :: rec(h2, x => ctx(Cons(x, t2))) ++ rec(t2, x => ctx(Cons(h2, x)))
+      case CaseClass(ct, args) =>
+        (List((e, ctx)) /: (0 until args.size)) {
+          case (curr, ind) =>
+            val positionElement = args(ind)
+            // argsList used just as optimization
+            val argsList = args.toList
+            val prefix = argsList.take(ind)
+            val postfix = argsList.drop(ind).tail
+            curr ::: rec(positionElement, x => ctx(CaseClass(ct, prefix ::: (x :: postfix))))
+        }
+
     }
     
     rec(tree, identity)

@@ -101,6 +101,7 @@ class PredicatesTest extends FunSuite {
       
       val chain = findChain(inputExamples)
       chain.size should be (3)
+      // the chain should just include the next input example
       for ((inner, correct) <- chain zip inputExamples.tail) {
         inner should be (List(correct))
       } 
@@ -114,7 +115,7 @@ class PredicatesTest extends FunSuite {
       for ((predicate, given) <- predicates zip List(
         predUnpack1, predUnpack2, predUnpack3
       ))
-        predicate(w) should be (given)
+      predicate(w) should be (given)
     }
     
     test("find predicates for unpack") {
