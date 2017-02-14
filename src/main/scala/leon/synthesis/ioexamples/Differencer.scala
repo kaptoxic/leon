@@ -75,14 +75,20 @@ object Differencer extends HasLogger {
     Iterable[(Map[Variable, Expr], Expr => Expr)] =
     differences(expr1, expr2, boundVariable :: Nil)
   
+  /*
+   * differences between expr1 and expr2 in terms of:
+   * - mapping of variables into expressions, such that when this substitution is done on expr2
+   *  (on it's subexpression as defined consequently), it is equal to expr1
+   * - path to the subexpression of expr2 for which the substitution should happen
+   */
   def differences(expr1: Expr, expr2: Expr, boundVariables: List[Variable]):
     Iterable[(Map[Variable, Expr], Expr => Expr)] = {
     // TODO expr2 itself is not needed
     // ignore substitutions for bound variables
-    val subexps = u.mapOfSubexpressions(expr2)// filterNot ( boundVariables contains _._1 )
+    val subexps = u.subexpressionsToContexts(expr2)// filterNot ( boundVariables contains _._1 )
     info(s"subexps for $expr2:\n${subexps.map({ case (k,v) => (k,v(boundVariables.head)) })
       .mkString("\n")}")
-    
+      
     val substs =
 	    for (subexppair <- subexps; subexp = subexppair._1;
 	      _ = info(s"subexpression worked on: $subexp");
