@@ -27,12 +27,24 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   import Scaffold._
   import Constructors._
-  import Util._
   import UtilCaseClass._
+
+  import ExampleInputs._
+  import Differencer.{ differences }
+  import Util.w
 
   val ioExamplesTestcaseDir = "testcases/synthesis/io-examples/"
 
+
   test("playing") {
+    
+//    println(mapOfSubexpressions(f3))
+    import scala.language.implicitConversions
+    implicit def diffsToString(l: Iterable[(Map[Expressions.Variable, Expressions.Expr],
+      Expressions.Expr => Expressions.Expr)]) = l.map({case (a, b) => (a, b(w))}).mkString("\n")
+    def println(s: String) = scala.Predef.println(s)
+    implicit def expressionsToString(l: Iterable[Expressions.Expr]) =
+      l.map({case a => CustomPrinter(a)}).mkString("\n")
     
     val problems = forFile(ioExamplesTestcaseDir + "MergeSortMerge.scala").toList
     problems.size should be (1)
@@ -58,10 +70,6 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
       examples.size should be (5)
     }
     
-    import Util._
-    import ExampleInputs._
-    
-    import Differencer.{ differences }
     
     // get fragments
     val ((inIds, outId), transformedExamples) = extraction.transformMappings(examples).get
@@ -83,12 +91,15 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
     val fragmentNames =
       (fragments zip (1 to 5).map("f" + _)).toMap
-    
-//    println(mapOfSubexpressions(f3))
-    import scala.language.implicitConversions
-    implicit def diffsToString(l: Iterable[(Map[Expressions.Variable, Expressions.Expr],
-      Expressions.Expr => Expressions.Expr)]) = l.map({case (a, b) => (a, b(w))}).mkString("\n")
-    def println(s: String) = scala.Predef.println(s)
+      
+    // kick out fragments that cannot be compared ?
+    val crucialFragments = f2 :: f3 :: f4 :: f5 :: Nil
+    for (crucialFragmentsPerm <- crucialFragments.permutations) {
+      val sortedFragments = Util.sort(crucialFragmentsPerm)
+      withClue(s"${sortedFragments: String} != ${crucialFragments: String}") {
+        sortedFragments shouldBe crucialFragments
+      }
+    }
     
     info("ordered fragments: " + fragments.mkString("\n"))
     info("ordered fragments: " + fragments.map(CustomPrinter(_)).mkString("\n"))
@@ -136,7 +147,6 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
       val allDiffs =
   	    for((f1, f2) <- fragments zip fragments.tail) yield {
   	      val diffs = differences(f1, f2, l1 :: l2 :: Nil).map(_._1)
-  	      info(s"diffs between $f1 and $f2 are $diffs")
   		    diffs.toSet
   	    }
       
@@ -152,11 +162,10 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
       allDiffs.tail.count(_ contains Map(l2 -> l2, l1 -> t(l1))) shouldBe 1
     }
     
-    
     val allDiffs =
 	    for((f1, f2) <- fragments zip fragments.tail) yield {
 	      val diffs = differences(f1, f2, l1 :: l2 :: Nil)
-	      info(s"diffs between $f1 and $f2 are $diffs")
+	      fine(s"diffs between $f1 and $f2 are ${diffs: String}")
 	      (f1, f2, diffs)
 	    }
     
@@ -166,10 +175,10 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         if f11 != f12;
         diff1 <- diffs1;
         diff2 <- diffs2;
-        _ = info(s"Checking diffs: $diff1 and $diff2");
+        _ = finer(s"Checking diffs: $diff1 and $diff2");
         merged <- Differencer.areCompatible(diff1, diff2);
-        _ = info(s"compatible!!")
-        ) yield (f11 :: f21 :: f12 :: f22 :: Nil map fragmentNames, merged)
+        _ = finer(s"compatible!!")
+      ) yield (f11 :: f21 :: f12 :: f22 :: Nil map fragmentNames, merged)
         
     info("compatibles: " + compatibles.map(p => (p._1, (p._2._1, p._2._2(w)))).mkString("\n"))
 
@@ -179,6 +188,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         list shouldBe List("f2", "f3", "f4", "f5")
         map shouldBe Map(l1 -> l1, l2 -> t(l2))
     }
+   
     
   }
 

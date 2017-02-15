@@ -11,7 +11,9 @@ import ExprOps._
 import Common.FreshIdentifier
 import Extractors._
 
-object Util {
+import leon.utils.logging._
+
+object Util extends HasLogger {
   
   import Extractors._
   
@@ -143,6 +145,7 @@ object Util {
     var mutableMap = map
     
     def rec(expr1: Expr, expr2: Expr): Int = {
+      entering("rec", expr1, expr2)
       if (mutableMap contains (expr1, expr2))
         return mutableMap((expr1, expr2))        
       
@@ -163,7 +166,9 @@ object Util {
             }
 			    case (Atom(_), Composite(_)) => -1
 			    case (Composite(_), Atom(_)) => 1
-			    case (_, _) => 0			      
+			    case (_, _) =>
+			      info(s"res = 0")
+			      0			      
 	      }
 	      	      
       mutableMap += (expr1, expr2) -> res
@@ -210,7 +215,8 @@ object Util {
     def compFun(a: Expr, b: Expr) = {
       val res = compare(a, b)
       map ++= res._2
-      if (res._1 == 0 || res._1 == -2) throw new Exception("Input examples should form a total order")      	
+      if (res._1 == 0 || res._1 == -2)
+        throw new Exception(s"Input examples should form a total order (res._1=${res._1})")      	
        
       res._1 < 0
     }
