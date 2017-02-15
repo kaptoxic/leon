@@ -25,12 +25,13 @@ import scala.collection.mutable.{ HashMap => MutableMap }
 class TermSynthesizer(
     hctx: SynthesisContext, p: Problem,
     sizes: (Int, Int) = (1, 5),
-    numOfSnippetsToSynthesize: Int = 20
+    numOfSnippetsToSynthesize: Int = 20,
+    inGrammar: Option[ExpressionGrammar] = None
 ) extends (Seq[TypeTree] => Iterable[Expr]) with HasLogger {
   
   def apply(tpes: Seq[TypeTree]) = {
     implicit val ci = hctx
-    val grammar = grammars.default(hctx, p)
+    val grammar = inGrammar getOrElse grammars.default(hctx, p)
     val (minSize, maxSize) = sizes
 
     val enum = new MemoizedEnumerator[Label, Expr, ProductionRule[Label, Expr]](grammar.getProductions)
