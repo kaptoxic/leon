@@ -6,23 +6,23 @@ object MergeSort {
   case class Cons(head: Int, tail: List) extends List
   case object Nil extends List
 
-  def contents(l: List): Set[Int] = l match {
-    case Nil => Set.empty
-    case Cons(x, xs) => contents(xs) ++ Set(x)
-  }
-
-  def isSorted(l: List): Boolean = l match {
-    case Nil => true
-    case Cons(x, xs) => xs match {
-      case Nil => true
-      case Cons(y, ys) => x <= y && isSorted(Cons(y, ys))
-    }
-  }
-  
-  def size(list: List): Int = list match {
-    case Nil => 0
-    case Cons(x, xs) => 1 + size(xs)
-  }
+//  def contents(l: List): Set[Int] = l match {
+//    case Nil => Set.empty
+//    case Cons(x, xs) => contents(xs) ++ Set(x)
+//  }
+//
+//  def isSorted(l: List): Boolean = l match {
+//    case Nil => true
+//    case Cons(x, xs) => xs match {
+//      case Nil => true
+//      case Cons(y, ys) => x <= y && isSorted(Cons(y, ys))
+//    }
+//  }
+//  
+//  def size(list: List): Int = list match {
+//    case Nil => 0
+//    case Cons(x, xs) => 1 + size(xs)
+//  }
 
   def merge(l1: List, l2: List): List = choose {
     (out: List) => ((l1, l2), out) passes {

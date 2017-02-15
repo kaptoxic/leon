@@ -8,11 +8,13 @@ import Definitions._
 import Types._
 import Common._
 
+import leon.solvers._
 import leon.solvers.z3._
 import leon.solvers.Solver
 import leon.synthesis._
 import leon.synthesis.utils._
 import leon.synthesis.ioexamples._
+import leon.evaluators._
 
 import leon.utils.logging._
 
@@ -188,7 +190,71 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         list shouldBe List("f2", "f3", "f4", "f5")
         map shouldBe Map(l1 -> l1, l2 -> t(l2))
     }
-   
+    
+    import synthesis.ioexamples.backwards.TermSynthesizer
+    
+    val heads =
+      caseClassSelector(consClass, l1, consClass.fields.find(_.id.name == "head").get.id) ::
+      caseClassSelector(consClass, l2, consClass.fields.find(_.id.name == "head").get.id) :: Nil
+      
+    val myGrammar = {
+      import leon.grammars._
+      import purescala.ExprOps._
+      import purescala.Expressions.Expr
+      import purescala.Extractors.TopLevelAnds
+      import purescala.Types.{BooleanType, Int32Type, IntegerType}
+      import Witnesses.Hint
+      
+      val TopLevelAnds(ws) = problem.ws
+      val hints = ws.collect{ case Hint(e) if formulaSize(e) >= 4 => e }
+      val inputs = /*problem.allAs.map(_.toVariable) ++ hints ++*/ heads
+      val exclude = sctx.settings.functionsToIgnore
+      val recCalls = {
+        if (sctx.findOptionOrDefault(SynthesisPhase.optIntroduceRecCalls)) Empty()
+        else SafeRecursiveCalls(sctx.program, problem.ws, problem.pc)
+      }
+  
+      BaseGrammar ||
+      Closures ||
+      EqualityGrammar(Set(IntegerType, Int32Type, BooleanType) ++ inputs.map { _.getType }) ||
+      OneOf(inputs) ||
+      Constants(sctx.functionContext.fullBody) ||
+      FunctionCalls(sctx.program, sctx.functionContext, inputs.map(_.getType), exclude) ||
+      recCalls
+    }
+
+    val termSynthesizer = new TermSynthesizer(sctx, problem, inGrammar = Some(myGrammar))
+    
+    val enum = termSynthesizer.apply(BooleanType :: Nil)
+    
+    info(enum.take(3))
+    
+    val evaluator = new DefaultEvaluator(sctx, program)
+    
+    info(s"examples: ${examples.reverse.mkString("\n")}")
+    
+    for (ex <- enum.take(30);
+//      if (ex.toString == "l1.head < l2.head");
+      _ = print(s"\n $ex -- ");
+      ind <- List(1, 2, 4, 3, 5);
+      (inputs, output) = examples.reverse(ind - 1);
+      inputMap = inputs.toMap
+    ) {
+      val v1 = inputMap(l1.id)
+      val v2 = inputMap(l2.id)
+      val res = evaluator.eval(ex,
+        new Model(Map(l1.id -> v1, l2.id -> v2)))
+      
+      res match {
+        case EvaluationResults.Successful(v) =>
+          print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
+//          info(s"$v for $ex, ${v1}, $v2")
+        case e: EvaluationResults.EvaluatorError =>
+          print("_")
+//          info("evaluation failure: " + e + s" for $v1 and $v2")
+      }
+      
+    }
     
   }
 
