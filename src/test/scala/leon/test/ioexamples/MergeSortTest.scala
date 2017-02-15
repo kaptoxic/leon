@@ -4,6 +4,7 @@ package ioexamples
 import leon._
 import purescala._
 import Expressions._
+import Extractors._
 import Definitions._
 import Types._
 import Common._
@@ -255,6 +256,145 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
       }
       
     }
+    
+    val fragmentsAndInputs = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1)})
+    
+    // check if these results match the "compatible groups"
+    {
+      val compositeFragmentsAndInputs =
+//        fragmentsAndInputs filter {
+//          case (f, e@((_, Composite(_)) :: (_, Composite(_)) :: Nil, _))  =>
+//            true
+//          case _ =>
+//            false
+//        }
+        fragmentsAndInputs filter {
+          case (f, e@((_, Atom(_)) :: (_, Atom(_)) :: Nil, _))  =>
+            false
+          case _ =>
+            true
+        }
+      val compositeFragmentsAndInputsMap = compositeFragmentsAndInputs.toMap
+      compositeFragmentsAndInputs should have size 4
+      
+      val fragments = compositeFragmentsAndInputs.map(_._1)
+      
+      val allDiffs =
+  	    for((f1, f2) <- fragments zip fragments.tail) yield {
+  	      val diffs = differences(f1, f2, l1 :: l2 :: Nil)
+  	      (f1, f2, diffs)
+  	    }
+      allDiffs should have size 3
+      
+      val compatibles =
+        for ((f11, f21, diffs1) <- allDiffs;
+          (f12, f22, diffs2) <- allDiffs.tail;
+          if f11 != f12;
+          diff1 <- diffs1;
+          diff2 <- diffs2;
+          merged <- Differencer.areCompatible(diff1, diff2)
+        ) yield (Set((f11, f21), (f12, f22)), merged)
+        
+      // group all merged according to f21 and f22
+//      type tpe = Map[(Expr, Expr), List[(Map[Variable, Expr], Expr => Expr)]]
+//      val compatiblesGrouped =
+//        ((Map(): tpe) /: compatibles.groupBy(_._1)) {
+//          case (curr, (pair, list)) =>
+//            for ((pair2, (mapping, fun)) <- list) yield {
+//              curr
+//            }
+//        }
+        
+      assert(compatibles.map(_._1).distinct.size == compatibles.size)
+          
+      compatibles should have size 1
+      
+      // find groups for which you need to find distinguishing predicate
+      val groups =
+      compatibles.map({
+        case (set, map) =>
+          (set, map :: Nil)
+      }) ++
+      allDiffs.filter({
+        case (f1, f2, diff) =>
+          ! (compatibles.map(_._1).flatten contains (f1, f2))
+      }).map({ case (f1, f2, diff) => (Set((f1, f2)), diff) })
+
+      groups should have size 2
+      
+      println("")
+      
+      info(groups.toString)
+      // FIXME hardcoded, but here we should check decreasing paramters
+      val filteredDiffGroups =
+        groups.map({
+          case (a, b) =>
+            (a,
+              b.filter(_.toString != "(Map(l2 -> l1, l1 -> Cons(l2.head, l1.tail)),<function1>)")
+            )
+        })
+      info(filteredDiffGroups.mkString("\n"))
+      assert(filteredDiffGroups.size == 2)
+      
+      info("Evaluation")
+      val results =
+        for (ex <- enum.take(30);
+          _ = info(s"example is $ex");
+          (set, diffs) <- filteredDiffGroups;
+          _ = assert(diffs.size == 1);
+          (mapping, fun) = diffs.head;
+          modifiedEx = ExprOps.replaceFromIDs(mapping.map({ case (k,v) => (k.id, v) }), ex)
+        ) yield {
+          val res =
+            for((_, f) <- set.toList;
+              // note that the lowest fragment (out of two) might fail
+//              if (compositeFragmentsAndInputsMap.contains(f));
+              // NOTE we assume evaluation error actually is one of those simple cases that already work 
+              (inputs, _) = compositeFragmentsAndInputsMap(f)) yield {
+              evaluator.eval(modifiedEx, new Model(inputs.toMap)) match {
+                case EvaluationResults.Successful(BooleanLiteral(v)) =>
+      //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
+                  info(s"$v for $modifiedEx, and inputs ${inputs}")
+                  Some(v)
+                case e: EvaluationResults.EvaluatorError =>
+      //            print("_")
+                  info("evaluation failure: " + e + s" for inputs ${inputs}")
+                  None
+              }
+            }
+            
+          val allEqual = res
+          info(s"results for $ex and $set: $allEqual")
+          
+          allEqual.size should be > (0)
+
+          if(
+            allEqual.filterNot(_.isEmpty).distinct.size ==
+            allEqual.filterNot(_.isEmpty).size)
+            Some((ex, (set, allEqual.filterNot(_.isEmpty).head.get)))
+          else
+            None
+        }
+     
+      info(results.flatten.mkString("\n")) 
+      val filteredResults =
+        results.flatten.groupBy(_._1).filter({
+          case (k, res) if res.size == 2 =>
+            val results = res.map(_._2._2)
+  
+            info(s"for $k we have:\n${results.mkString("\n")}")
+            info(s"${results.toList.distinct}")
+            results.toList.distinct.size == 2
+          case _ =>
+            false
+        })
+      
+      info(filteredResults.map(_._1).toString)
+      
+    }
+    
+//    check if the reduction of inputs makes a chains with predicates as well
+//    - optimization -- if you get an existing input by reduction, you know it's fine
     
   }
 
