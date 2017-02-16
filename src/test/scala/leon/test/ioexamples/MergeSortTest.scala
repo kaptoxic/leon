@@ -337,13 +337,12 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
       assert(filteredDiffGroups.size == 2)
       
       info("Evaluation")
-      val results =
+      val distinguishing =
         for (ex <- enum.take(30);
           _ = info(s"example is $ex");
           (set, diffs) <- filteredDiffGroups;
           _ = assert(diffs.size == 1);
-          (mapping, fun) = diffs.head;
-          modifiedEx = ExprOps.replaceFromIDs(mapping.map({ case (k,v) => (k.id, v) }), ex)
+          (mapping, fun) = diffs.head
         ) yield {
           val res =
             for((_, f) <- set.toList;
@@ -351,10 +350,10 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 //              if (compositeFragmentsAndInputsMap.contains(f));
               // NOTE we assume evaluation error actually is one of those simple cases that already work 
               (inputs, _) = compositeFragmentsAndInputsMap(f)) yield {
-              evaluator.eval(modifiedEx, new Model(inputs.toMap)) match {
+              evaluator.eval(ex, new Model(inputs.toMap)) match {
                 case EvaluationResults.Successful(BooleanLiteral(v)) =>
       //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
-                  info(s"$v for $modifiedEx, and inputs ${inputs}")
+                  info(s"$v for $ex, and inputs ${inputs}")
                   Some(v)
                 case e: EvaluationResults.EvaluatorError =>
       //            print("_")
@@ -369,16 +368,18 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
           allEqual.size should be > (0)
 
           if(
-            allEqual.filterNot(_.isEmpty).distinct.size ==
-            allEqual.filterNot(_.isEmpty).size)
+            allEqual.filterNot(_.isEmpty).distinct.size == 1
+//            allEqual.filterNot(_.isEmpty).distinct.size ==
+//            allEqual.filterNot(_.isEmpty).size
+          )
             Some((ex, (set, allEqual.filterNot(_.isEmpty).head.get)))
           else
             None
         }
-     
-      info(results.flatten.mkString("\n")) 
-      val filteredResults =
-        results.flatten.groupBy(_._1).filter({
+      
+      info("distinguishing:\n" + distinguishing.flatten.mkString("\n")) 
+      val distinguishedByGroup =
+        distinguishing.flatten.groupBy(_._1).filter({
           case (k, res) if res.size == 2 =>
             val results = res.map(_._2._2)
   
@@ -387,9 +388,58 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
             results.toList.distinct.size == 2
           case _ =>
             false
+        }).map({
+          case (k, v) =>
+            (k, v.map({ case (a, (b, c)) => (b, c)}))
         })
+      info("distinguishing by group:\n" +distinguishedByGroup.mkString("\n")) 
       
-      info(filteredResults.map(_._1).toString)
+      val results =
+        for ((ex, setResults) <- distinguishedByGroup;
+          _ = info(s"example is $ex");
+          (set, diffs) <- filteredDiffGroups;
+          _ = assert(diffs.size == 1);
+          (mapping, fun) = diffs.head;
+          modifiedEx = ExprOps.replaceFromIDs(mapping.map({ case (k,v) => (k.id, v) }), ex)
+        ) yield {
+          
+          val res =
+            for((chainedFragment, f) <- set.toList;
+              // note that the lowest fragment (out of two) might fail
+//              if (compositeFragmentsAndInputsMap.contains(f));
+              // NOTE we assume evaluation error actually is one of those simple cases that already work 
+              (inputs, _) = compositeFragmentsAndInputsMap(f)) yield {
+              evaluator.eval(modifiedEx, new Model(inputs.toMap)) match {
+                case EvaluationResults.Successful(BooleanLiteral(v)) =>
+      //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
+                  info(s"$v for $modifiedEx, and inputs ${inputs}")
+                  val resultForChainedFragment =
+                    setResults.find(_._1.map(_._2) contains chainedFragment)
+                  info(s"resultForChainedFragment: ${resultForChainedFragment}")
+                  if(resultForChainedFragment.isEmpty || v == resultForChainedFragment.get._2) {
+                    true
+                  } else {
+                    false
+                  }
+                case e: EvaluationResults.EvaluatorError =>
+      //            print("_")
+                  info("evaluation failure: " + e + s" for inputs ${inputs}")
+                  true
+              }
+            }
+            
+          val allEqual = res
+          info(s"results for $ex and $set: $allEqual")
+          
+          allEqual.size should be > (0)
+
+          if(allEqual.forall(identity))
+            Some(ex)
+          else
+            None
+        }
+     
+      info(results.flatten.mkString("\n")) 
       
     }
     
