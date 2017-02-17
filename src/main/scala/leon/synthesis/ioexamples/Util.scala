@@ -223,5 +223,11 @@ object Util extends HasLogger {
     
     inputExamples.sortWith((a, b) => compFun(a, b))
   }
+  
+  implicit def diffToString(l: (Map[Expressions.Variable, Expressions.Expr],
+    Expressions.Expr => Expressions.Expr) ) = (l._1, l._2(w)).toString
+  implicit def diffsToString(l: Iterable[(Map[Expressions.Variable, Expressions.Expr],
+    Expressions.Expr => Expressions.Expr)]) = l.map(diffToString).mkString("\n")
+//  def println(s: String) = scala.Predef.println(s)
 
 }

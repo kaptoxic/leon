@@ -17,69 +17,91 @@ class Synthesizer extends HasLogger {
   
   implicit var sortMap = MMap[IO, Int]()
   
-  def synthesize(examples: List[IO]): Option[(Expr, TypedFunDef)] = {
-//    val allIds = (Set[Variable]() /: examples) {
-//      case (res, (in, out)) =>
-//        res ++ TreeOps.collect({ case x: Variable => x })(in) ++
-//          TreeOps.collect({ case x: Variable => x })(out)
-//    }
-//    
-//    // do not know how to handle >1 variables so far
-//    if (allIds.size != 1)
-//      return None
-      
-    val inputVariable = Variable(FreshIdentifier("x", listType))
-    // TEMPORARY
-    assert(examples.forall(_._1.size == 1))
-//    val sortedExamples = sort(examples, { x: IO => x._1 })    
-    val sortedExamples = sort(examples, { x: IO => x._1.head })    
+  def synthesize(examples: List[InputOutputExample]): Option[(Expr, TypedFunDef)] = {
+    require(examples.size > 0)
+    val inIds =
+      examples.head._1.map(_._1)
+    val outId =
+      examples.head._2._1
+    require(examples.forall({
+      case (inputs, output) =>
+        inputs.map(_._1).toSet == inIds.toSet &&
+        output._1 == outId
+    }))
     
-    val fragments = calculateFragments(sortedExamples, inputVariable :: Nil)
-    // TEMPORARY
-//    val predicates = calculatePredicates(sortedExamples map { _._1 }, inputVariable)
-    assert(sortedExamples.forall(_._1.size == 1))
-    val examplesByVariable = sortedExamples.map(_._1.head) :: Nil
-    val predicates = calculatePredicates(examplesByVariable, inputVariable :: Nil)
+    require({
+      val usedIds = (Set[Identifier]() /: examples) {
+        case (res, (_, (_, outExp))) =>
+          res ++ ExprOps.collect({ case x: Variable => Set(x.id) })(outExp)
+      }
+      (usedIds diff inIds.toSet).isEmpty
+    })
     
-    fine(fragments.map({ case (a, b, c) => (a, b(w), c)}).mkString("\n"))
-    fine(predicates.mkString("\n"))
-    
-    (fragments, predicates) match {
-      case (Some((fragments, a, b)), Some(p)) =>
-        if (fragments.size == p.size) {
-          // get type as type of output expression
-          val resType = examples.head._2.getType
-         
-          // create a recursive function definition
-          val newFun = new FunDef(
-            FreshIdentifier("rec"),
-            Nil,
-            ValDef(inputVariable.id) :: Nil,
-            resType
-          ).typed
 
-          assert(b.size == 1)
-          val recursiveFragment =
-            a(FunctionInvocation(newFun, Seq(b.head._2)))
-          
-          // last if-then case
-          newFun.fd.body = Some(
-            IfExpr(p.last, fragments.last, recursiveFragment)
-          )
-          
-          // create final if-then-else expression by folding the "unfolded" fragments
-          val ifExpr = 
-            ((p.init zip fragments.init) :\ (FunctionInvocation( newFun, Seq(inputVariable) ): Expr)) {
-              case ((pred, frag), elseExpr) =>
-                IfExpr(pred, frag, elseExpr) 
-            }
-          
-          Some((ifExpr, newFun))
-        } else
-          throw new Exception("Do not know how to combine fragments in this case.")
-      case _ =>
-        None
-    }
+    val transformed = ExamplesExtraction.transformMappings(examples)
+    if (transformed.isEmpty)
+      throw new Exception("Examples do not match in terms of used variables")
+
+    val ((inIds_check, outId_check), transformedExamples) = transformed.get
+    assert(inIds_check == inIds)
+    assert(outId_check == outId)
+    info(s"inIds $inIds")
+    info("transformed examples: " +transformedExamples.mkString("\n"))
+
+    ???
+      
+//    val inputVariable = Variable(FreshIdentifier("x", listType))
+//    // TEMPORARY
+//    assert(examples.forall(_._1.size == 1))
+////    val sortedExamples = sort(examples, { x: IO => x._1 })    
+//    val sortedExamples = sort(examples, { x: IO => x._1.head })    
+//    
+//    val fragments = calculateFragments(sortedExamples, inputVariable :: Nil)
+//    // TEMPORARY
+////    val predicates = calculatePredicates(sortedExamples map { _._1 }, inputVariable)
+//    assert(sortedExamples.forall(_._1.size == 1))
+//    val examplesByVariable = sortedExamples.map(_._1.head) :: Nil
+//    val predicates = calculatePredicates(examplesByVariable, inputVariable :: Nil)
+//    
+//    fine(fragments.map({ case (a, b, c) => (a, b(w), c)}).mkString("\n"))
+//    fine(predicates.mkString("\n"))
+//    
+//    (fragments, predicates) match {
+//      case (Some((fragments, a, b)), Some(p)) =>
+//        if (fragments.size == p.size) {
+//          // get type as type of output expression
+//          val resType = examples.head._2.getType
+//         
+//          // create a recursive function definition
+//          val newFun = new FunDef(
+//            FreshIdentifier("rec"),
+//            Nil,
+//            ValDef(inputVariable.id) :: Nil,
+//            resType
+//          ).typed
+//
+//          assert(b.size == 1)
+//          val recursiveFragment =
+//            a(FunctionInvocation(newFun, Seq(b.head._2)))
+//          
+//          // last if-then case
+//          newFun.fd.body = Some(
+//            IfExpr(p.last, fragments.last, recursiveFragment)
+//          )
+//          
+//          // create final if-then-else expression by folding the "unfolded" fragments
+//          val ifExpr = 
+//            ((p.init zip fragments.init) :\ (FunctionInvocation( newFun, Seq(inputVariable) ): Expr)) {
+//              case ((pred, frag), elseExpr) =>
+//                IfExpr(pred, frag, elseExpr) 
+//            }
+//          
+//          Some((ifExpr, newFun))
+//        } else
+//          throw new Exception("Do not know how to combine fragments in this case.")
+//      case _ =>
+//        None
+//    }
   }
   
   /*
@@ -88,51 +110,81 @@ class Synthesizer extends HasLogger {
    * - path to this form ??
    * - mapping for substitution that would equate these fragments
    */
-  def calculateFragments(examples: List[IO], xs: List[Variable]):
-    Option[(List[Expr], Expr => Expr, Map[Variable, Expr])]= {
+  def calculateFragments(examples: List[IO], xs: List[Variable]) = {
     entering("calculateFragments", examples, xs)
     
-    val fragments = Fragmenter.constructFragments(examples, xs)
+    // get fragments
+    val unorderedFragmentsAll = Fragmenter.constructFragments(examples, xs)
+    
+    // XXX -- hack -- make sort do equivalence classes
+    val unorderedFragments = unorderedFragmentsAll.filter(_.toString != "Nil")
+    info("unordered fragments: " + unorderedFragments.mkString("\n"))
+    
+    val fragments = Util.sort(unorderedFragments)
     info("fragments: " + fragments)
     
-    val allDiffs =
+    val allDiffResults =
 	    (for((f1, f2) <- fragments zip fragments.tail) yield {
 	      val diffs = Differencer.differences(f1, f2, xs)
 	      info(s"diffs for $f1 and $f2 are $diffs")
-		    diffs
+	      (f1, f2, diffs)
 	    })
-    info("allDiffs: " + allDiffs.map(_.map({ case (k, v) => (k, v(w))})))
+    info("allDiffResults: " + allDiffResults.map(_._3.map({ case (k, v) => (k, v(w))})))
     
-    // remove couple of last fragments if they have the same form
-    var flag = true
-    val (num, diffSet) = 
-      // process in reverse order
-	    ((1, allDiffs.last) /: allDiffs.init.reverse) {
-	      case ((num, diffSet), elSet) =>
-	        // TEMP, assume one variable
-	        assert(diffSet.size == 1)
-	        assert(diffSet.forall(_._1.size == 1))
-	        val intersectionOfSubstitutions = diffSet.map(_._1.head._2).toSet intersect
-  	        elSet.map(_._1.head._2).toSet
-	        info("intersection of %s and %s is %s".format(diffSet, elSet, intersectionOfSubstitutions))
-	        if (flag && !intersectionOfSubstitutions.isEmpty)
-	          (num+1, diffSet.filter(intersectionOfSubstitutions contains _._1.head._2))
-	        else {
-	          flag = false
-	          (num, diffSet)
-	        }
-	    }
-    info("(num, diffSet): " + (num, diffSet))
-    assert(diffSet.size == 1, "diffSet not size 1 " + diffSet)
-    val (subst, restTree) = diffSet.head
-    info(s"subst,restTree = ${(subst, restTree(w))}")
+    val (emptyDiffs, allDiffs) =
+      allDiffResults.partition(_._3.isEmpty)
+   
+    // NOTE make this faster by doing equivalence classes
+    val allPairsCompatibles =
+      for ((f11, f21, diffs1) <- allDiffs;
+        (f12, f22, diffs2) <- allDiffs.tail;
+        // NOTE this can be optimized (not to check for all pairs)
+        if f11 != f12;
+        diff1 <- diffs1;
+        diff2 <- diffs2;
+        _ = finer(s"Checking diffs: ${diff1: String} and ${diff2: String}");
+        merged <- Differencer.areCompatible(diff1, diff2);
+        _ = finer(s"compatible!!")
+      ) yield (Set((f11, f21), (f12, f22)), merged) 
+      
+    val compatibles =
+      allPairsCompatibles.groupBy(_._2).toList map {
+        case (commonDiffs, listOfCompatibleResults) =>
+          (
+            (Set[(Expr, Expr)]() /: listOfCompatibleResults) {
+              case (current, (set, _)) =>
+                current union set
+            },
+            commonDiffs
+          )
+      }
+    assert(compatibles == allPairsCompatibles, "just for merge -- remove me")
+
+    // find groups for which we need to find distinguishing predicate
+    val groups =
+      compatibles.map({
+        case (set, map) =>
+          (set, map :: Nil)
+      }) ++
+      allDiffs.filter({
+        case (f1, f2, diff) =>
+          ! (compatibles.map(_._1).flatten contains (f1, f2))
+      }).map({ case (f1, f2, diff) => (Set((f1, f2)), diff) })
+      
+    info(groups.toString)
+    // FIXME hardcoded, but here we should check decreasing paramters
+    // essentially, remove increasing recursive calls
+    val filteredDiffGroups =
+      groups.map({
+        case (a, b) =>
+          (a,
+            b.filter(_.toString != "(Map(l2 -> l1, l1 -> Cons(l2.head, l1.tail)),<function1>)")
+          )
+      })
+    info(filteredDiffGroups.mkString("\n"))
+    assert(filteredDiffGroups.size == 2)
     
-    // we check whether diffs entail same form for at least 2 consecutive examples
-    // TODO check if subexpressions are equal (to be substituted in)
-    if (num >= 2) {
-      Some((fragments.dropRight(num), restTree, subst))
-    }
-    else None
+    (emptyDiffs, filteredDiffGroups)
   }
   
   /*
