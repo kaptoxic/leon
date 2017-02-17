@@ -4,9 +4,14 @@ package synthesis.ioexamples
 import scala.collection.mutable.{ Map => MMap, TreeSet }
 
 import purescala._
+import Types._
 import Expressions._
 import Definitions._
 import Common._
+
+// evaluation
+import evaluators._
+import solvers._
 
 import utils.logging.HasLogger
 
@@ -191,70 +196,189 @@ class Synthesizer extends HasLogger {
    * list of predicates, where each predicate is for list of variables
    * each list represents examples for a variable
    */
-  def calculatePredicates(inputExamplesList: List[List[Expr]], xs: List[Variable]):
-    Option[List[Expr]]= {
-    entering("calculatePredicates", inputExamplesList, xs)
+  def calculatePredicates(
+    filteredDiffGroups: List[(Set[(Expr, Expr)], Iterable[(Map[Variable, Expr], Expr => Expr)])],
+    getEnum: TypeTree => Iterable[Expr],
+    fragmentsAndInputsMap: Map[Expressions.Expr, InputOutputExample],
+    evaluator: Evaluator
+  ) = {
+//    entering("calculatePredicates", inputExamplesList, xs)
     
-    val (predicatesList, predicatesFunsList) = (
-      for ((inputExamples, x) <- inputExamplesList zip xs) yield {
-        val atomExamples = inputExamples.map(substituteAllAtom)
-        info("atomExamples: " + atomExamples)
-      
-        val predicatesFuns = Predicates.calculatePredicates(atomExamples, x)
-        val predicates = predicatesFuns.map(_(x))
-        info("predicates: " + predicates)
-        (predicates, predicatesFuns)
-      }
-    ).unzip
+    val enum = getEnum(BooleanType)
     
-    val (nums, diffSets, allDiffSets) = (
-      for ((predicates, x) <- predicatesList zip xs) yield {
-      
-        val allDiffs =
-    	    for((f1, f2) <- predicates zip predicates.tail) yield {
-    	      val diffs = Differencer.differences(f1, f2, x).map(_._1)
-    		    diffs.toSet
-    	    }
-        info("allDiffs: " + allDiffs)
-      
-        var flag = true
-        val (num, diffSet) = 
-    	    ((1, allDiffs.last) /: allDiffs.init.reverse) {
-    	      case ((num, diffSet), elSet) =>
-    	        // TEMP, assume one variable
-    	        assert(diffSet.size == 1)
-    	        if (flag && !(diffSet intersect elSet).isEmpty) (num+1, diffSet intersect elSet)
-    	        else {
-    	          flag = false
-    	          (num, diffSet)
-    	        }
-    	    }
-        info("(num, diffSet): " + (num, diffSet))
-        assert(diffSet.size == 1)
+    info("Evaluation")
+    val distinguishing =
+      for (ex <- enum.take(30);
+        _ = info(s"example is $ex");
+        (set, diffs) <- filteredDiffGroups;
+        _ = assert(diffs.size == 1);
+        (mapping, fun) = diffs.head
+      ) yield {
+        val res =
+          for((_, f) <- set.toList;
+            // note that the lowest fragment (out of two) might fail
+//              if (compositeFragmentsAndInputsMap.contains(f));
+            // NOTE we assume evaluation error actually is one of those simple cases that already work 
+            (inputs, _) = fragmentsAndInputsMap(f)) yield {
+            evaluator.eval(ex, new Model(inputs.toMap)) match {
+              case EvaluationResults.Successful(BooleanLiteral(v)) =>
+    //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
+                info(s"$v for $ex, and inputs ${inputs}")
+                Some(v)
+              case e: EvaluationResults.EvaluatorError =>
+    //            print("_")
+                info("evaluation failure: " + e + s" for inputs ${inputs}")
+                None
+            }
+          }
+          
+        val allEqual = res
+        info(s"results for $ex and $set: $allEqual")
         
-        (num, diffSet, allDiffs)
-      }
-    ).unzip3
-    info(s"(nums, diffSets, allDiffSets)=${(nums, diffSets, allDiffSets)}")
+        assert(allEqual.size > 0)
 
-    assert(nums.forall( _ == nums.head))
-    assert(diffSets.forall( _ == diffSets.head))
-    assert(allDiffSets.forall( _ == allDiffSets.head))
-    assert(predicatesFunsList.forall(_ == predicatesFunsList.head))
-    assert(predicatesList.forall(_ == predicatesList.head))
+        if(
+          allEqual.filterNot(_.isEmpty).distinct.size == 1
+//            allEqual.filterNot(_.isEmpty).distinct.size ==
+//            allEqual.filterNot(_.isEmpty).size
+        )
+          Some((ex, (set, allEqual.filterNot(_.isEmpty).head.get)))
+        else
+          None
+      }
     
-    val predicatesFunList = predicatesFunsList.head
-    val predicates = predicatesList.head
-    val num = nums.head
-    val allDiff = allDiffSets.head
-    val diffSet = diffSets.head
+    info("distinguishing:\n" + distinguishing.flatten.mkString("\n")) 
+    val distinguishedByGroup =
+      distinguishing.flatten.groupBy(_._1).filter({
+        case (k, res) if res.size == 2 =>
+          val results = res.map(_._2._2)
+
+          info(s"for $k we have:\n${results.mkString("\n")}")
+          info(s"${results.toList.distinct}")
+          results.toList.distinct.size == 2
+        case _ =>
+          false
+      }).map({
+        case (k, v) =>
+          (k, v.map({ case (a, (b, c)) => (b, c)}))
+      })
+    info("distinguishing by group:\n" +distinguishedByGroup.mkString("\n")) 
     
-    // we check whether diffs entail same form for at least 2 consecutive examples
-    if (num >= 2) {
-      Some(predicates.dropRight(num) :+
-        predicatesFunList(allDiff.size - num)(diffSet.head.head._2))
-    }
-    else None
+    val results =
+      for ((ex, setResults) <- distinguishedByGroup;
+        _ = info(s"example is $ex");
+        (set, diffs) <- filteredDiffGroups;
+        _ = assert(diffs.size == 1);
+        (mapping, fun) = diffs.head;
+        modifiedEx = ExprOps.replaceFromIDs(mapping.map({ case (k,v) => (k.id, v) }), ex)
+      ) yield {
+        
+        val res =
+          for((chainedFragment, f) <- set.toList;
+            // note that the lowest fragment (out of two) might fail
+//              if (compositeFragmentsAndInputsMap.contains(f));
+            // NOTE we assume evaluation error actually is one of those simple cases that already work 
+            (inputs, _) = fragmentsAndInputsMap(f)) yield {
+            evaluator.eval(modifiedEx, new Model(inputs.toMap)) match {
+              case EvaluationResults.Successful(BooleanLiteral(v)) =>
+    //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
+                info(s"$v for $modifiedEx, and inputs ${inputs}")
+                val resultForChainedFragment =
+                  setResults.find(_._1.map(_._2) contains chainedFragment)
+                info(s"resultForChainedFragment: ${resultForChainedFragment}")
+                if(resultForChainedFragment.isEmpty || v == resultForChainedFragment.get._2) {
+                  true
+                } else {
+                  false
+                }
+              case e: EvaluationResults.EvaluatorError =>
+    //            print("_")
+                info("evaluation failure: " + e + s" for inputs ${inputs}")
+                true
+            }
+          }
+          
+        val allEqual = res
+        info(s"results for $ex and $set: $allEqual")
+        
+        assert(allEqual.size > 0)
+
+        if(allEqual.forall(identity))
+          Some((ex, setResults))
+        else
+          None
+      }
+    
+    results
   }
+   
+//  /*
+//   * list of predicates, where each predicate is for list of variables
+//   * each list represents examples for a variable
+//   */
+//  def calculatePredicates(inputExamplesList: List[List[Expr]], xs: List[Variable]):
+//    Option[List[Expr]]= {
+//    entering("calculatePredicates", inputExamplesList, xs) 
+//    val (predicatesList, predicatesFunsList) = (
+//      for ((inputExamples, x) <- inputExamplesList zip xs) yield {
+//        val atomExamples = inputExamples.map(substituteAllAtom)
+//        info("atomExamples: " + atomExamples)
+//      
+//        val predicatesFuns = Predicates.calculatePredicates(atomExamples, x)
+//        val predicates = predicatesFuns.map(_(x))
+//        info("predicates: " + predicates)
+//        (predicates, predicatesFuns)
+//      }
+//    ).unzip
+//    
+//    val (nums, diffSets, allDiffSets) = (
+//      for ((predicates, x) <- predicatesList zip xs) yield {
+//      
+//        val allDiffs =
+//    	    for((f1, f2) <- predicates zip predicates.tail) yield {
+//    	      val diffs = Differencer.differences(f1, f2, x).map(_._1)
+//    		    diffs.toSet
+//    	    }
+//        info("allDiffs: " + allDiffs)
+//      
+//        var flag = true
+//        val (num, diffSet) = 
+//    	    ((1, allDiffs.last) /: allDiffs.init.reverse) {
+//    	      case ((num, diffSet), elSet) =>
+//    	        // TEMP, assume one variable
+//    	        assert(diffSet.size == 1)
+//    	        if (flag && !(diffSet intersect elSet).isEmpty) (num+1, diffSet intersect elSet)
+//    	        else {
+//    	          flag = false
+//    	          (num, diffSet)
+//    	        }
+//    	    }
+//        info("(num, diffSet): " + (num, diffSet))
+//        assert(diffSet.size == 1)
+//        
+//        (num, diffSet, allDiffs)
+//      }
+//    ).unzip3
+//    info(s"(nums, diffSets, allDiffSets)=${(nums, diffSets, allDiffSets)}")
+//
+//    assert(nums.forall( _ == nums.head))
+//    assert(diffSets.forall( _ == diffSets.head))
+//    assert(allDiffSets.forall( _ == allDiffSets.head))
+//    assert(predicatesFunsList.forall(_ == predicatesFunsList.head))
+//    assert(predicatesList.forall(_ == predicatesList.head))
+//    
+//    val predicatesFunList = predicatesFunsList.head
+//    val predicates = predicatesList.head
+//    val num = nums.head
+//    val allDiff = allDiffSets.head
+//    val diffSet = diffSets.head
+//    
+//    // we check whether diffs entail same form for at least 2 consecutive examples
+//    if (num >= 2) {
+//      Some(predicates.dropRight(num) :+
+//        predicatesFunList(allDiff.size - num)(diffSet.head.head._2))
+//    }
+//    else None
+//  }
 
 }

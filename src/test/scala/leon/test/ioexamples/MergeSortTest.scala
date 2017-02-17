@@ -112,7 +112,8 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     enum
   }
   
-  var filteredGroupsToCompare: Iterable[Option[Expressions.Expr]] = _
+  var filteredGroupsToCompare:
+    Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
    
   test("playing") { 
     
@@ -443,7 +444,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
           allEqual.size should be > (0)
 
           if(allEqual.forall(identity))
-            Some(ex)
+            Some((ex, setResults))
           else
             None
         }
@@ -658,7 +659,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
           allEqual.size should be > (0)
   
           if(allEqual.forall(identity))
-            Some(ex)
+            Some((ex, setResults))
           else
             None
         }
@@ -672,5 +673,65 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
     
   }
+  
+  
+  test("synthesis process, with synthesizer and evaluator") {
+    
+    // get fragments
+    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+    info(s"inIds $inIds")
+    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+    
+    val synthesizer = new Synthesizer
+    
+    info(s"inIds $inIds")
+    info("transformed examples: " +transformedExamples.mkString("\n"))
+    
+    val (emptyDiffs, filteredDiffGroups) = synthesizer.calculateFragments(transformedExamples, inIds.map(_.toVariable))
+//    assert(emptyDiffs.size == 1)
+    info(filteredDiffGroups.mkString("\n"))
+    assert(filteredDiffGroups.size == 2)
+    
+    val enum = getEnum
+
+    val evaluator = new DefaultEvaluator(sctx, program)
+   
+    val (f4 :: f3 :: f2 :: f5 :: f1 :: Nil) = unorderedFragments 
+    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
+    val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1)})
+    
+    // check if these results match the "compatible groups"
+    val compositeFragmentsAndInputs =
+//        fragmentsAndInputs filter {
+//          case (f, e@((_, Composite(_)) :: (_, Composite(_)) :: Nil, _))  =>
+//            true
+//          case _ =>
+//            false
+//        }
+      fragmentsAndInputs filter {
+        case (f, e@((_, Atom(_)) :: (_, Atom(_)) :: Nil, _))  =>
+          false
+        case _ =>
+          true
+      }
+
+    val compositeFragmentsAndInputsMap = compositeFragmentsAndInputs.toMap
+    compositeFragmentsAndInputs should have size 4
+    
+    val results =
+      synthesizer.calculatePredicates(
+        filteredDiffGroups,
+        _ => getEnum,
+        compositeFragmentsAndInputsMap,
+        evaluator
+      )
+    
+    // same as in previous test
+    results shouldBe filteredGroupsToCompare
+   
+    info(results.flatten.mkString("\n"))
+    
+  }
+
 
 }
