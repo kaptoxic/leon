@@ -34,7 +34,7 @@ case object ExamplesBackwardsSynthesizer extends Rule("Input/output example synt
             val examplesExtraction = new ExamplesExtraction(sctx, sctx.program)
 
             val mappings = examplesExtraction.extract(problem)
-            val ioExamples = examplesExtraction.transformMappings(mappings)
+            val ioExamples = ExamplesExtraction.transformMappings(mappings)
 
             sctx.reporter.warning("Implementation pending!")
             RuleFailed()

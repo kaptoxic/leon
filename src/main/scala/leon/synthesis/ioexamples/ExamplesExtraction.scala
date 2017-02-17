@@ -13,11 +13,8 @@ import leon.utils.logging.HasLogger
 /**
  * @author ivcha
  * Extracts examples
- * NOTE: currently works with 1 input, 1 output
  */
 class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
-
-  type InputOutputExample = (List[(Identifier, Expr)], (Identifier, Expr))
 
   def extract(problem: Problem): Seq[InputOutputExample] = {
 
@@ -36,6 +33,10 @@ class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
     })
   }
 
+}
+
+object ExamplesExtraction {
+  
   def transformMappings(mappings: Seq[InputOutputExample]) = {
     val idsAndExamples =
       ((Set[(List[Identifier], Identifier)](), Set[(List[Expr], Expr)]()) /: mappings) {
@@ -50,5 +51,5 @@ class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
       Some((idsAndExamples._1.head, idsAndExamples._2.toList))
     } else None
   }
-
+  
 }
