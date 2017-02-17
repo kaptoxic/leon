@@ -43,8 +43,10 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     
 //    println(mapOfSubexpressions(f3))
     import scala.language.implicitConversions
+    implicit def diffToString(l: (Map[Expressions.Variable, Expressions.Expr],
+      Expressions.Expr => Expressions.Expr) ) = (l._1, l._2(w)).toString
     implicit def diffsToString(l: Iterable[(Map[Expressions.Variable, Expressions.Expr],
-      Expressions.Expr => Expressions.Expr)]) = l.map({case (a, b) => (a, b(w))}).mkString("\n")
+      Expressions.Expr => Expressions.Expr)]) = l.map(diffToString).mkString("\n")
     def println(s: String) = scala.Predef.println(s)
     implicit def expressionsToString(l: Iterable[Expressions.Expr]) =
       l.map({case a => CustomPrinter(a)}).mkString("\n")
@@ -178,7 +180,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         if f11 != f12;
         diff1 <- diffs1;
         diff2 <- diffs2;
-        _ = finer(s"Checking diffs: $diff1 and $diff2");
+        _ = finer(s"Checking diffs: ${diff1: String} and ${diff2: String}");
         merged <- Differencer.areCompatible(diff1, diff2);
         _ = finer(s"compatible!!")
       ) yield (f11 :: f21 :: f12 :: f22 :: Nil map fragmentNames, merged)
@@ -326,6 +328,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
       
       info(groups.toString)
       // FIXME hardcoded, but here we should check decreasing paramters
+      // essentially, remove increasing recursive calls
       val filteredDiffGroups =
         groups.map({
           case (a, b) =>
@@ -439,12 +442,35 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
             None
         }
      
-      info(results.flatten.mkString("\n")) 
+      info(results.flatten.mkString("\n"))
+    
+    // check if the reduction of inputs makes a chains with predicates as well
+    // - optimization -- if you get an existing input by reduction, you know it's fine
+//    val allOk =
+//      for ((ex, setResults) <- distinguishedByGroup;
+//        if (results.flatten.toList contains ex);
+//        _ = info(s"example is $ex");
+//        // check all groups
+//        (fragments, diffs) <- filteredDiffGroups;
+//        _ = assert(diffs.size == 1);
+//        (mapping, fun) = diffs.head;
+//        modifiedEx = ExprOps.replaceFromIDs(mapping.map({ case (k,v) => (k.id, v) }), ex);
+//      ) {
+//          
+//        def getComponentsToCheck(
+//          currentFragments: (Expr, Expr)
+//        ): List[Expr] = {
+//          val (f1, f2) = currentFragments
+//          if (
+//        }
+//          
+//        
+//        for((chainedFragment, f) <- set.toList;
+//      }
+
+
       
     }
-    
-//    check if the reduction of inputs makes a chains with predicates as well
-//    - optimization -- if you get an existing input by reduction, you know it's fine
     
   }
 
