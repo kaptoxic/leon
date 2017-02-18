@@ -73,7 +73,8 @@ object Predicates extends HasLogger {
           info("Atom case")
           // note that we can do this since its total order and thus chain goes extremely left or right
           // remove the first one since it is an atom
-        	u.allSubexpressions(x1).toList.sortWith{ case (a, b) => compFun(a, b) < 0 }.tail
+        	u.allSubexpressions(x1).toList.sortWith{ case (a, b) => compFun(a, b) < 0 }.tail filterNot
+          	{ _ == x }
         case (Cons(h1, t1), Cons(h2, t2)) =>
           info("Cons case")
           if (compFun(h1, h2) == 0) {
@@ -172,6 +173,7 @@ object Predicates extends HasLogger {
     assert( differencesLists.size > 0 )
     assert( differencesLists forall { _.size == 1})
     val differences = differencesLists.map(_.head)
+    info("differences: " + differences.map(x => x(Util.w)))
     
     (x: Expr) => {
       val sequence = differences.map(_(x)).toSeq
@@ -197,10 +199,11 @@ object Predicates extends HasLogger {
   def calculatePredicates(inputExamples: List[Expr], v: Variable): List[Expr=>Expr] = {
     // note that this can find multiple chains
     val chain = findChain(inputExamples, v)
-    val chainIncludingStart = chain.zip(inputExamples.init).map {
-      case (chain, start) => start :: chain
+    val chainIncludingStart = chain.zip(inputExamples.init).collect {
+      case (chain, start) if !chain.isEmpty => start :: chain
     }
     
+    info("chainIncludingStart: " + chainIncludingStart)
     chainIncludingStart.map{ findPredicate(_) }
   }
 
