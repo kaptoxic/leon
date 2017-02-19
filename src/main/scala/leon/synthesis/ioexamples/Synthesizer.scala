@@ -84,17 +84,6 @@ class Synthesizer extends HasLogger {
 
     fine("fragmentToInputMap: " + fragmentToInputMap)
     
-//    val predicates =
-//      calculatePredicates(
-//        filteredDiffGroups,
-//        getEnum,
-//        fragmentToInputMap,
-//        evaluator
-//      )
-//      
-//    fine("groups: " + filteredDiffGroups.mkString("\n"))
-//    fine("predicates: " + predicates.mkString("\n"))
-    
     val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_))
     val initialFragmentFromGroup = {
       // get all (f1, f2)
@@ -150,6 +139,18 @@ class Synthesizer extends HasLogger {
         case (current, (condition, branch)) =>
           IfExpr(condition, branch, current) 
       }
+    
+    // found groups
+//    val predicates =
+//      calculatePredicates(
+//        filteredDiffGroups,
+//        getEnum,
+//        fragmentToInputMap,
+//        evaluator
+//      )
+//      
+//    fine("groups: " + filteredDiffGroups.mkString("\n"))
+//    fine("predicates: " + predicates.mkString("\n"))
     
     Some((ifExpr, null))
 //    (fragments, predicates) match {

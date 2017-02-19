@@ -115,7 +115,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
 
-  ignore("playing") {
+  test("playing") {
 
     // get fragments
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
@@ -126,12 +126,13 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     info("unordered fragments: " + unorderedFragments.mkString("\n"))
     info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
 
-    //    [h(l1),h(l2)t(l1)]
-    //    [h(l2)l1]
-    //    l1
-    //    [h(l2),h(l1),ht(l2)t(l1)]
-    //    nil
-    val (f4 :: f3 :: f2 :: f5 :: f1 :: Nil) = unorderedFragments
+//    [h(l2),h(l1),ht(l2)t(l1)]
+//    [h(l2)l1]
+//    [h(l1),h(l2)t(l1)]
+//    l1
+//    Nil
+
+    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
     val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
     val fragmentNames =
       (fragments zip (1 to 5).map("f" + _)).toMap
@@ -453,7 +454,11 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
             None
         }
 
-      filteredGroupsToCompare = results
+      // same as in previous test
+      if (filteredGroupsToCompare == null)
+        filteredGroupsToCompare = results
+      else
+        results shouldBe filteredGroupsToCompare
 
       info(results.flatten.mkString("\n"))
 
@@ -485,7 +490,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  ignore("synthesis process, with synthesizer") {
+  test("synthesis process, with synthesizer") {
 
     //    println(mapOfSubexpressions(f3))
     //    import scala.language.implicitConversions
@@ -537,7 +542,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
     val evaluator = new DefaultEvaluator(sctx, program)
 
-    val (f4 :: f3 :: f2 :: f5 :: f1 :: Nil) = unorderedFragments
+    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
     val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
     val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
 
@@ -670,7 +675,10 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         }
 
       // same as in previous test
-      results shouldBe filteredGroupsToCompare
+      if (filteredGroupsToCompare == null)
+        filteredGroupsToCompare = results
+      else
+        results shouldBe filteredGroupsToCompare
 
       info(results.flatten.mkString("\n"))
 
@@ -678,7 +686,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  ignore("calculate predicates structure asdasdasd") {
+  test("calculate predicates structure asdasdasd") {
 
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")
@@ -694,7 +702,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     info(filteredDiffGroups.mkString("\n"))
     //    assert(emptyDiffs.size == 1)
 
-    val (f4 :: f3 :: f2 :: f5 :: f1 :: Nil) = unorderedFragments
+    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
     val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
     val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
     val fragmentsAndInputsMap = fragmentsAndInputs.toMap
@@ -716,21 +724,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  test("test synthesizer") {
-
-    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-    //      info(s"inIds $inIds")
-    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-
-    val synthesizer = new Synthesizer
-
-    val result = synthesizer.synthesize(examples.toList, _ => getEnum, evaluator, nilClass)
-
-    info("result is: " + result)
-
-  }
-
-  ignore("synthesis process, with synthesizer and evaluator") {
+  test("synthesis process, with synthesizer and evaluator") {
 
     // get fragments
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
@@ -751,7 +745,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
     val evaluator = new DefaultEvaluator(sctx, program)
 
-    val (f4 :: f3 :: f2 :: f5 :: f1 :: Nil) = unorderedFragments
+    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
     val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
     val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
 
@@ -781,9 +775,35 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         evaluator)
 
     // same as in previous test
-    results shouldBe filteredGroupsToCompare
+    if (filteredGroupsToCompare == null)
+      filteredGroupsToCompare = results
+    else
+      results shouldBe filteredGroupsToCompare
+
 
     info(results.flatten.mkString("\n"))
+
+  }
+  
+  test("test synthesizer") {
+
+    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+    //      info(s"inIds $inIds")
+    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+
+    val synthesizer = new Synthesizer
+
+    val Some((body, funDef)) = synthesizer.synthesize(examples.toList, _ => getEnum, evaluator, nilClass)
+
+    info("(body, funDef) is: " + (body, funDef))
+    body.toString shouldBe
+      """|if ((l1 == Nil) && (l2 == Nil)) {
+         |  Nil
+         |} else if ((l2 == Nil)) {
+         |  l1
+         |} else {
+         |  ()
+         |}""".stripMargin
 
   }
 

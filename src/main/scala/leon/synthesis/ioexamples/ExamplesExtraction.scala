@@ -39,12 +39,12 @@ object ExamplesExtraction {
   
   def transformMappings(mappings: Seq[InputOutputExample]) = {
     val idsAndExamples =
-      ((Set[(List[Identifier], Identifier)](), Set[(List[Expr], Expr)]()) /: mappings) {
+      ((Set[(List[Identifier], Identifier)](), List[(List[Expr], Expr)]()) /: mappings) {
         case ((setIds, setIOs), (inIdEs, (outId, outE))) =>
           (setIds + ((inIdEs.map(_._1), outId)),
-            setIOs + ((inIdEs.map(_._2), outE)))
+            setIOs :+ ((inIdEs.map(_._2), outE)))
         case _ =>
-          (Set.empty, Set.empty)
+          (Set.empty, List.empty)
       }
 
     if (idsAndExamples._1.size == 1) {
