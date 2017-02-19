@@ -133,26 +133,67 @@ class Synthesizer extends HasLogger {
           
         (and(conditions.toSeq: _*), branch)
       }
-
-    val ifExpr = 
-      ((UnitLiteral(): Expr) /: initialBranches.reverse) {
-        case (current, (condition, branch)) =>
-          IfExpr(condition, branch, current) 
-      }
     
     // found groups
-//    val predicates =
-//      calculatePredicates(
-//        filteredDiffGroups,
-//        getEnum,
-//        fragmentToInputMap,
-//        evaluator
-//      )
-//      
-//    fine("groups: " + filteredDiffGroups.mkString("\n"))
-//    fine("predicates: " + predicates.mkString("\n"))
+    val predicates =
+      calculatePredicates(
+        filteredDiffGroups,
+        getEnum,
+        unorderedFragmentsAll zip examples toMap,
+        evaluator
+      ) flatten
+      
+    fine("groups: " + filteredDiffGroups.mkString("\n"))
+    fine("predicates: " + predicates.mkString("\n"))
     
-    Some((ifExpr, null))
+    if (predicates.size > 0) {
+      
+      val (condition, fragments) = predicates.head
+      
+      // get type as type of output expression
+      val resType = examples.head._2._2.getType
+     
+      // create a recursive function definition
+      val newFun = new FunDef(
+        FreshIdentifier("rec"),
+        Nil,
+        xs map { v => ValDef(v.id) },
+        resType
+      ).typed
+      
+      
+      val recursiveFragmentTrue = {
+        val (fragmentsThatAreTrue, _) =
+          fragments.find(_._2).get
+        val (_, (mapB, a) :: Nil) =
+          filteredDiffGroups.find(_._1 == fragmentsThatAreTrue).get
+        a(FunctionInvocation(newFun, xs map mapB))
+      }
+        
+      val recursiveFragmentFalse = {
+        val (fragmentsThatAreFalse, _) =
+          fragments.find(!_._2).get
+        val (_, (mapB, a) :: Nil) =
+          filteredDiffGroups.find(_._1 == fragmentsThatAreFalse).get
+        a(FunctionInvocation(newFun, xs map mapB))
+      }
+      
+      val finalIfExpr = 
+        IfExpr(condition, recursiveFragmentTrue, recursiveFragmentFalse) 
+      
+      // create final if-then-else expression by folding the "unfolded" fragments
+      val ifExpr = 
+        ((finalIfExpr: Expr) /: initialBranches.reverse) {
+          case (current, (condition, branch)) =>
+            IfExpr(condition, branch, current) 
+        }
+      
+      // last if-then case
+      newFun.fd.body = Some(ifExpr)
+      
+      Some((ifExpr, newFun))
+      
+    } else None
 //    (fragments, predicates) match {
 //      case (Some((fragments, a, b)), Some(p)) =>
 //        if (fragments.size == p.size) {

@@ -115,7 +115,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
 
-  test("playing") {
+  ignore("playing") {
 
     // get fragments
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
@@ -490,7 +490,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  test("synthesis process, with synthesizer") {
+  ignore("synthesis process, with synthesizer") {
 
     //    println(mapOfSubexpressions(f3))
     //    import scala.language.implicitConversions
@@ -686,7 +686,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  test("calculate predicates structure asdasdasd") {
+  ignore("calculate predicates structure asdasdasd") {
 
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")
@@ -724,7 +724,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  test("synthesis process, with synthesizer and evaluator") {
+  ignore("synthesis process, with synthesizer and evaluator") {
 
     // get fragments
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
@@ -801,8 +801,10 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
          |  Nil
          |} else if ((l2 == Nil)) {
          |  l1
+         |} else if (l2.head < l1.head) {
+         |  Cons(l2.head, rec(l1, l2.tail))
          |} else {
-         |  ()
+         |  Cons(l1.head, rec(l1.tail, l2))
          |}""".stripMargin
 
   }
