@@ -1,5 +1,7 @@
 import leon.lang._
 import leon.lang.synthesis._
+import leon.annotation._
+import leon.collection._
 
 object RedBlackTree {
   sealed abstract class Color
@@ -33,10 +35,10 @@ object RedBlackTree {
     case Node(Red, l, _, r) => isBlack(l) && isBlack(r) && redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(r)
   }
 
-  def redDescHaveBlackChildren(t: Tree): Boolean = t match {
-    case Empty() => true
-    case Node(_, l, _, r) => redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(r)
-  }
+//  def redDescHaveBlackChildren(t: Tree): Boolean = t match {
+//    case Empty() => true
+//    case Node(_, l, _, r) => redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(r)
+//  }
 
   def blackBalanced(t: Tree): Boolean = t match {
     case Node(_, l, _, r) => blackBalanced(l) && blackBalanced(r) && blackHeight(l) == blackHeight(r)
@@ -48,12 +50,43 @@ object RedBlackTree {
     case Node(Black, l, _, _) => blackHeight(l) + 1
     case Node(Red, l, _, _) => blackHeight(l)
   }
+  
+  case class SortedTriple(min: Option[Int], max: Option[Int], sorted: Boolean)
+
+  def isSortedTriple(tree: Tree) : SortedTriple = (tree match {
+    case Empty() => SortedTriple(None(), None(), true)
+    case Node(_, l, v, r) =>
+      (isSortedTriple(l), isSortedTriple(r)) match {
+        case (SortedTriple(minl, maxl, sortedl), SortedTriple(minr, maxr, sortedr)) =>
+          val sorted = sortedl && sortedr && (v > maxl.getOrElse(v-1)) && (v < minr.getOrElse(v+1))
+          SortedTriple(minl.orElse(Some(v)), maxr.orElse(Some(v)), sorted)
+      }
+  }) ensuring { res => res match {
+    case SortedTriple(Some(min), Some(max), res) => !res || (min <= max)
+    case SortedTriple(None(), None(), res) => res
+    case _ => false
+  }}
+
+  def isSorted(tree: Tree): Boolean = isSortedTriple(tree).sorted
+  
+  def balanceTreeInput(t: Node): Tree = {
+    require(
+      redNodesHaveBlackChildren (t.left) && redNodesHaveBlackChildren (t.right) &&
+      blackBalanced (t.left) && blackBalanced (t.right) && isSorted(t)
+    )
+    choose {
+      (out: Tree) =>
+        content(out) == content(t) &&
+        redNodesHaveBlackChildren (out) &&
+        blackBalanced (out) && isSorted(out)
+    }
+  }
 
   def balance(c: Color, a: Tree, x: Int, b: Tree): Tree = choose {
 //  def balance(in: Tree): Tree = choose {
     (out: Tree) =>
       content(out) == content(a) ++ content(b) + x &&
-      redDescHaveBlackChildren (out) &&
+      redNodesHaveBlackChildren (out) &&
       blackBalanced (out)
 //    (out: Tree) => (in, out) passes {
 //      case Node(Black, Node(Red, Node(Red, a, xV, b), yV, c), zV, d) =>

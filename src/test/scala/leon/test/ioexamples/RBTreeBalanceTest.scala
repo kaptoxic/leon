@@ -48,10 +48,10 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
   val problems = forFile(ioExamplesTestcaseDir + "RedBlackTreeBalance.scala").toList
   
   test("check synthesis problem") {
-    problems.size should be(1)
+    problems.size should be(2)
   }
 
-  val (sctx, funDef, problem) = problems.head
+  val (sctx, funDef, problem) = problems.find(_._2.id.name == "balanceTreeInput").get
 
   implicit val program = sctx.program
 
@@ -84,11 +84,11 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         EqualityGrammar(Set(IntegerType, Int32Type, BooleanType) ++ inputs.map { _.getType }) ||
         OneOf(inputs) ||
         Constants(sctx.functionContext.fullBody) ||
-        FunctionCalls(sctx.program, sctx.functionContext, inputs.map(_.getType), exclude) ||
+//        FunctionCalls(sctx.program, sctx.functionContext, inputs.map(_.getType), exclude) ||
         recCalls
     }
 
-    val termSynthesizer = new TermSynthesizer(sctx, problem, inGrammar = Some(myGrammar), sizes = (6, 15))
+    val termSynthesizer = new TermSynthesizer(sctx, problem, inGrammar = Some(myGrammar), sizes = (8, 10))
 
     val enum = termSynthesizer.apply(tpe :: Nil)
 
@@ -113,8 +113,47 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
     
     val enum = getEnum(resType)
     
-    val firstN = enum.take(800).toList
+    val firstN = enum.take(1600).toList
     
     info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
+    
+//    "output finding" -
+    {
+      val phi = problem.phi
+      
+      problem.as should have size 1
+      val in = problem.as.head
+
+      problem.xs should have size 1
+      val out = problem.xs.head
+
+      val results = collection.mutable.Map[Expr, Expr]()      
+
+      for (ex1 <- firstN;
+//        _ = info("*******");
+        ex2 <- firstN) {
+        val res = evaluator.eval(phi, new Model(Map(in -> ex1, out -> ex2)))
+//        info(s"for in $ex1, out $ex2, got $res")
+
+        res match {
+          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+//            info(s"for in $ex1, out $ex2")
+//            info("***")
+            withClue(s"for input $ex1\n, output $ex2\n existing result is: " + results.getOrElse(ex1, w)) {
+              results should not contain key (ex1)
+            }
+            results += ex1 -> ex2
+          //          info(s"$v for $ex, ${v1}, $v2")
+          case e: EvaluationResults.EvaluatorError =>
+          //          info("evaluation failure: " + e + s" for $v1 and $v2")
+          case _ =>
+        }
+      }
+      
+      results.size shouldBe > (0)
+      
+    }
+
   }
+  
 }
