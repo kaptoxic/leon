@@ -35,10 +35,10 @@ object RedBlackTree {
     case Node(Red, l, _, r) => isBlack(l) && isBlack(r) && redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(r)
   }
 
-//  def redDescHaveBlackChildren(t: Tree): Boolean = t match {
-//    case Empty() => true
-//    case Node(_, l, _, r) => redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(r)
-//  }
+  def redDescHaveBlackChildren(t: Tree): Boolean = t match {
+    case Empty() => true
+    case Node(_, l, _, r) => redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(r)
+  }
 
   def blackBalanced(t: Tree): Boolean = t match {
     case Node(_, l, _, r) => blackBalanced(l) && blackBalanced(r) && blackHeight(l) == blackHeight(r)
@@ -69,10 +69,30 @@ object RedBlackTree {
 
   def isSorted(tree: Tree): Boolean = isSortedTriple(tree).sorted
   
+  def isSkewed(t: Node) = t match {
+    case Node(Red, l, _, Node(Red, rl, _, rr)) =>
+      blackBalanced(l) && blackBalanced(rl) && blackBalanced(rr) &&
+      redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(rl) && redNodesHaveBlackChildren(rr)
+    case Node(Red, Node(Red, ll, _, lr), _, r) =>
+      blackBalanced(r) && blackBalanced(ll) && blackBalanced(lr) &&
+      redNodesHaveBlackChildren(r) && redNodesHaveBlackChildren(ll) && redNodesHaveBlackChildren(lr)
+    case _ => false
+  }
+  
+  def isRootSkewed(t: Node) = t match {
+    case Node(Black, l: Node, _, r: Node) =>
+      (isSkewed(l) && blackBalanced(r) && redNodesHaveBlackChildren(r)) ||
+      (isSkewed(r) && blackBalanced(l) && redNodesHaveBlackChildren(l))
+    case _ => false
+  }
+
+  
   def balanceTreeInput(t: Node): Tree = {
     require(
-      redNodesHaveBlackChildren (t.left) && redNodesHaveBlackChildren (t.right) &&
-      blackBalanced (t.left) && blackBalanced (t.right) && isSorted(t)
+//      redNodesHaveBlackChildren (t.left) && redNodesHaveBlackChildren (t.right) &&
+//      blackBalanced (t.left) && blackBalanced (t.right) && isSorted(t) &&
+//      redDescHaveBlackChildren (t)
+      isRootSkewed(t) && isSorted(t)
     )
     choose {
       (out: Tree) =>
