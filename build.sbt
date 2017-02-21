@@ -188,12 +188,14 @@ def ghProject(repo: String, version: String) = RootProject(uri(s"${repo}#${versi
 lazy val bonsai      = ghProject("git://github.com/colder/bonsai.git",     "10eaaee4ea0ff6567f4f866922cb871bae2da0ac")
 lazy val scalaSmtlib = ghProject("git://github.com/regb/scala-smtlib.git", "88835c02ca2528e888b06bc48e4e93e52dc5f4b5")
 lazy val cafebabe    = ghProject("git://github.com/psuter/cafebabe.git",   "49dce3c83450f5fa0b5e6151a537cc4b9f6a79a6")
+lazy val sciFe    = RootProject(file("/home/ivcha/development/git/SciFe"))
 
 lazy val root = (project in file(".")).
   configs(RegressionTest, NativeZ3RegressionTest, IsabelleTest, GenCTest, IntegrTest).
   dependsOn(bonsai).
   dependsOn(scalaSmtlib).
   dependsOn(cafebabe).
+  dependsOn(sciFe % "test->test").
   settings(inConfig(NativeZ3RegressionTest)(Defaults.testTasks ++ testSettings): _*).
   settings(inConfig(RegressionTest)(Defaults.testTasks ++ testSettings): _*).
   settings(inConfig(IntegrTest)(Defaults.testTasks ++ testSettings): _*).
