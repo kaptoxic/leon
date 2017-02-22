@@ -12,31 +12,35 @@ object HanoiObject {
   
   abstract class State
   case object Initial extends State
-  case class Move(disks: Int, src: Peg, dst: Peg, state: State) extends State
+  case class Move(disks: Int, src: Peg, dst: Peg) extends State
   
-  case class Hanoi(disks: Int, src: Peg, aux: Peg, dst: Peg, state: State)
+  case class Hanoi(disks: Int, src: Peg, aux: Peg, dst: Peg)
   
   def dec(value: Int) = value - 1
   
   def isZero(value: Int) = value == 0
 		  
-  def solve(hanoi: Hanoi) = choose {
-    (res: State) => (hanoi, res) passes {
-        case Hanoi(0, Src, Aux, Dst, Initial) => Move(0, Src, Dst, Initial)
-        case Hanoi(1, Src, Aux, Dst, Initial) =>
-  		         Move(0, Aux, Dst,
-      	     	  Move(1, Src, Dst,
-  			         Move(0, Src, Aux, Initial)
-  			       )
+  def solveArray(hanoi: Hanoi): List[Move] = choose {
+    (res: List[Move]) =>
+      (hanoi, res) passes {
+        case Hanoi(0, Src, Aux, Dst) =>
+          List(Move(0, Src, Dst))
+        case Hanoi(1, Src, Aux, Dst) =>
+          List(
+  		         Move(0, Aux, Dst),
+      	     	  Move(1, Src, Dst),
+  			         Move(0, Src, Aux)
     		     )
-        case Hanoi(2, Src, Aux, Dst, Initial) => 
-  			  Move(0, Src, Dst, 
-    				Move(1, Aux, Dst,
-    				  Move(0, Aux, Src,
-      					Move(2, Src, Dst, 
-      					  Move(0, Dst, Aux,
-        						Move(1, Src, Aux,
-        						  Move(0, Src, Dst, Initial)))))))
+        case Hanoi(2, Src, Aux, Dst) => 
+          List(
+  			  Move(0, Src, Dst), 
+    				Move(1, Aux, Dst),
+    				  Move(0, Aux, Src),
+      					Move(2, Src, Dst), 
+      					  Move(0, Dst, Aux),
+        						Move(1, Src, Aux),
+        						  Move(0, Src, Dst)
+				  )
 	  }
   }
     
