@@ -14,7 +14,7 @@ object HanoiObject {
   case object Initial extends State
   case class Move(disks: Int, src: Peg, dst: Peg) extends State
   
-  case class Hanoi(disks: Int, src: Peg, aux: Peg, dst: Peg)
+  case class Hanoi(disks: Int, src: Peg, aux: Peg, dst: Peg, state: State)
   
   def dec(value: Int) = value - 1
   
@@ -59,6 +59,19 @@ object HanoiObject {
     List(Halt)
     
   def solve(hanoi: Hanoi): (List[Move], List[Status]) = hanoi match {
+    case Hanoi(0, src, _, dst) =>
+      (List(Move(0, Src, Dst)), List(Halt))
+    case Hanoi(d, src, aux, dst) =>
+      val (mv1, st1) = solve(Hanoi(d-1, aux, src, dst))
+      val (mv2, st2) = solve(Hanoi(d-1, src, dst, aux))
+      val moves = (mv1 :+ Move(d, src, dst)) ++ mv2
+      val status = computeStatus(moves, st1 ++ st2)
+      (moves, status)
+  }
+    
+  def solve2(hanoi: Hanoi): (List[Move], List[Status]) = hanoi match {
+    case Hanoi(_, _, _, _, state) if !checkError(state) =>
+      (state, List(Error))
     case Hanoi(0, src, _, dst) =>
       (List(Move(0, Src, Dst)), List(Halt))
     case Hanoi(d, src, aux, dst) =>
