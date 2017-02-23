@@ -41,10 +41,10 @@ class PlanningWithErrorsTest extends FunSuite with Matchers with Inside with Has
   val problems = forFile(ioExamplesTestcaseDir + "PlanningWithError.scala").toList
 
   test("check synthesis problem") {
-    problems.size should be (1)
+    problems.size should be (3)
   }
 
-  val (sctx, funDef, problem) = problems.head
+  val (sctx, funDef, problem) = problems.find(_._2.id.name == "solveProblemDisks").get
 
   implicit val program = sctx.program
 
@@ -68,32 +68,53 @@ class PlanningWithErrorsTest extends FunSuite with Matchers with Inside with Has
     
     ///////////////////////
     
+    val vars = problem.as.map(_.toVariable)
+    
+//    val hanoiClass = program.caseClassDef("Hanoi")
+//    val vars = hanoiClass.fields.toList.map(_.toVariable)
+
     // get fragments
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     info(s"inIds $inIds")
-    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, vars)
 
     info("transformed examples: " + transformedExamples.mkString("\n"))
     info("unordered fragments: " + unorderedFragments.mkString("\n"))
     info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
     
-    val f1 :: f2 :: f3 :: Nil = unorderedFragments
+    val f1 :: f2 :: f3 :: f4 :: Nil = unorderedFragments
     
-    val in :: Nil = problem.as.map(_.toVariable)
     
-    val elements1 :: elements2 :: elements3 :: Nil = 
-      for (f <- unorderedFragments) yield
-        ExprOps.collect[Expr]({
-          case cc@CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
-          case _ => Set()
-        })(f)
-    fine("elements2: " + elements2)
-    
-    elements1 should have size 1
-    for (el2 <- elements2) {
-      val diffs = differences(elements1.head, el2, in :: Nil)
-      fine(s"diffs between ${elements1.head} and $el2 are ${diffs.mkString("\n")}")
+    {
+      // comparing l1 and nil should return nothing
+      val diffs = differences(f1, f2, vars)
+      fine(s"diffs between\n$f1\nand\n$f2\nare\n${diffs.map({
+        case (k,v) => (k, v(w)) }).mkString("\n")}")
+      diffs should not be ('empty)
     }
+    
+    {
+      // comparing l1 and nil should return nothing
+      val diffs = differences(f2, f3, vars)
+      fine(s"diffs between\n$f2\nand\n$f3\nare\n${diffs.map({
+        case (k,v) => (k, v(w)) }).mkString("\n")}")
+      diffs should not be ('empty)
+    }
+    
+//    val elements1 :: elements2 :: elements3 :: Nil = 
+//      for (f <- unorderedFragments) yield
+//        ExprOps.collect[Expr]({
+//          case cc@CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
+//          case _ => Set()
+//        })(f)
+//    fine("elements2: " + elements2)
+//    
+//    elements1 should have size 1
+//    for (el2 <- elements2) {
+//      val diffs = differences(elements1.head, el2, in :: Nil)
+//      fine(s"diffs between ${elements1.head} and $el2 are ${diffs.map({
+//        case (k,v) => (k, v(w)) }).mkString("\n")}")
+//    }
     
   }
 

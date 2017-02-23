@@ -54,6 +54,57 @@ object PlanningWithError {
           (Move(0, Src, Dst, Initial), List(Halt))
 	  }
   }
+
+  def solveProblemFlat(disks: Int, src: Peg, aux: Peg, dst: Peg, state: State): (State, List[Status])  = choose {
+    (res: (State, List[Status])) =>
+      ((disks, src, aux, dst, state), res) passes {
+        case (0, Src, Aux, Dst, Initial) =>
+          (Move(0, Src, Dst, Initial), List(Halt))
+        case (1, Src, Aux, Dst, Initial) =>
+          (
+            Move(0, Aux, Dst,
+    	    	  Move(1, Src, Dst,
+  			        Move(0, Src, Aux, Initial))),
+    		    List(Wait(5), Halt)
+  		    )
+        case (2, Src, Aux, Dst, Initial) => 
+          (
+            Move(0, Src, Dst, 
+      				Move(1, Aux, Dst,
+      				  Move(0, Aux, Src,
+        					Move(2, Src, Dst, 
+        					  Move(0, Dst, Aux,
+          						Move(1, Src, Aux,
+          						  Move(0, Src, Dst, Initial)))))))
+  				  ,
+  				  List(Report("repair"), Wait(10), Halt)
+				  )
+        case (0, Src, Aux, Dst, Move(0, Src, Dst, Initial)) =>
+          (Move(0, Src, Dst, Initial), List(Halt))
+	  }
+  }
+  
+  def solveProblemDisks(disks: Int, src: Peg, aux: Peg, dst: Peg, state: State): State  = choose {
+    (res: State) =>
+      ((disks, src, aux, dst, state), res) passes {
+        case (0, Src, Aux, Dst, Initial) =>
+          Move(0, Src, Dst, Initial)
+        case (1, Src, Aux, Dst, Initial) =>
+          Move(0, Aux, Dst,
+  	    	  Move(1, Src, Dst,
+			        Move(0, Src, Aux, Initial)))
+        case (2, Src, Aux, Dst, Initial) => 
+            Move(0, Src, Dst, 
+      				Move(1, Aux, Dst,
+      				  Move(0, Aux, Src,
+        					Move(2, Src, Dst, 
+        					  Move(0, Dst, Aux,
+          						Move(1, Src, Aux,
+          						  Move(0, Src, Dst, Initial)))))))
+        case (0, Src, Aux, Dst, Move(0, Src, Dst, Initial)) =>
+          Move(0, Src, Dst, Initial)
+	  }
+  }
   
   def computeStatus(moves: State, previous: List[Status]): List[Status] = 
     previous match {
