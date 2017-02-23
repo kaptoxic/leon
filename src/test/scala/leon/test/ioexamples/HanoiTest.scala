@@ -57,5 +57,44 @@ class HanoiTest extends FunSuite with Matchers with Inside with HasLogger {
     }
 
   }
+  
+  test("get fragments") {
+    
+    val extraction = new ExamplesExtraction(sctx, sctx.program)
+    val examples = extraction.extract(problem)
+    withClue(examples) {
+      examples.size should be (3)
+    }
+    
+    ///////////////////////
+    
+    // get fragments
+    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+    info(s"inIds $inIds")
+    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+
+    info("transformed examples: " + transformedExamples.mkString("\n"))
+    info("unordered fragments: " + unorderedFragments.mkString("\n"))
+    info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
+    
+    val f1 :: f2 :: f3 :: Nil = unorderedFragments
+    
+    val in :: Nil = problem.as.map(_.toVariable)
+    
+    val elements1 :: elements2 :: elements3 :: Nil = 
+      for (f <- unorderedFragments) yield
+        ExprOps.collect[Expr]({
+          case cc@CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
+          case _ => Set()
+        })(f)
+    fine("elements2: " + elements2)
+    
+    elements1 should have size 1
+    for (el2 <- elements2) {
+      val diffs = differences(elements1.head, el2, in :: Nil)
+      fine(s"diffs between ${elements1.head} and $el2 are ${diffs.mkString("\n")}")
+    }
+    
+  }
 
 }
