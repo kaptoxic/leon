@@ -4,6 +4,7 @@ package synthesis.ioexamples
 import scala.collection.mutable.{ Map => MMap, TreeSet }
 
 import purescala._
+import Types._
 import Expressions._
 
 import utils.logging.HasLogger
@@ -35,8 +36,28 @@ object Fragmenter extends HasLogger {
     for ((ie, oe) <- examples) yield {
       // all subexpressions of input
       val subexprMaps = u.mapOfSubexpressionsToPathFunctions(ie)
-      // we do not need to substitute for nil
-      val modifiedMaps = subexprMaps//.map(_.filterNot( e => filterOut(e._1) ))
+
+      // if we have an integer input var, do -1, -2, ...
+      // TODO scan output example for this
+      val existsInt = inputVariables.exists(_.getType == Int32Type)
+      info("existsInt = " + existsInt)
+
+      val modifiedMaps =
+        if (existsInt) {
+          // we do (not) need to substitute for atoms
+          subexprMaps/*.map(_.filterNot( e => filterOut(e._1) ))*/ map {
+            subExprMap =>
+              subExprMap ++ (
+                for ((IntLiteral(v), path) <- subExprMap)
+                  yield
+                    Map(
+                      (IntLiteral(v - 1): Expr) -> { (x: Expr) => path(Minus(x, IntLiteral(1))) },
+                      (IntLiteral(v - 2): Expr) -> {
+                        (x: Expr) => path(Minus(Minus(x, IntLiteral(1)), IntLiteral(1))) }
+                    )
+              ).flatten
+          } 
+        } else subexprMaps
       
       assert(modifiedMaps.size == inputVariables.size)
       val mapped = for ((modifiedMap, inputVariable) <- (modifiedMaps zip inputVariables)) yield {
