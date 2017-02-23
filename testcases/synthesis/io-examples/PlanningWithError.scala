@@ -3,7 +3,7 @@ import leon.lang.synthesis._
 import leon.annotation._
 import leon.collection._
 
-object HanoiObject {
+object PlanningWithError {
   
   sealed abstract class Peg
   case object Src extends Peg
@@ -12,9 +12,9 @@ object HanoiObject {
   
   abstract class State
   case object Initial extends State
-  case class Move(disks: Int, src: Peg, dst: Peg) extends State
+  case class Move(disks: Int, src: Peg, dst: Peg, state: State) extends State
   
-  case class Hanoi(disks: Int, src: Peg, aux: Peg, dst: Peg, state: List[State])
+  case class Hanoi(disks: Int, src: Peg, aux: Peg, dst: Peg, state: State)
   
   def dec(value: Int) = value - 1
   
@@ -26,39 +26,36 @@ object HanoiObject {
   case class Report(msg: String) extends Status
   case object Error extends Status
 		  
-  def solveArray(hanoi: Hanoi): (List[State], List[Status])  = choose {
-    (res: (List[State], List[Status])) =>
+  def solveProblem(hanoi: Hanoi): (State, List[Status])  = choose {
+    (res: (State, List[Status])) =>
       (hanoi, res) passes {
-        case Hanoi(0, Src, Aux, Dst, state) =>
-          (state :+ Move(0, Src, Dst), List(Halt))
-        case Hanoi(1, Src, Aux, Dst, state) =>
+        case Hanoi(0, Src, Aux, Dst, Initial) =>
+          (Move(0, Src, Dst, Initial), List(Halt))
+        case Hanoi(1, Src, Aux, Dst, Initial) =>
           (
-            state ++
-              List(
-    		        Move(0, Aux, Dst),
-        	     	  Move(1, Src, Dst),
-    			          Move(0, Src, Aux)
-      		    ),
+            Move(0, Aux, Dst,
+    	    	  Move(1, Src, Dst,
+  			        Move(0, Src, Aux, Initial))),
     		    List(Wait(5), Halt)
   		    )
-        case Hanoi(2, Src, Aux, Dst, state) => 
+        case Hanoi(2, Src, Aux, Dst, Initial) => 
           (
-            state ++ 
-            List(
-      			  Move(0, Src, Dst), 
-        				Move(1, Aux, Dst),
-        				  Move(0, Aux, Src),
-          					Move(2, Src, Dst), 
-          					  Move(0, Dst, Aux),
-            						Move(1, Src, Aux),
-            						  Move(0, Src, Dst)
-  				  ),
+            Move(0, Src, Dst, 
+      				Move(1, Aux, Dst,
+      				  Move(0, Aux, Src,
+        					Move(2, Src, Dst, 
+        					  Move(0, Dst, Aux,
+          						Move(1, Src, Aux,
+          						  Move(0, Src, Dst, Initial)))))))
+  				  ,
   				  List(Report("repair"), Wait(10), Halt)
 				  )
+        case Hanoi(0, Src, Aux, Dst, Move(0, Src, Dst, Initial)) =>
+          (Move(0, Src, Dst, Initial), List(Halt))
 	  }
   }
   
-  def computeStatus(moves: List[State], previous: List[Status]): List[Status] = 
+  def computeStatus(moves: State, previous: List[Status]): List[Status] = 
     previous match {
       case Cons(Halt, Nil()) =>
         List(Wait(5), Halt)
@@ -66,48 +63,56 @@ object HanoiObject {
 			  List(Report("repair"), Wait(10), Halt)
     }
   
-  def checkError(state: List[State]) = 
-    if (state.size == 2) true else false
+  def checkError(state: State) = 
+    state match {
+      case Move(0, Src, Dst, Initial) => false
+      case _ => true
+    }
     
-  def solve(hanoi: Hanoi): (List[State], List[Status]) = hanoi match {
+  def solve(hanoi: Hanoi): (State, List[Status]) = hanoi match {
     case Hanoi(_, _, _, _, state) if !checkError(state) =>
       (state, List(Error))
     case Hanoi(0, src, _, dst, state) =>
-      (state :+ Move(0, Src, Dst), List(Halt))
+      (Move(0, src, dst, state), List(Halt))
     case Hanoi(d, src, aux, dst, state) =>
-      val (mv1, st1) = solve(Hanoi(d-1, aux, src, dst))
-      val (mv2, st2) = solve(Hanoi(d-1, src, dst, aux))
-      val moves = state ++ (mv1 :+ Move(d, src, dst)) ++ mv2
-      val status = computeStatus(moves, st1 ++ st2)
-      (moves, status)
+      val (mv1, st1) = solve(Hanoi(d-1, aux, src, dst, state))
+      val (mv2, st2) = solve(Hanoi(d-1, src, dst, aux, Move(d, src, dst, mv1)))
+      val status = computeStatus(mv2, st1 ++ st2)
+      (mv2, status)
   }
   
 //  def main(args: Array[String]): Unit = {
 //
-//    val input1 = Hanoi(0, Src, Aux, Dst, Initial)
-//    assert(Move(0, Src, Dst, Initial) == solve(input1))
-//    
-//    val input2 = Hanoi(1, Src, Aux, Dst, Initial)
-//    assert(
-//	  Move(0, Aux, Dst,
-//        Move(1, Src, Dst,
-//          Move(0, Src, Aux, Initial)
-//        )
-//      )
-//      == solve(input2)
+//    val inOutPairs = Map(
+//      Hanoi(0, Src, Aux, Dst, Initial) ->
+//        (Move(0, Src, Dst, Initial), List(Halt))
+//      ,
+//      Hanoi(1, Src, Aux, Dst, Initial) ->
+//        (
+//          Move(0, Aux, Dst,
+//  	    	  Move(1, Src, Dst,
+//			        Move(0, Src, Aux, Initial))),
+//  		    List(Wait(5), Halt)
+//		    )
+//      ,
+//      Hanoi(2, Src, Aux, Dst, Initial) -> 
+//        (
+//          Move(0, Src, Dst, 
+//    				Move(1, Aux, Dst,
+//    				  Move(0, Aux, Src,
+//      					Move(2, Src, Dst, 
+//      					  Move(0, Dst, Aux,
+//        						Move(1, Src, Aux,
+//        						  Move(0, Src, Dst, Initial)))))))
+//				  ,
+//				  List(Report("repair"), Wait(10), Halt)
+//			  )
+//		  ,
+//      Hanoi(0, Src, Aux, Dst, Move(0, Src, Dst, Initial)) ->
+//        (Move(0, Src, Dst, Initial), List(Halt))
 //    )
-//	
-//    val input3 = Hanoi(2, Src, Aux, Dst, Initial)
-//    assert(
-//	  Move(0, Src, Dst, 
-//		Move(1, Aux, Dst,
-//		  Move(0, Aux, Src,
-//			Move(2, Src, Dst, 
-//			  Move(0, Dst, Aux,
-//				Move(1, Src, Aux,
-//				  Move(0, Src, Dst, Initial)))))))
-//	  == solve(input3)
-//    )    
+//    
+//    for ((k, v) <- inOutPairs) assert(solve(k) == v)
 //    
 //  }
 }
