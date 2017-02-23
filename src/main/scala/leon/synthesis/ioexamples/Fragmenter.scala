@@ -36,7 +36,7 @@ object Fragmenter extends HasLogger {
       // all subexpressions of input
       val subexprMaps = u.mapOfSubexpressionsToPathFunctions(ie)
       // we do not need to substitute for nil
-      val modifiedMaps = subexprMaps.map(_.filterNot( e => filterOut(e._1) ))
+      val modifiedMaps = subexprMaps//.map(_.filterNot( e => filterOut(e._1) ))
       
       assert(modifiedMaps.size == inputVariables.size)
       val mapped = for ((modifiedMap, inputVariable) <- (modifiedMaps zip inputVariables)) yield {
