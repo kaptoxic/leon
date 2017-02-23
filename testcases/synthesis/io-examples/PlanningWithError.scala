@@ -24,6 +24,7 @@ object HanoiObject {
   case object Halt extends Status
   case class Wait(t: Int) extends Status
   case class Report(msg: String) extends Status
+  case object Error extends Status
 		  
   def solveArray(hanoi: Hanoi): (List[State], List[Status])  = choose {
     (res: (List[State], List[Status])) =>
@@ -57,32 +58,29 @@ object HanoiObject {
 	  }
   }
   
-//  def computeStatus(moves: List[Move], previous: List[Status]): List[Status] = 
-//    List(Halt)
-//    
-//  def solve(hanoi: Hanoi): (List[Move], List[Status]) = hanoi match {
-//    case Hanoi(0, src, _, dst) =>
-//      (List(Move(0, Src, Dst)), List(Halt))
-//    case Hanoi(d, src, aux, dst) =>
-//      val (mv1, st1) = solve(Hanoi(d-1, aux, src, dst))
-//      val (mv2, st2) = solve(Hanoi(d-1, src, dst, aux))
-//      val moves = (mv1 :+ Move(d, src, dst)) ++ mv2
-//      val status = computeStatus(moves, st1 ++ st2)
-//      (moves, status)
-//  }
-//    
-//  def solve2(hanoi: Hanoi): (List[Move], List[Status]) = hanoi match {
-//    case Hanoi(_, _, _, _, state) if !checkError(state) =>
-//      (state, List(Error))
-//    case Hanoi(0, src, _, dst) =>
-//      (List(Move(0, Src, Dst)), List(Halt))
-//    case Hanoi(d, src, aux, dst) =>
-//      val (mv1, st1) = solve(Hanoi(d-1, aux, src, dst))
-//      val (mv2, st2) = solve(Hanoi(d-1, src, dst, aux))
-//      val moves = (mv1 :+ Move(d, src, dst)) ++ mv2
-//      val status = computeStatus(moves, st1 ++ st2)
-//      (moves, status)
-//  }
+  def computeStatus(moves: List[State], previous: List[Status]): List[Status] = 
+    previous match {
+      case Cons(Halt, Nil()) =>
+        List(Wait(5), Halt)
+      case Cons(Wait(5), Cons(Halt, Cons(Wait(5), Cons(Halt, Nil())))) =>
+			  List(Report("repair"), Wait(10), Halt)
+    }
+  
+  def checkError(state: List[State]) = 
+    if (state.size == 2) true else false
+    
+  def solve(hanoi: Hanoi): (List[State], List[Status]) = hanoi match {
+    case Hanoi(_, _, _, _, state) if !checkError(state) =>
+      (state, List(Error))
+    case Hanoi(0, src, _, dst, state) =>
+      (state :+ Move(0, Src, Dst), List(Halt))
+    case Hanoi(d, src, aux, dst, state) =>
+      val (mv1, st1) = solve(Hanoi(d-1, aux, src, dst))
+      val (mv2, st2) = solve(Hanoi(d-1, src, dst, aux))
+      val moves = state ++ (mv1 :+ Move(d, src, dst)) ++ mv2
+      val status = computeStatus(moves, st1 ++ st2)
+      (moves, status)
+  }
   
 //  def main(args: Array[String]): Unit = {
 //
