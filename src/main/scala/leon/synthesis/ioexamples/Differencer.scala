@@ -47,6 +47,13 @@ object Differencer extends HasLogger {
             curr ++ rec(arg1, arg2)
         }
         
+      // add operator here and check equality of literal operands
+      case (Operator(args1, _), Operator(args2, fn2)) if fn2(args1) == e1 =>
+        (List[(Variable, Expr)]() /: (args1 zip args2)) {
+          case (curr, (arg1, arg2)) =>
+            curr ++ rec(arg1, arg2)
+        }
+        
       case (ccs1@CaseClassSelector(ct1, e1, f1), ccs2@CaseClassSelector(ct2, e2, f2)) if
         ct1 == ct2 && f1 == f2 =>
         rec(e1, e2)
