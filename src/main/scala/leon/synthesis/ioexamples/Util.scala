@@ -142,6 +142,7 @@ object Util extends HasLogger {
   }
 
   def compare(expr1: Expr, expr2: Expr)(implicit map: Map[(Expr, Expr), Int]): (Int, Map[(Expr, Expr), Int]) = {
+    entering("compare", expr1, expr2)
     var mutableMap = map
     
     def rec(expr1: Expr, expr2: Expr): Int = {
@@ -186,6 +187,7 @@ object Util extends HasLogger {
 		      -2
 	    }
     
+    exiting("compare", (res, mutableMap.toMap).toString)
     (res, mutableMap.toMap)
   }
   
@@ -208,6 +210,28 @@ object Util extends HasLogger {
     
     inputExamples.sortWith((a, b) => compFun(convert(a), convert(b)))
   }
+
+  def sortWrtInputs(inputExamplesFragments: List[(List[Expr], Expr)]) = {
+    implicit var map = Map[(Expr, Expr), Int]()
+    
+    def compFun(as: List[Expr], bs: List[Expr]) = {
+      entering("compFun", as, bs)
+      val res =
+        ((0, map) /: (as zip bs)) {
+          case ((res, map), (a, b)) if res == 0 || res == -2 => 
+            compare(a, b)(map)
+          case (curr, _) =>
+            curr
+        }
+      map ++= res._2
+      if (res._1 == 0 || res._1 == -2)
+        throw new Exception(s"Input examples should form a total order (res._1=${res._1})")      	
+       
+      res._1 < 0
+    }
+    
+    inputExamplesFragments.sortWith((a, b) => compFun(a._1, b._1))
+  }
   
   def sort(inputExamples: List[Expr]) = {
     implicit var map = Map[(Expr, Expr), Int]()
@@ -225,7 +249,7 @@ object Util extends HasLogger {
   }
   
   implicit def diffToString(l: (Map[Expressions.Variable, Expressions.Expr],
-    Expressions.Expr => Expressions.Expr) ) = (l._1, l._2(w)).toString
+    Expressions.Expr => Expressions.Expr) ) = s"${l._1}\n- ${l._2(w)}"
   implicit def diffsToString(l: Iterable[(Map[Expressions.Variable, Expressions.Expr],
     Expressions.Expr => Expressions.Expr)]) = l.map(diffToString).mkString("\n")
 //  def println(s: String) = scala.Predef.println(s)

@@ -165,5 +165,61 @@ class UtilTest extends FunSuite with Matchers {
 
     }
   }
+  
+  test("test sorting (as pairs)") {
+    
+    import leon.test.condabd.util.Scaffold._
+    import ExampleInputs._
+    
+    for (
+          (sctx, f, problem) <- forProgram(
+            """
+      	    import leon.lang.{ Map => _, _ }
+            import leon.lang.synthesis._
+            
+            object Test {
+            
+              sealed abstract class List
+              case class Cons(head: Int, tail: List) extends List
+              case object Nil extends List
+              
+              def rec(l1: List, l2: List) = choose {
+                (out: Int) => ((l1, l2), out) passes {
+                  case (Cons(3, Nil), Cons(2, Nil)) =>
+                    3
+                  case (Cons(1, Cons(3, Nil)), Cons(2, Nil)) =>
+                    4
+                  case (Cons(3, Nil), Nil) =>
+                    2
+                  case (Nil, Nil) =>
+                    1
+                }
+              }
+
+            }
+    	    """)
+        ) {
+    
+      val program = sctx.program
+  
+      val consClass = program.caseClassDef("Cons").typed
+      val nilClass = program.caseClassDef("Nil").typed
+      val nilExp = CaseClass(nilClass, Nil): Expr
+     
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+      val examples = extraction.extract(problem)
+      withClue(examples) {
+        examples.size should be(4)
+      } 
+      
+      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+
+//      info("TE: " + transformedExamples)
+      
+      Util.sortWrtInputs(transformedExamples).map(_._2) should contain theSameElementsInOrderAs
+        (1 to 4).map(IntLiteral(_))
+
+    }
+  }
 
 }
