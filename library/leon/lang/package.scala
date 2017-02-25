@@ -61,6 +61,11 @@ package object lang {
   
   @ignore
   implicit def mapToPartial[A,B](m: Map[A, B]): PartialFunction[A, B] = m
+  
+//  @ignore
+//  def -->[T](v1: T, v2: T): List[T] = noImpl
+//
+//  def -->[T](v1: T, l: List[T]): List[T] = noImpl
 
 //  @ignore
 //  implicit class PassesMap[A,B](io : (A,B)) {
