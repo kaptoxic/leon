@@ -46,7 +46,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     l.map({ case a => CustomPrinter(a) }).mkString("\n")
 
   val problems = forFile(ioExamplesTestcaseDir + "MergeSortMerge.scala").toList
-  problems.size should be(1)
+  problems.size should be(2)
 
   val (sctx, funDef, problem) = problems.head
 
@@ -785,7 +785,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
   
-  test("test synthesizer") {
+  ignore("test synthesizer") {
 
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")
@@ -806,6 +806,81 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
          |} else {
          |  Cons(l1.head, rec(l1.tail, l2))
          |}""".stripMargin
+
+  }
+  
+  test("test finding the needed expressions") {
+    
+    val (sctx, fundDef, problem) = problems.find(_._2.id.name == "sort").get
+    
+    val listType = program.definedClasses.find(_.id.name == "List").get.typed
+    val pairType = program.definedClasses.find(_.id.name == "Pair").get.typed
+    
+    def getEnum(tpe: TypeTree) = {
+      import synthesis.ioexamples.backwards.TermSynthesizer
+
+      import leon.grammars._
+    
+      case class CaseClassSelectors(prog: Program, currentFunction: FunDef, types: Seq[TypeTree]) extends SimpleExpressionGrammar {
+        def computeProductions(t: TypeTree)(implicit ctx: LeonContext): Seq[Prod] = {
+      
+          for (
+            cd <- program.definedClasses;
+            if cd.isInstanceOf[CaseClassDef];
+            cdd = cd.asInstanceOf[CaseClassDef];
+            field <- cdd.fields
+          ) yield {
+            nonTerminal(cd.typed :: Nil,
+              x => caseClassSelector(cdd.typed, x.head, field.id)
+            )
+          }
+        }
+      }
+  
+      def fields: List[CaseClassSelector] = Nil
+      //      caseClassSelector(consClass, l1, consClass.fields.find(_.id.name == "head").get.id) ::
+      //        caseClassSelector(consClass, l2, consClass.fields.find(_.id.name == "head").get.id) :: Nil
+  
+      val myGrammar = {
+        import leon.grammars._
+        import purescala.ExprOps._
+        import purescala.Expressions.Expr
+        import purescala.Extractors.TopLevelAnds
+        import purescala.Types.{ BooleanType, Int32Type, IntegerType }
+        import Witnesses.Hint
+  
+        val TopLevelAnds(ws) = problem.ws
+        val hints = ws.collect { case Hint(e) if formulaSize(e) >= 4 => e }
+        val inputs = problem.allAs.map(_.toVariable) ++ hints ++ fields
+        val exclude = sctx.settings.functionsToIgnore
+        val recCalls = {
+          if (sctx.findOptionOrDefault(SynthesisPhase.optIntroduceRecCalls)) Empty()
+          else SafeRecursiveCalls(sctx.program, problem.ws, problem.pc)
+        }
+  
+        BaseGrammar ||
+          Closures ||
+          EqualityGrammar(Set(IntegerType, Int32Type, BooleanType) ++ inputs.map { _.getType }) ||
+          OneOf(inputs) ||
+          Constants(sctx.functionContext.fullBody) ||
+          FunctionCalls(sctx.program, sctx.functionContext, inputs.map(_.getType), exclude) ||
+          CaseClassSelectors(sctx.program, sctx.functionContext, inputs.map(_.getType)) ||
+          recCalls
+      }
+  
+      val termSynthesizer = new TermSynthesizer(sctx, problem, inGrammar = Some(myGrammar), sizes = (1, 5))
+  
+      val enum = termSynthesizer.apply(tpe :: Nil)
+  
+      enum
+    }
+    
+    val enum = getEnum(pairType)
+
+    for (
+      ex <- enum.take(30)
+    )
+      println(ex)
 
   }
 

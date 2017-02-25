@@ -5,11 +5,13 @@ object MergeSort {
   sealed abstract class List
   case class Cons(head: Int, tail: List) extends List
   case object Nil extends List
+  
+  case class Pair(fst: List, snd: List)
 
-//  def contents(l: List): Set[Int] = l match {
-//    case Nil => Set.empty
-//    case Cons(x, xs) => contents(xs) ++ Set(x)
-//  }
+  def contents(l: List): Set[Int] = l match {
+    case Nil => Set.empty
+    case Cons(x, xs) => contents(xs) ++ Set(x)
+  }
 //
 //  def isSorted(l: List): Boolean = l match {
 //    case Nil => true
@@ -19,10 +21,19 @@ object MergeSort {
 //    }
 //  }
 //  
-//  def size(list: List): Int = list match {
-//    case Nil => 0
-//    case Cons(x, xs) => 1 + size(xs)
-//  }
+  def size(list: List): Int = list match {
+    case Nil => 0
+    case Cons(x, xs) => 1 + size(xs)
+  }
+  
+  def split(list: List): Pair = {
+    Pair(Nil, Nil)
+  }
+//  ensuring (res =>
+//  	contents(list) == contents(res.fst) ++ contents(res.snd)
+//  	&&
+//  	size(list) == size(res.fst) + size(res.snd)
+//  )
 
   def merge(l1: List, l2: List): List = choose {
     (out: List) => ((l1, l2), out) passes {
@@ -47,6 +58,11 @@ object MergeSort {
 //      case (Cons(0, Cons(2, Nil)), Cons(1, Nil)) =>
 //        Cons(0, Cons(1, Cons(2, Nil)))
     }
+  }
+
+  def sort(list: List): List = choose {
+    (res : List) =>
+      contents(res) == contents(list)
   }
 
 }
