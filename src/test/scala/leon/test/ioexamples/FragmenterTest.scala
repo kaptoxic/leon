@@ -60,6 +60,21 @@ class FragmenterTest extends FunSuite with Matchers {
     constructFragments((iExamples.map(_ :: Nil) zip oExamples), x :: Nil) should be (givenFragments)
   }
   
+  test("ambigous fragments") {
+    val iExamples = List(
+      ieunpack1, ieunpack2, ieunpack3, ieunpack4  
+    )
+    val oExamples = List(
+      oeunpack1, oeunpack2, oeunpack3, oeunpack4  
+    )
+    
+    val givenFragments = List(
+      fragUnpack1, fragUnpack2, fragUnpack3, fragUnpack4 
+    )
+        
+    constructFragments((iExamples.map(_ :: Nil) zip oExamples), x :: Nil) should be (givenFragments)
+  }
+  
   // this is probably "last" example from ILP
 //  import benchmarks._
 //  
