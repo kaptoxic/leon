@@ -26,6 +26,10 @@ import org.scalatest.Matchers._
 
 import java.io.{ BufferedWriter, FileWriter, File }
 
+/*
+ * NOTES:
+ * if we have l1, l2 that makes problem for sorting
+ */
 class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   import Scaffold._
@@ -115,24 +119,25 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
 
-  ignore("playing") {
+  test("playing") {
 
     // get fragments
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     info(s"inIds $inIds")
-    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+    val unorderedFragments =
+      Fragmenter.constructFragments(transformedExamples, inIds)
 
     info("transformed examples: " + transformedExamples.mkString("\n"))
     info("unordered fragments: " + unorderedFragments.mkString("\n"))
     info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
 
-//    [h(l2),h(l1),ht(l2)t(l1)]
 //    [h(l2)l1]
 //    [h(l1),h(l2)t(l1)]
+//    l2 nil
 //    l1
-//    Nil
+//    [h(l2),h(l1),ht(l2)t(l1)]
 
-    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
+    val (f3 :: f4 :: f1 :: f2 :: f5 :: Nil) = unorderedFragments
     val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
     val fragmentNames =
       (fragments zip (1 to 5).map("f" + _)).toMap
@@ -152,7 +157,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     {
       // comparing l1 and nil should return nothing
       val diffs = differences(f1, f2, l1 :: l2 :: Nil)
-      diffs should be('empty)
+      diffs should not be('empty)
     }
 
     {
@@ -213,6 +218,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         fine(s"diffs between $f1 and $f2 are ${diffs: String}")
         (f1, f2, diffs)
       }
+    info("allDiffs: " + allDiffs.mkString("\n"))
 
     val compatibles =
       for (
@@ -243,31 +249,31 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
     info(s"examples: ${examples.reverse.mkString("\n")}")
 
-    for (
-      ex <- enum.take(30);
-      //      if (ex.toString == "l1.head < l2.head");
-      _ = print(s"\n $ex -- ");
-      ind <- List(1, 2, 4, 3, 5);
-      (inputs, output) = examples.reverse(ind - 1);
-      inputMap = inputs.toMap
-    ) {
-      val v1 = inputMap(l1.id)
-      val v2 = inputMap(l2.id)
-      val res = evaluator.eval(ex,
-        new Model(Map(l1.id -> v1, l2.id -> v2)))
+//    for (
+//      ex <- enum.take(30);
+//      //      if (ex.toString == "l1.head < l2.head");
+//      _ = print(s"\n $ex -- ");
+//      ind <- List(1, 2, 4, 3, 5);
+//      (inputs, output) = examples.reverse(ind - 1);
+//      inputMap = inputs.toMap
+//    ) {
+//      val v1 = inputMap(l1.id)
+//      val v2 = inputMap(l2.id)
+//      val res = evaluator.eval(ex,
+//        new Model(Map(l1.id -> v1, l2.id -> v2)))
+//
+//      res match {
+//        case EvaluationResults.Successful(v) =>
+//          print({ if (v.asInstanceOf[BooleanLiteral].value) "t" else "f" })
+//        //          info(s"$v for $ex, ${v1}, $v2")
+//        case e: EvaluationResults.EvaluatorError =>
+//          print("_")
+//        //          info("evaluation failure: " + e + s" for $v1 and $v2")
+//      }
+//
+//    }
 
-      res match {
-        case EvaluationResults.Successful(v) =>
-          print({ if (v.asInstanceOf[BooleanLiteral].value) "t" else "f" })
-        //          info(s"$v for $ex, ${v1}, $v2")
-        case e: EvaluationResults.EvaluatorError =>
-          print("_")
-        //          info("evaluation failure: " + e + s" for $v1 and $v2")
-      }
-
-    }
-
-    val fragmentsAndInputs = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
+    val fragmentsAndInputs = fragments zip (List(3, 4, 1, 2, 5) map { in => examples(in - 1) })
 
     // check if these results match the "compatible groups"
     {
@@ -286,6 +292,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
         }
       val compositeFragmentsAndInputsMap = compositeFragmentsAndInputs.toMap
       compositeFragmentsAndInputs should have size 4
+      info("compositeFragmentsAndInputs:\n" + compositeFragmentsAndInputs.mkString("\n"))
 
       val fragments = compositeFragmentsAndInputs.map(_._1)
 
@@ -333,9 +340,8 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
       groups should have size 2
 
-      println("")
+      info("groups: " + groups.mkString("\n"))
 
-      info(groups.toString)
       // FIXME hardcoded, but here we should check decreasing paramters
       // essentially, remove increasing recursive calls
       val filteredDiffGroups =
@@ -490,6 +496,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
+  // TODO as in the previous testcase, we should make sure the order of fragments and example later on match
   ignore("synthesis process, with synthesizer") {
 
     //    println(mapOfSubexpressions(f3))
@@ -809,7 +816,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
   
-  test("test finding the needed expressions") {
+  ignore("evaluator finding the needed expressions") {
     
     val (sctx, fundDef, problem) = problems.find(_._2.id.name == "sort").get
     
