@@ -53,7 +53,9 @@ object SourceInfo {
     val eFinder = new ExamplesFinder(ctx, prog)
 
     // We are synthesizing, so all examples are valid ones
-    val functionEb = eFinder.extractFromFunDef(fd, partition = false)
+    val functionEb =
+      ExamplesBank.empty
+//      eFinder.extractFromFunDef(fd, partition = false)
 
     for ((ch, path) <- new ChooseCollectorWithPaths().traverse(fd)) yield {
       val outerEb = if (path.isEmpty) {
@@ -64,8 +66,12 @@ object SourceInfo {
 
       val p = Problem.fromSpec(ch.pred, path withCond term, outerEb, Some(fd))
 
-      val pcEb = eFinder.generateForPC(p.as, path.toClause, ctx, 20)
-      val chooseEb = eFinder.extractFromProblem(p)
+      val pcEb =
+        ExamplesBank.empty
+//        eFinder.generateForPC(p.as, path.toClause, ctx, 20)
+      val chooseEb =
+        ExamplesBank.empty
+//        eFinder.extractFromProblem(p)
       val eb = (outerEb union chooseEb) union pcEb
 
       val betterP = p.copy(eb = eb)

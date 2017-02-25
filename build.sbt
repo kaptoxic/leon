@@ -127,7 +127,7 @@ sourceGenerators in Compile <+= Def.task {
 
 sourcesInBase in Compile := false
 
-Keys.fork in run := true
+Keys.fork in run := false
 
 
 lazy val testSettings = Seq(
@@ -141,7 +141,8 @@ lazy val testSettings = Seq(
 concurrentRestrictions in Global += Tags.limit(Tags.Test, nParallel)
 
 // Unit Tests
-testOptions in Test := Seq(Tests.Argument("-oDF"), Tests.Filter(_ startsWith "leon.unit."))
+//testOptions in Test := Seq(Tests.Argument("-oDF"), Tests.Filter(_ startsWith "leon.unit."))
+testOptions in Test := Seq(Tests.Argument("-oDF"))
 
 // Integration Tests
 lazy val IntegrTest = config("integration") extend(Test)
@@ -208,3 +209,5 @@ libraryDependencies ++= Seq(
   "org.apache.logging.log4j" % "log4j-api" % "2.8",
   "org.apache.logging.log4j" % "log4j-core" %"2.8"
 )
+
+libraryDependencies += "jpl" % "jpl" % "7.0.1"

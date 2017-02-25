@@ -22,7 +22,7 @@ object PrinterOptions {
     PrinterOptions(
       baseIndent     = 0,
       printPositions = debugPositions,
-      printUniqueIds = debugTrees,
+      printUniqueIds = false,
       printTypes     = debugTypes
     )
   }
