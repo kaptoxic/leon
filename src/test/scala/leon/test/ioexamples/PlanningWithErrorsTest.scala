@@ -85,21 +85,51 @@ class PlanningWithErrorsTest extends FunSuite with Matchers with Inside with Has
     val f1 :: f2 :: f3 :: f4 :: Nil = unorderedFragments
     
     
+    val diffs12 =
     {
       // comparing l1 and nil should return nothing
       val diffs = differences(f1, f2, vars)
       fine(s"diffs between\n$f1\nand\n$f2\nare\n${diffs.map({
         case (k,v) => (k, v(w)) }).mkString("\n")}")
       diffs should not be ('empty)
+      (f1, f2, diffs)
     }
     
+    val diffs23 = 
     {
       // comparing l1 and nil should return nothing
       val diffs = differences(f2, f3, vars)
       fine(s"diffs between\n$f2\nand\n$f3\nare\n${diffs.map({
         case (k,v) => (k, v(w)) }).mkString("\n")}")
       diffs should not be ('empty)
+      (f2, f3, diffs)
     }
+    
+    val fragments = unorderedFragments
+    
+    import Util.{ diffsToString, diffToString }
+    
+//    val allDiffs =
+//      for ((f1, f2) <- fragments.take(2) zip fragments.tail.take(2)) yield {
+//        val diffs = differences(f1, f2, vars)
+//        fine(s"diffs between $f1 and $f2 are ${diffs.mkString("\n")}")
+//        (f1, f2, diffs)
+//      }
+
+    val compatibles =
+      for (
+        (f11, f21, diffs1) <- diffs12 :: Nil;
+        (f12, f22, diffs2) <- diffs23 :: Nil;
+        if f11 != f12;
+//        if f11.hashCode < f12.hashCode;
+        diff1 <- diffs1;
+        diff2 <- diffs2;
+        _ = finer(s"Checking diffs: ${diff1: String}\nand\n${diff2: String}");
+        merged <- Differencer.areCompatible(diff1, diff2);
+        _ = finer(s"compatible!!")
+      ) yield (f11 :: f21 :: f12 :: f22 :: Nil, merged)
+
+    info("compatibles: " + compatibles.map(p => (p._1, (p._2._1, p._2._2(w)))).mkString("\n"))
     
 //    val elements1 :: elements2 :: elements3 :: Nil = 
 //      for (f <- unorderedFragments) yield
