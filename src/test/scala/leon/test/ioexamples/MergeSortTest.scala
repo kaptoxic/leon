@@ -792,7 +792,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
   
-  ignore("test synthesizer") {
+  test("test synthesizer") {
 
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")
@@ -805,13 +805,13 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     info("(body, funDef) is: " + (body, funDef))
     body.toString shouldBe
       """|if ((l1 == Nil) && (l2 == Nil)) {
-         |  Nil
+         |  l2
          |} else if ((l2 == Nil)) {
          |  l1
-         |} else if (l2.head < l1.head) {
-         |  Cons(l2.head, rec(l1, l2.tail))
-         |} else {
+         |} else if (l1.head <= l2.head) {
          |  Cons(l1.head, rec(l1.tail, l2))
+         |} else {
+         |  Cons(l2.head, rec(l1, l2.tail))
          |}""".stripMargin
 
   }
