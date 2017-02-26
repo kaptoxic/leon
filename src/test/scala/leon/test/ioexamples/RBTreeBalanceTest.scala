@@ -456,39 +456,89 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 //        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
 //      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
         
-//      val inputsPerPredicate =
-//        for ((examplePair, fragment) <- zipped) yield {
-//          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
+      val inputsPerPredicate =
+        for ((examplePair, fragment) <- zipped) yield {
+          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
+          
+          (fragmentHead, examplePair)
+        }
+
+      val inputsPerPredicateMap =
+        (Map[Expr, Set[InputOutputExampleVal]]() /: inputsPerPredicate) {
+          case (current, (fragment, pair)) =>
+            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + pair))
+        }
+      
+      inputsPerPredicateMap.size shouldBe 4
+//      info("inputsPerPredicateMap:\n" + inputsPerPredicateMap.mkString("\n"))
+      
+      val intersections =
+        for ((fragment, pairs) <- inputsPerPredicateMap) yield {
+          
+          val subexpressionsSets =
+            for ((inputs, _) <- pairs) yield         
+              ioexamples.Util.subexpressionToPathFunctionsPairs(inputs.head).map({ case (k, v) => (k, v(w)) }).toSet
+              
+          info("subexpressionsSets:\n" + subexpressionsSets.mkString("\n"))
+          
+          subexpressionsSets.size shouldBe 9
+          
+          val intersection =
+            subexpressionsSets.reduce(_ intersect _)
+            
+          info("intersection:\n" + intersection.mkString("\n"))
+          
+          intersection
+        }
+      
+//      val groupedBySize =
+//        for (intersection <- intersections) yield {
 //          
-//          (fragmentHead, examplePair)
+////          val diffed =
+////            (intersection /: intersections) {
+////              case (curr,  intersectionToRemove) if intersection != intersectionToRemove =>
+////                curr diff intersectionToRemove
+////              case (curr, _) =>
+////                curr
+////            }
+////          
+////          info("diffed: " + diffed)
+//
+//          intersection.map( x => (x, ExprOps.formulaSize(x._2)) ).groupBy(_._2)
 //        }
 //
-//      val inputsPerPredicateMap =
-//        (Map[Expr, Set[InputOutputExampleVal]]() /: inputsPerPredicate) {
-//          case (current, (fragment, pair)) =>
-//            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + pair))
-//        }
-//      
-//      inputsPerPredicateMap.size shouldBe 4
-////      info("inputsPerPredicateMap:\n" + inputsPerPredicateMap.mkString("\n"))
-//      
-//      for ((fragment, pairs) <- inputsPerPredicateMap) yield {
-//        
-//        val subexpressionsSets =
-//          for ((inputs, _) <- pairs) yield         
-//            ioexamples.Util.subexpressionToPathFunctionsPairs(inputs.head).map({ case (k, v) => (k, v(w)) }).toSet
-//            
-//        info("subexpressionsSets:\n" + subexpressionsSets.mkString("\n"))
-//        
-//        subexpressionsSets.size shouldBe 17
-//        
-//        val intersection =
-//          subexpressionsSets.reduce(_ intersect _)
-//          
-//        info("intersection:\n" + intersection.mkString("\n"))
-//        
-//        ???
-//      }
+//      info("groupedBySize: " + groupedBySize.mkString("\n"))
+      
+      val sortedBySize =
+        intersections.flatten.toList.distinct.sortBy(x => ExprOps.formulaSize(x._2))
+          
+      val partitions = (intersections, Set[(Expr, Expr)]()) :: Nil
+      
+      val newPartitions =
+        (partitions /: sortedBySize) {
+          case (current, expr) if current.size < intersections.size =>
+            info("expression is: " + expr)
+            val newPartitions =
+              for ((partition, partitionSet) <- current) yield {
+                val (have, dontHave) =
+                  partition.partition(p => p contains expr)
+                  
+                if (have.isEmpty || dontHave.isEmpty)
+                  (partition, partitionSet) :: Nil
+                else
+                  (have, partitionSet + expr) ::
+                    (dontHave, partitionSet + ((expr._1, (Not(expr._2): Expr)))) :: Nil
+              }
+            
+            info("newPartitions:\n" + newPartitions.flatten.mkString("\n"))
+            info("*********")
+            newPartitions.flatten
+          case r =>
+            r._1
+        }
+      
+      info("newPartitions: " + newPartitions.map(_._2).mkString("\n"))
+      
 
     }
 
