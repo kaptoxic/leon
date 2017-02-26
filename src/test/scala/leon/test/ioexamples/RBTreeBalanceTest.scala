@@ -287,7 +287,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
   }
   
-  test("synthesis, two cases") {
+  ignore("synthesis, two cases") {
     val eb = problem.eb
 
     info("invalids:\n" + eb.invalids.mkString("\n"))
@@ -568,7 +568,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
   }
   
-  test("datageneration, with precondition") {
+  ignore("datageneration, with precondition") {
     val eb = problem.eb
 
     info("invalids:\n" + eb.invalids.mkString("\n"))
@@ -719,7 +719,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
   }
   
-  ignore("synthesis") {
+  test("synthesis") {
     val eb = problem.eb
 
     info("invalids:\n" + eb.invalids.mkString("\n"))
@@ -752,16 +752,6 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         tree <- firstNNormal
       ) yield {
         tree match {
-//          case
-//            CaseClass(_,
-//              `black` ::
-//              CaseClass(_,
-//                `red` :: ll :: lv :: lr :: Nil) ::
-//              v ::
-//              CaseClass(_,
-//                `red` :: rl :: rv :: rr :: Nil) ::
-//            Nil) =>
-//              ???
           case
             CaseClass(`nodeClass`,
               `black` ::
@@ -794,46 +784,35 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
                   rr ::
                 Nil)
                 
-//              val v3 =
-//                CaseClass(nodeClass,
-//                  ??? ::
-//                  CaseClass(nodeClass,
-//                    ??? ::
-//                    CaseClass(nodeClass,
-//                      ??? :: ??? :: ??? :: ??? :: Nil) ::
-//                    ??? :: ??? :: Nil) ::
-//                  ??? ::
-//                  ??? ::
-//                Nil)
-//                
-//                
-//              val v4 =
-//                CaseClass(nodeClass,
-//                  ??? ::
-//                  CaseClass(nodeClass,
-//                    ??? ::
-//                    CaseClass(nodeClass,
-//                      ??? :: ??? :: ??? :: ??? :: Nil) ::
-//                    ??? :: ??? :: Nil) ::
-//                  ??? ::
-//                  ??? ::
-//                Nil)
-//                
-              v1 :: v2 :: Nil // v3 :: v4 :: Nil
+              val v3 =
+                CaseClass(nodeClass,
+                  black ::
+                  ll ::
+                  lv ::
+                  CaseClass(nodeClass,
+                    red ::
+                    CaseClass(nodeClass,
+                      red :: lr :: v :: rl :: Nil) ::
+                    rv :: rr :: Nil) ::
+                Nil)
+                
+              val v4 =
+                CaseClass(nodeClass,
+                  black ::
+                  ll ::
+                  lv ::
+                  CaseClass(nodeClass,
+                    red :: lr :: v ::
+                    CaseClass(nodeClass,
+                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
+                Nil)
+                
+              v1 :: v2 :: v3 :: v4 :: Nil
           case _ =>
             Nil
         }
       }
 
-//      only red to black
-//      firstNNormal map {
-//        case CaseClass(nodeClass, color :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil) =>
-//          if (color == red)
-//            CaseClass(nodeClass, black :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
-//          else
-//            CaseClass(nodeClass, red :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
-//      }
-    
     val firstN =
       firstNNormal ++
       firstNReverted.flatten
@@ -856,31 +835,15 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       val compiled = evaluator.compile(toEvaluate, in :: Nil).get
 
       for (ex1 <- firstN) yield {
-        //        _ = info("*******");
         val res = compiled(new Model(Map(in -> ex1)))
-        //          info(s"for in $ex1, out $ex2, got $res")
 
         res match {
           case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-            //            info(s"for in $ex1, out $ex2")
-            //            info("***")
-            //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-            //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-            //                results.getOrElse(ex1, ex2) shouldBe ex2
-            //              results should not contain key (ex1)
-            //              }
-
-//              assert(!(results contains ex1))
-//              assert(results.getOrElse(ex1, ex2))
-//              results(ex1) = ex2
             info("pass precondition for: " + ex1)
             Some(ex1)
-          //          info(s"$v for $ex, ${v1}, $v2")
           case e: EvaluationResults.EvaluatorError =>
-//                    info("evaluation failure: " + e + s" for $ex1")
             None
           case _                                   =>
-//            info("ffs")
             None
         }
       }

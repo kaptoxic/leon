@@ -69,7 +69,7 @@ object RedBlackTree {
 
   def isSorted(tree: Tree): Boolean = isSortedTriple(tree).sorted
   
-  def isSkewed(t: Tree) = t match {
+  def isSkewed(t: Node) = t match {
     case Node(Red, l, _, Node(Red, rl, _, rr)) =>
       blackBalanced(l) && blackBalanced(rl) && blackBalanced(rr) &&
       redNodesHaveBlackChildren(l) && redNodesHaveBlackChildren(rl) && redNodesHaveBlackChildren(rr)
@@ -80,7 +80,7 @@ object RedBlackTree {
   }
   
   def isRootSkewed(t: Node) = t match {
-    case Node(Black, l: Tree, _, r: Tree) =>
+    case Node(Black, l: Node, _, r: Node) =>
       (isSkewed(l) && blackBalanced(r) && redNodesHaveBlackChildren(r)) ||
       (isSkewed(r) && blackBalanced(l) && redNodesHaveBlackChildren(l))
     case _ => false
