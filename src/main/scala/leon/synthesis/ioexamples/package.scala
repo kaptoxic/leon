@@ -11,4 +11,7 @@ package object ioexamples {
   
   type InputOutputExample = (List[(Identifier, Expr)], (Identifier, Expr))
   
+  
+  type InputOutputExampleVal = (List[Expr], Expr)
+  
 }

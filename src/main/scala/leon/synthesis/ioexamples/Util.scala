@@ -54,13 +54,23 @@ object Util extends HasLogger {
   def mapOfSubexpressionsToPathFunctions(ex: Expr): Map[Expr, (Expr => Expr)] = {
     var map = MMap[Expr, (Expr => Expr)]()
     
+    def addToMap(pair: (Expr, Expr => Expr)) {
+      val (e, f) = pair
+      if (map contains e) {
+        val existing = map(e)
+        if (ExprOps.formulaSize(f(w)) < ExprOps.formulaSize(existing(w)))
+          map(e) = f
+      } else
+        map(e) = f
+    }
+    
     def transform(tree: Expr, ctx: Expr => Expr): Unit = tree match {
       // Scala Case classes
       case nl@CaseClass(nilClass, args) if args.size == 0 =>
-        map += nl -> ctx
+        addToMap(nl -> ctx)
           
       case cons@CaseClass(consClass, args) =>
-        map += cons -> ctx
+        addToMap(cons -> ctx)
         assert(args.size == consClass.fields.size)
         for ((arg, f) <- args zip consClass.fields) {
           transform(arg, se => CaseClassSelector(consClass, ctx(se), f.id))
@@ -70,18 +80,19 @@ object Util extends HasLogger {
 //        throw new RuntimeException(s"Subtree $tree should not be in example")
       
       // S-expressions and hardcoded lists
-      case nl: NilList => map += nl -> ctx
+      case nl: NilList =>
+        addToMap(nl -> ctx)
       case cons@Cons(h, t) =>
-        map += cons -> ctx
+        addToMap(cons -> ctx)
         transform(h, se => Car(ctx(se)))
         transform(t, se => Cdr(ctx(se)))
       // variable supported as atoms
       case v: Variable =>
-        map += v -> ctx
+        addToMap(v -> ctx)
 //      case _: Car | _: Cdr =>
 //        throw new RuntimeException(s"Subtree $tree should not be in example")
       case e =>
-        map += e -> ctx
+        addToMap(e -> ctx)
 //      case _ =>
 //        throw new RuntimeException("Not supported")
     }
