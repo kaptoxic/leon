@@ -60,6 +60,32 @@ class UtilTest extends FunSuite with Matchers {
       (varB, Cons(varA, Cons(w, nil))), (nil, Cons(varA, Cons(varB, w)))
     )
   }
+  
+  test("(A B) subexpressions to paths pairs") {
+    
+    val x = elABr
+    val list = subexpressionToPathFunctionsPairs(elABr).map(p => (p._1, p._2(x)))
+        
+    list.size should be (5)
+    
+    list should contain allOf (
+      (varA, Car(x)), (varB, Car(Cdr(x))), (Cons(varB, nil), Cdr(x)),
+      (nil, Cdr(Cdr(x))), (elABr, x)
+    )
+  }
+
+  test("(A A) subexpressions to paths pairs") {
+    
+    val elAAr = Cons(varA, elAr)
+    val list = subexpressionToPathFunctionsPairs(elAAr).map(p => (p._1, p._2(w)))
+        
+    list.size should be (5)
+    
+    list should contain allOf (
+      (varA, Car(w)), (varA, Car(Cdr(w))), (Cons(varA, nil), Cdr(w)),
+      (nil, Cdr(Cdr(w))), (elAAr, w)
+    )
+  }
 
   test("compare trees") {
     implicit val map = Map[(Expr, Expr), Int]()

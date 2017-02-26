@@ -253,5 +253,52 @@ object Util extends HasLogger {
   implicit def diffsToString(l: Iterable[(Map[Expressions.Variable, Expressions.Expr],
     Expressions.Expr => Expressions.Expr)]) = l.map(diffToString).mkString("\n")
 //  def println(s: String) = scala.Predef.println(s)
+    
+    
+  /**
+   * return subexpressions x of ex as well as expressions that when evaluated on ex,
+   *  return x 
+   * @param ex
+   * @return
+   */
+  def subexpressionToPathFunctionsPairs(ex: Expr): Iterable[(Expr, (Expr => Expr))] = {
+    var map = new collection.mutable.ListBuffer[(Expr, (Expr => Expr))]()
+    
+    def transform(tree: Expr, ctx: Expr => Expr): Unit = tree match {
+      // Scala Case classes
+      case nl@CaseClass(nilClass, args) if args.size == 0 =>
+        map += nl -> ctx
+          
+      case cons@CaseClass(consClass, args) =>
+        map += cons -> ctx
+        assert(args.size == consClass.fields.size)
+        for ((arg, f) <- args zip consClass.fields) {
+          transform(arg, se => CaseClassSelector(consClass, ctx(se), f.id))
+        }
+        
+//      case _: CaseClassSelector =>
+//        throw new RuntimeException(s"Subtree $tree should not be in example")
+      
+      // S-expressions and hardcoded lists
+      case nl: NilList => map += nl -> ctx
+      case cons@Cons(h, t) =>
+        map += cons -> ctx
+        transform(h, se => Car(ctx(se)))
+        transform(t, se => Cdr(ctx(se)))
+      // variable supported as atoms
+      case v: Variable =>
+        map += v -> ctx
+//      case _: Car | _: Cdr =>
+//        throw new RuntimeException(s"Subtree $tree should not be in example")
+      case e =>
+        map += e -> ctx
+//      case _ =>
+//        throw new RuntimeException("Not supported")
+    }
+    
+    transform(ex, identity)
+    
+    map.toList
+  }
 
 }
