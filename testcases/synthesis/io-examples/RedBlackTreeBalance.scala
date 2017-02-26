@@ -95,10 +95,10 @@ object RedBlackTree {
       isRootSkewed(t) && isSorted(t)
     )
     choose {
-      (out: Tree) =>
+      (out: Node) =>
         content(out) == content(t) &&
         redNodesHaveBlackChildren (out) &&
-        blackBalanced (out) && isSorted(out)
+        blackBalanced (out) && isSorted(out) && out.color == Red
     }
   }
 
