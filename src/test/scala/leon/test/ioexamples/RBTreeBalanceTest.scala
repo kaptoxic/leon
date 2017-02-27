@@ -470,6 +470,26 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         }
       
       inputsPerPredicateMap.size shouldBe 4
+      
+      
+      // FIXME make this a separate test
+      {
+        val fragments = inputsPerPredicateMap.keys
+        
+        val synthesizer = new Synthesizer
+       
+        val allDiffResults =
+    	    (for((f1, f2) <- fragments zip fragments.tail) yield {
+    	      val diffs = Differencer.differences(f1, f2, problem.as.map(_.toVariable))
+    	      info(s"diffs for $f1 and $f2 are $diffs")
+    	      (f1, f2, diffs)
+    	    })
+        info("allDiffResults: " + allDiffResults.map(_._3.map({ case (k, v) => (k, v(w))})))
+        
+        allDiffResults should be ('empty)
+      }
+      
+      
 //      info("inputsPerPredicateMap:\n" + inputsPerPredicateMap.mkString("\n"))
       
       val intersections =
