@@ -27,7 +27,8 @@ class Synthesizer extends HasLogger {
     examples: List[InputOutputExample],
     getEnum: TypeTree => Iterable[Expr],
     evaluator: Evaluator,
-    nilClass: ClassType
+    nilClass: ClassType,
+    precalculatedFragmentsOpt: Option[List[Expr]] = None
   ): Option[(Expr, TypedFunDef)] = {
     require(examples.size > 0)
     val inIds =
@@ -63,23 +64,34 @@ class Synthesizer extends HasLogger {
     
     val xs = inIds.map(_.toVariable)
 
-    // get amgigous fragments
-    // TODO: this should be merged with previous function (no need to do work twice)
-    val unorderedFragmentsAllAmbFlag = Fragmenter.checkAmbiguity(transformedExamples, xs)
-    info("unorderedFragmentsAllAmbFlag: " + unorderedFragmentsAllAmbFlag.mkString("\n"))
-
-    // get fragments
-    val unorderedFragmentsAll = Fragmenter.constructFragments(transformedExamples, xs)
     
-    assert(unorderedFragmentsAllAmbFlag.size == unorderedFragmentsAll.size)
-    val (ambigousPairs, unorderedFragmentsPairs) = (unorderedFragmentsAll zip unorderedFragmentsAllAmbFlag).
-      partition( _._2._2 )
-    val ambigous = ambigousPairs.map(_._1)
-    val unorderedFragments = unorderedFragmentsPairs.map(_._1)
-    info("unordered fragments: " + unorderedFragments.mkString("\n"))
-    info("ambigous fragments: " + ambigous.mkString("\n"))
+    val (ambigous, unorderedFragments, unorderedFragmentsAll) =
+      precalculatedFragmentsOpt match {
+        case Some(precalculatedFragments) =>
+          // if I give you fragments already, don't bother with ambiguituy
+          (precalculatedFragments, Nil, precalculatedFragments)
+          
+        case None =>
+          // get amgigous fragments
+          // TODO: this should be merged with previous function (no need to do work twice)
+          val unorderedFragmentsAllAmbFlag = Fragmenter.checkAmbiguity(transformedExamples, xs)
+          info("unorderedFragmentsAllAmbFlag: " + unorderedFragmentsAllAmbFlag.mkString("\n"))
+      
+          // get fragments
+          val unorderedFragmentsAll = Fragmenter.constructFragments(transformedExamples, xs)
+          assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
+          
+          assert(unorderedFragmentsAllAmbFlag.size == unorderedFragmentsAll.size)
+          val (ambigousPairs, unorderedFragmentsPairs) = (unorderedFragmentsAll zip unorderedFragmentsAllAmbFlag).
+            partition( _._2._2 )
+          val ambigous = ambigousPairs.map(_._1)
+          val unorderedFragments = unorderedFragmentsPairs.map(_._1)
+          info("unordered fragments: " + unorderedFragments.mkString("\n"))
+          info("ambigous fragments: " + ambigous.mkString("\n"))
+          
+          (ambigous, unorderedFragments, unorderedFragmentsAll)
+      }
     
-    assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
     val fragmentToInputMap =
       (Map[Expr, Set[InputOutputExampleVal]]() /: (unorderedFragmentsAll zip transformedExamples)) {
         case (current, (fragment, example)) =>
@@ -88,38 +100,76 @@ class Synthesizer extends HasLogger {
     fine("fragmentToInputMap: " + fragmentToInputMap)
     
     val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
-      getChainedBranches(
-        unorderedFragments: List[Expr],
-        unorderedFragmentsAll: List[Expr],
-        xs: List[Variable],
-        examples: List[InputOutputExample],
-        getEnum: TypeTree => Iterable[Expr],
-        evaluator: Evaluator,
-        nilClass: ClassType
-      )
+      if (unorderedFragments.size > 1) {
+        getChainedBranches(
+          unorderedFragments: List[Expr],
+          unorderedFragmentsAll: List[Expr],
+          xs: List[Variable],
+          examples: List[InputOutputExample],
+          getEnum: TypeTree => Iterable[Expr],
+          evaluator: Evaluator,
+          nilClass: ClassType
+        )
+      } else
+        (Nil, Nil, Nil, Nil)
 
     val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
-      
+    
     
     // these predicates will tell us (for these examples, this expression is *not* nil)
     val initialPredicates =
       if (fragmentToInputMap.forall(_._2.size == 1)) {
-        
         val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head)
         val unhandledInputs =
           (unhandledExamples ::: initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)).map(_._1)
         info("unhandled inputs: " + unhandledInputs)
         
-        calculatePredicatesStructure(unhandledInputs, xs)
-      } else
-        ???
-    info("initialPredicates: " + initialPredicates.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
+        val intialPredicatesIn =
+          calculatePredicatesStructure(unhandledInputs, xs)
+          
+        // all variables are Nil
+        val fullConditioned = xs
+       
+        for ( (examples, predicates) <- intialPredicatesIn) yield { 
+          val conditionsToRemove = 
+            for ((x, predicate) <- predicates) yield predicate(x)
+          val currentNils = fullConditioned.toSet -- conditionsToRemove
+          val conditions =
+            for (varToCheck <- currentNils) yield {
+              IsInstanceOf(varToCheck, nilClass)
+            }
+          
+          (examples, conditions)
+        }
+      } else {
+        assert(xs.size == 1)
+        assert(fragmentToInputMap.size == 4, fragmentToInputMap.size)
+        val predicates =
+          calculatePredicatesStructureMapDifference(fragmentToInputMap.toSeq, xs)
+          
+        val res =
+          predicates map {
+            case (k, v) =>
+              val equalities = v.map {
+                case (value, Not(expression)) =>
+                  Not(Equals(value, expression))
+                case (value, expression) =>
+                  Equals(value, expression)
+              }
+              
+              // FIXME change this not to be a function
+//              (k.toList.map(_._1), Map((xs.head: Expr) -> ((_: Expr) => and(equalities.toSeq: _*))))
+              (k.toList.map(_._1), equalities)
+          }
+        
+        res
+        
+      }
+    info("initialPredicates: " + initialPredicates)//.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
     
-    // all variables are Nil
-    val fullConditioned = xs
 
     val initialBranches =
-      for ( (examples, predicates) <- initialPredicates) yield {
+      for ( (examples, conditions) <- initialPredicates) yield {
         val transformedInputs = transformedExamples.map(_._1)
         val inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
         
@@ -129,14 +179,6 @@ class Synthesizer extends HasLogger {
         if (fragments.distinct.size != 1) {
           throw new Exception
         }
-        
-        val conditionsToRemove = 
-          for ((x, predicate) <- predicates) yield predicate(x)
-        val currentNils = fullConditioned.toSet -- conditionsToRemove
-        val conditions =
-          for (varToCheck <- currentNils) yield {
-            IsInstanceOf(varToCheck, nilClass)
-          }
             
         val branch =
           fragments.head
@@ -606,6 +648,74 @@ class Synthesizer extends HasLogger {
 //        predicatesFunList(allDiff.size - num)(diffSet.head.head._2))
 //    }
 //    else None
+  }
+  
+  def calculatePredicatesStructureMapDifference(
+    inputsPerPredicateMap: Seq[(Expr, Set[InputOutputExampleVal])],
+    inputsVariables: List[Expr]
+  ) = {
+    
+    // TODO at this point
+    require(inputsVariables.size == 1)
+    val inputVar = inputsVariables.head
+    
+    val (intersections, pairs) =
+      (for ((fragment, pairs) <- inputsPerPredicateMap) yield {
+        
+        val subexpressionsSets =
+          for ((inputs, _) <- pairs) yield         
+            Util.subexpressionToPathFunctionsPairs(inputs.head).map({
+              case (k, v) => (k, v(inputVar)) }).toSet
+            
+        info("subexpressionsSets:\n" + subexpressionsSets.mkString("\n"))
+        
+        val intersection =
+          subexpressionsSets.reduce(_ intersect _)
+          
+        info("intersection:\n" + intersection.mkString("\n"))
+        
+        (intersection, pairs)
+      }).unzip
+  
+    val sortedBySize =
+      intersections.flatten.toList.distinct.sortBy(x => ExprOps.formulaSize(x._2))
+        
+    val partitions = (intersections, Set[(Expr, Expr)]()) :: Nil
+    
+    val newPartitions =
+      (partitions /: sortedBySize) {
+        case (current, expr) if current.size < intersections.size =>
+          info("expression is: " + expr)
+          val newPartitions =
+            for ((partition, partitionSet) <- current) yield {
+              val (have, dontHave) =
+                partition.partition(p => p contains expr)
+                
+              if (have.isEmpty || dontHave.isEmpty)
+                (partition, partitionSet) :: Nil
+              else
+                (have, partitionSet + expr) ::
+                  (dontHave, partitionSet + ((expr._1, (Not(expr._2): Expr)))) :: Nil
+            }
+          
+          info("newPartitions:\n" + newPartitions.flatten.mkString("\n"))
+          info("*********")
+          newPartitions.flatten
+        case r =>
+          r._1
+      }
+    
+    info("newPartitions: " + newPartitions.map(_._2).mkString("\n"))
+    
+    // if properly partitioned
+    if (newPartitions.forall(_._1.size == 1)) {
+      val partitionToPairsMap = (intersections zip pairs).toMap
+      
+      newPartitions.map({ case (partitions, predicates) =>
+        (partitionToPairsMap(partitions.head), predicates) })
+    } else {
+      Nil
+    }
   }
 
 }

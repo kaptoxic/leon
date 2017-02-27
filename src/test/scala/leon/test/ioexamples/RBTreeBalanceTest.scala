@@ -183,7 +183,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
 
   
-  test("predicates") {
+  ignore("predicates") {
     val eb = problem.eb
 
     info("invalids:\n" + eb.invalids.mkString("\n"))
@@ -575,10 +575,336 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       
       info("newPartitions: " + newPartitions.map(_._2).mkString("\n"))
       
-
     }
 
   }
+  
+  test("use synthesizer") {
+    val eb = problem.eb
+
+    info("invalids:\n" + eb.invalids.mkString("\n"))
+    info("valids:\n" + eb.valids.mkString("\n"))
+
+    problem.hasOutputTests shouldBe false
+
+    problem.xs should have size 1
+
+    val resType = problem.xs.head.getType
+
+    val ms = new scope.AccumulatingScope
+    val enum = constructEnumerator_new(ms)
+
+    info("going into enumeration")
+
+    val firstNNormal = (
+      for (size <- 4 to 8) yield {
+        for (
+          blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
+          e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
+          ind <- 0 until e.size
+        ) yield e(ind)
+      }).flatten
+      
+    info("enumerated datastructs: " + firstNNormal.mkString("\n"))
+        
+    val firstNReverted =
+      for (
+        tree <- firstNNormal
+      ) yield {
+        tree match {
+          case
+            CaseClass(`nodeClass`,
+              `black` ::
+              CaseClass(`nodeClass`,
+                `red` :: ll :: lv :: lr :: Nil) ::
+              v ::
+              CaseClass(`nodeClass`,
+                `red` :: rl :: rv :: rr :: Nil) ::
+            Nil) =>
+              val v1 =
+                CaseClass(nodeClass,
+                  black ::
+                  CaseClass(nodeClass,
+                    red ::
+                    CaseClass(nodeClass,
+                      red :: ll :: lv :: lr :: Nil) ::
+                    v :: rl :: Nil) ::
+                  rv ::
+                  rr ::
+                Nil)
+                
+              val v2 =
+                CaseClass(nodeClass,
+                  black ::
+                  CaseClass(nodeClass,
+                    red :: ll :: lv ::
+                    CaseClass(nodeClass,
+                      red :: lr :: v :: rl :: Nil) :: Nil) ::
+                  rv ::
+                  rr ::
+                Nil)
+                
+              val v3 =
+                CaseClass(nodeClass,
+                  black ::
+                  ll ::
+                  lv ::
+                  CaseClass(nodeClass,
+                    red ::
+                    CaseClass(nodeClass,
+                      red :: lr :: v :: rl :: Nil) ::
+                    rv :: rr :: Nil) ::
+                Nil)
+                
+              val v4 =
+                CaseClass(nodeClass,
+                  black ::
+                  ll ::
+                  lv ::
+                  CaseClass(nodeClass,
+                    red :: lr :: v ::
+                    CaseClass(nodeClass,
+                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
+                Nil)
+                
+              v1 :: v2 :: v3 :: v4 :: Nil
+          case _ =>
+            Nil
+        }
+      }
+
+    val firstN =
+      firstNNormal ++
+      firstNReverted.flatten
+
+    val numOfExamples = 42
+      
+    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
+//    firstN.size shouldBe numOfExamples
+
+    val filteredExamples =
+    {
+      val phi = problem.phi
+
+      problem.as should have size 1
+      val in = problem.as.head
+      problem.xs should have size 1
+      val out = problem.xs.head
+      val pc = problem.pc
+      val toEvaluate = pc.toClause
+      val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+
+      for (ex1 <- firstN) yield {
+        val res = compiled(new Model(Map(in -> ex1)))
+
+        res match {
+          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+            info("pass precondition for: " + ex1)
+            Some(ex1)
+          case e: EvaluationResults.EvaluatorError =>
+            None
+          case _                                   =>
+            None
+        }
+      }
+
+    }
+
+    //    "output finding" -
+    {
+      val phi = problem.phi
+
+      problem.as should have size 1
+      val in = problem.as.head
+
+      problem.xs should have size 1
+      val out = problem.xs.head
+
+//      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
+//      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
+      val results = new collection.mutable.MutableList[(Expr, Expr)]()
+
+//      import scala.util.Random
+//      val randomGen = new Random("random number my version".hashCode)
+//      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
+//      info("randoms " + randoms)
+
+      val pc = problem.pc
+      val toEvaluate = And(pc.toClause, phi)
+      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+            
+      filteredExamples.flatten.size shouldBe 36
+//      info(filteredExamples.map(p => "in : " + p).mkString("\n"))
+
+//      for (ex1 <- firstN) {
+      for (ex1 <- filteredExamples.flatten) {
+        //        _ = info("*******");
+        var flag = true
+        val ex2it = firstN.iterator;
+        while (flag && ex2it.nonEmpty) {
+          val ex2 = ex2it.next
+          //        info("toEvaluate " + toEvaluate)
+
+          //        info(s"for in $ex1, out $ex2")
+          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+          //          info(s"for in $ex1, out $ex2, got $res")
+
+          res match {
+            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+              //            info(s"for in $ex1, out $ex2")
+              //            info("***")
+              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+              //                results.getOrElse(ex1, ex2) shouldBe ex2
+              //              results should not contain key (ex1)
+              //              }
+
+//              assert(!(results contains ex1))
+//              assert(results.getOrElse(ex1, ex2))
+//              results(ex1) += ex2
+              results += ((ex1, ex2))
+            //          info(s"$v for $ex, ${v1}, $v2")
+            case e: EvaluationResults.EvaluatorError =>
+            //          info("evaluation failure: " + e + s" for $v1 and $v2")
+            case _                                   =>
+          }
+        }
+      }
+
+      results.size shouldBe >(0)
+//      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+//      results should have size (56)
+
+//      info(s"result with more than 6 results: " + {
+//        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
+//        val v2 = v.map({ case (k, v) => v })
+//        k + "\n" + v2
+//      })
+
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+      
+//      val resultsSmallest = results map {
+//        case (k, v) =>
+//          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
+//      }
+
+      val examples = results.map({
+        case (inEx, outEx) =>
+          ((in, inEx) :: Nil, (out, outEx))
+      }).toList
+
+      //      info("examples\n" + examples.mkString("\n"))
+//      examples should have size (56)
+
+      //      test: attempt synthesis
+      // get fragments
+      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+      info(s"inIds $inIds")
+      info("transformed examples: " + transformedExamples.mkString("\n"))
+      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+      
+      val unorederdFragmentsSet = unorderedFragments.toSet
+      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
+      
+      transformedExamples should have size unorderedFragments.size
+      val zipped = (examples zip unorderedFragments)
+      
+      val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
+      
+//      info("" + ioexamples.Util.mapOfSubexpressionsToPathFunctions(zippedSorted.last._1._1.head).map(
+//        {case (k,v) => "" + k + "\n" + v(w) }))
+//      info("" + zippedSorted.last)
+      
+      val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
+      var covering = transformedExamples.map(_._1).toSet
+
+//      val coveringPairs =
+//        zippedSorted.takeWhile({
+//          case _ if covering.isEmpty =>
+//            false
+//          case p@(exPair, fragment) =>
+//            covering = covering - exPair._1
+//            taken += p
+//            true
+//        })
+//        
+//      info(s"zipped size ${zipped.size}; coveringPairs size: " + coveringPairs.size)
+//      info("covering pairs\n: " + coveringPairs.mkString("\n"))
+      
+      val groupped = zipped.groupBy(_._1._1)
+      val sorted =
+        for ( (input, list) <- groupped ) yield {
+          val fragments = list.map(_._2)
+          (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
+        }
+
+      info("")
+      info("")
+      info("")
+      info("sorted:\n" + sorted.
+        map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
+        
+      info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
+      
+//      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
+//        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
+//      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
+        
+      val inputsPerPredicate =
+        for ((examplePair, fragment) <- zipped) yield {
+          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
+          
+          (fragmentHead, examplePair)
+        }
+
+      val inputsPerPredicateMap =
+        (Map[Expr, Set[InputOutputExample]]() /: inputsPerPredicate) {
+          case (current, (fragment, pair)) =>
+            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExample]()) + pair))
+        }
+      
+      inputsPerPredicateMap.size shouldBe 4
+      
+      val synthesizer = new Synthesizer
+      
+//      val resultPredicates =
+//        synthesizer.calculatePredicatesStructureMapDifference(inputsPerPredicateMap.toSeq)
+//
+//      info("res: " + resultPredicates)
+      {
+        
+        val (examples, fragments) =
+          (for (fragment <- inputsPerPredicateMap.keys.toList;
+            example <- inputsPerPredicateMap(fragment).toList) yield
+            (example, fragment)).unzip
+            
+        info("examples: " + examples)
+        info("fragments: " + fragments)
+      
+        val result =
+          synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
+          
+        info("result: " + result)
+        
+        result.get._1.toString shouldBe
+          """|if (Red == t.left.color && Black == t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left.left, t.left.left.value, t.left.left.right), t.left.value, Node(t.color, t.left.right, t.value, t.right))
+             |} else if (Red == t.left.color && Black != t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left, t.left.value, t.left.right.left), t.left.right.value, Node(t.color, t.left.right.right, t.value, t.right))
+             |} else if (Red != t.left.color && Red == t.right.left.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left.left), t.right.left.value, Node(t.color, t.right.left.right, t.right.value, t.right.right))
+             |} else if (Red != t.left.color && Red != t.right.left.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
+             |} else {
+             |  ()
+             |}""".stripMargin
+      }
+    }
+
+  }
+  
 //
 //
 //
