@@ -119,7 +119,7 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
   var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
   
   
-  ignore("test synthesizer") {
+  test("test synthesizer") {
 
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")
@@ -131,14 +131,12 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
 
     info("(body, funDef) is: " + (body, funDef))
     body.toString shouldBe
-      """|if ((l1 == Nil) && (l2 == Nil)) {
-         |  l2
-         |} else if ((l2 == Nil)) {
-         |  l1
-         |} else if (l1.head <= l2.head) {
-         |  Cons(l1.head, rec(l1.tail, l2))
+      """|if ((l == Nil)) {
+         |  IntNil
+         |} else if ((l == Nil)) {
+         |  IntCons(l.head.fst, IntCons(l.head.snd, ?(l.tail)))
          |} else {
-         |  Cons(l2.head, rec(l1, l2.tail))
+         |  ()
          |}""".stripMargin
 
   }
