@@ -99,7 +99,12 @@ class Synthesizer extends HasLogger {
       }
     fine("fragmentToInputMap: " + fragmentToInputMap)
     
-    val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
+    
+    // needed in the initial branches computation
+    val transformedInputs = transformedExamples.map(_._1)
+    var inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
+    
+    val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroupPairs) =
       if (unorderedFragments.size > 1) {
         getChainedBranches(
           unorderedFragments: List[Expr],
@@ -120,8 +125,14 @@ class Synthesizer extends HasLogger {
     val initialPredicates =
       if (fragmentToInputMap.forall(_._2.size == 1)) {
         val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head)
+        
+        val (initialFragmentsFromGroup, initialFragmentsFromGroupTransformed) =
+          initialFragmentsFromGroupPairs.unzip
+        
+        val inputsForInitialFragments =
+          initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)
         val unhandledInputs =
-          (unhandledExamples ::: initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)).map(_._1)
+          (unhandledExamples ::: inputsForInitialFragments).map(_._1)
         info("unhandled inputs: " + unhandledInputs)
         
         val intialPredicatesIn =
@@ -129,6 +140,14 @@ class Synthesizer extends HasLogger {
           
         // all variables are Nil
         val fullConditioned = xs
+        
+        // forgive me for doing this but I need this working
+        // should overwrite inputps with modified fragment
+        // TODO propagate the modified fragment in some better way
+        val mapOfInputsToNewFragments =
+          (inputsForInitialFragments.map(_._1) zip initialFragmentsFromGroupTransformed).toMap
+        inputToFragmentMap =
+          inputToFragmentMap ++ mapOfInputsToNewFragments
        
         for ( (examples, predicates) <- intialPredicatesIn) yield { 
           val conditionsToRemove = 
@@ -170,8 +189,6 @@ class Synthesizer extends HasLogger {
 
     val initialBranches =
       for ( (examples, conditions) <- initialPredicates) yield {
-        val transformedInputs = transformedExamples.map(_._1)
-        val inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
         
         val fragments = examples.map(inputToFragmentMap)
         info("fragments: " + fragments)
@@ -309,20 +326,8 @@ class Synthesizer extends HasLogger {
 
     val (emptyDiffsFromCalculate, filteredDiffGroups) = calculateFragments(unorderedFragments, xs)
     info(filteredDiffGroups.mkString("\n"))
-    assert(filteredDiffGroups.size == 2)
     
-    // found groups
-    val predicates =
-      calculatePredicates(
-        filteredDiffGroups,
-        getEnum,
-        unorderedFragmentsAll zip examples toMap,
-        evaluator
-      ) flatten
       
-    fine("groups: " + filteredDiffGroups.mkString("\n"))
-    fine("predicates: " + predicates.mkString("\n"))
-    
     val initialFragmentFromGroup = {
       // get all (f1, f2)
       val (startingFragments, finishingFragments) =
@@ -334,8 +339,44 @@ class Synthesizer extends HasLogger {
       assert(initialFragment.size == 1)
       initialFragment.head
     }
+
+    val (predicates, infoToTransformFragment) =
+//    assert(filteredDiffGroups.size == 2)
+      if (filteredDiffGroups.size == 1) {
+        val (fragmentConnections, subs) = filteredDiffGroups.head
+        
+        // note that we can pick whichever fragment for substitution here (after substitution, should be the
+        //  same anyway
+        val (_, fragmentToSubstitute) = fragmentConnections.head
+        
+        // we don't know how to deal with this ambiguity though (should not happen?)
+        assert(subs.size == 1)
+        val (subMap, f) = subs.head
+        
+        val singleGeneralizedFragment =
+  //        ExprOps.replaceFromIDs(subMap.map(p => (p._1.id, p._2)), fragmentToSubstitute)
+          f(Hole(UnitType, xs.map(subMap)))
+  
+        (Nil, singleGeneralizedFragment)
+      } else {
+        // found groups
+        // TODO check if this is generalized to size >2
+        val predicates =
+          calculatePredicates(
+            filteredDiffGroups,
+            getEnum,
+            unorderedFragmentsAll zip examples toMap,
+            evaluator
+          ) flatten
+          
+        fine("groups: " + filteredDiffGroups.mkString("\n"))
+        fine("predicates: " + predicates.mkString("\n"))
+        
+        (predicates, initialFragmentFromGroup)
+      }
     
-    (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentFromGroup :: Nil)
+    (predicates, filteredDiffGroups, emptyDiffsFromCalculate,
+      (initialFragmentFromGroup, infoToTransformFragment) :: Nil)
   }
   
   /*
@@ -409,9 +450,11 @@ class Synthesizer extends HasLogger {
           )
       })
     info(filteredDiffGroups.mkString("\n"))
-    assert(filteredDiffGroups.size == 2)
     
-    (emptyDiffs.map(_._1), filteredDiffGroups)
+//    if (filteredDiffGroups.size < 2)
+//      (emptyDiffs.map(_._1) ::: filteredDiffGroups, Nil)
+//    else
+      (emptyDiffs.map(_._1), filteredDiffGroups)
   }
   
   def calculatePredicates(

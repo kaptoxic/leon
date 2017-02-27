@@ -32,6 +32,10 @@ object Predicates extends HasLogger {
           case (acc, ((arg1, arg2), field)) =>
             acc ++ rec(arg1, arg2, x => ctx(CaseClassSelector(ct1, x, field.id)))
         }
+      // case where a composite is in another composite (just do first argument now)
+      // TODO generalize later
+      case (cc1@CaseClass(ct1, args1), CaseClass(ct2, args2)) if args2.head == cc1 =>
+        ((x: Expr) => ctx(CaseClassSelector(ct2, x, ct2.fields.head.id))) :: Nil
     }
     
     rec(expr1, expr2, identity)
