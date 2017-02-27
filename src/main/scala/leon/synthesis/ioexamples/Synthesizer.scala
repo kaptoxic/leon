@@ -80,7 +80,11 @@ class Synthesizer extends HasLogger {
     info("ambigous fragments: " + ambigous.mkString("\n"))
     
     assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
-    val fragmentToInputMap = unorderedFragmentsAll zip transformedExamples toMap;
+    val fragmentToInputMap =
+      (Map[Expr, Set[InputOutputExampleVal]]() /: (unorderedFragmentsAll zip transformedExamples)) {
+        case (current, (fragment, example)) =>
+          current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + example))
+      }
     fine("fragmentToInputMap: " + fragmentToInputMap)
     
     val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
@@ -95,15 +99,20 @@ class Synthesizer extends HasLogger {
       )
 
     val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
-    
-    val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_))
-    val unhandledInputs =
-      (unhandledExamples ::: initialFragmentsFromGroup.map(fragmentToInputMap)).map(_._1)
-    info("unhandled inputs: " + unhandledInputs)
       
     
     // these predicates will tell us (for these examples, this expression is *not* nil)
-    val initialPredicates = calculatePredicatesStructure(unhandledInputs, xs)
+    val initialPredicates =
+      if (fragmentToInputMap.forall(_._2.size == 1)) {
+        
+        val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head)
+        val unhandledInputs =
+          (unhandledExamples ::: initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)).map(_._1)
+        info("unhandled inputs: " + unhandledInputs)
+        
+        calculatePredicatesStructure(unhandledInputs, xs)
+      } else
+        ???
     info("initialPredicates: " + initialPredicates.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
     
     // all variables are Nil
