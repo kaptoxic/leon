@@ -80,7 +80,8 @@ class Synthesizer extends HasLogger {
     info("ambigous fragments: " + ambigous.mkString("\n"))
     
     assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
-    val fragmentToInputMap = unorderedFragmentsAll zip transformedExamples toMap
+    val fragmentToInputMap = unorderedFragmentsAll zip transformedExamples toMap;
+    fine("fragmentToInputMap: " + fragmentToInputMap)
     
     val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
       getChainedBranches(
@@ -94,9 +95,6 @@ class Synthesizer extends HasLogger {
       )
 
     val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
-//    assert(emptyDiffs.size == 1)
-
-    fine("fragmentToInputMap: " + fragmentToInputMap)
     
     val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_))
     val unhandledInputs =
@@ -185,6 +183,30 @@ class Synthesizer extends HasLogger {
       
       Some((ifExpr, newFun))
       
+    } else if (initialBranches.size > 0) {
+      
+      // get type as type of output expression
+      val resType = examples.head._2._2.getType
+     
+      // create a recursive function definition
+      val newFun = new FunDef(
+        FreshIdentifier("rec"),
+        Nil,
+        xs map { v => ValDef(v.id) },
+        resType
+      ).typed
+      
+      // create final if-then-else expression by folding the "unfolded" fragments
+      val ifExpr = 
+        ((UnitLiteral(): Expr) /: initialBranches.reverse) {
+          case (current, (condition, branch)) =>
+            IfExpr(condition, branch, current) 
+        }
+
+      // last if-then case
+      newFun.fd.body = Some(ifExpr)
+      
+      Some((ifExpr, newFun))
     } else None
 //    (fragments, predicates) match {
 //      case (Some((fragments, a, b)), Some(p)) =>
