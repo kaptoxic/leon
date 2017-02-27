@@ -51,7 +51,7 @@ object PlanningWithError {
   				  List(Report("repair"), Wait(10), Halt)
 				  )
         case Hanoi(0, Src, Aux, Dst, Move(0, Src, Dst, Initial)) =>
-          (Move(0, Src, Dst, Initial), List(Halt))
+          (Move(0, Src, Dst, Initial), List(Error))
 	  }
   }
 
