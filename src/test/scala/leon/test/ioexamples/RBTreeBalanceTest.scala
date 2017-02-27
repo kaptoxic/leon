@@ -486,7 +486,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
     	    })
         info("allDiffResults: " + allDiffResults.map(_._3.map({ case (k, v) => (k, v(w))})))
         
-        allDiffResults should be ('empty)
+        allDiffResults.map(_._3).flatten should be ('empty)
       }
       
       
