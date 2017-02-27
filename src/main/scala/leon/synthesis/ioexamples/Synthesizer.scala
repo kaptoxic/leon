@@ -78,32 +78,29 @@ class Synthesizer extends HasLogger {
     val unorderedFragments = unorderedFragmentsPairs.map(_._1)
     info("unordered fragments: " + unorderedFragments.mkString("\n"))
     info("ambigous fragments: " + ambigous.mkString("\n"))
-
-    val (emptyDiffsFromCalculate, filteredDiffGroups) = calculateFragments(unorderedFragments, xs)
-    val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
-//    assert(emptyDiffs.size == 1)
-    info(filteredDiffGroups.mkString("\n"))
-    assert(filteredDiffGroups.size == 2)
     
     assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
     val fragmentToInputMap = unorderedFragmentsAll zip transformedExamples toMap
+    
+    val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
+      getChainedBranches(
+        unorderedFragments: List[Expr],
+        unorderedFragmentsAll: List[Expr],
+        xs: List[Variable],
+        examples: List[InputOutputExample],
+        getEnum: TypeTree => Iterable[Expr],
+        evaluator: Evaluator,
+        nilClass: ClassType
+      )
+
+    val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
+//    assert(emptyDiffs.size == 1)
 
     fine("fragmentToInputMap: " + fragmentToInputMap)
     
     val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_))
-    val initialFragmentFromGroup = {
-      // get all (f1, f2)
-      val (startingFragments, finishingFragments) =
-        filteredDiffGroups.map(_._1).flatten.unzip
-      fine("(startingFragments, finishingFragments): " + (startingFragments, finishingFragments))
-      val initialFragment =
-        startingFragments.filterNot( finishingFragments contains _ )
-      fine("initialFragment: " + initialFragment)
-      assert(initialFragment.size == 1)
-      initialFragment.head
-    }
     val unhandledInputs =
-      (unhandledExamples :+ fragmentToInputMap(initialFragmentFromGroup)).map(_._1)
+      (unhandledExamples ::: initialFragmentsFromGroup.map(fragmentToInputMap)).map(_._1)
     info("unhandled inputs: " + unhandledInputs)
       
     
@@ -140,17 +137,6 @@ class Synthesizer extends HasLogger {
         (and(conditions.toSeq: _*), branch)
       }
     
-    // found groups
-    val predicates =
-      calculatePredicates(
-        filteredDiffGroups,
-        getEnum,
-        unorderedFragmentsAll zip examples toMap,
-        evaluator
-      ) flatten
-      
-    fine("groups: " + filteredDiffGroups.mkString("\n"))
-    fine("predicates: " + predicates.mkString("\n"))
     
     if (predicates.size > 0) {
       
@@ -236,6 +222,47 @@ class Synthesizer extends HasLogger {
 //      case _ =>
 //        None
 //    }
+  }
+  
+  def getChainedBranches(
+    unorderedFragments: List[Expr],
+    unorderedFragmentsAll: List[Expr],
+    xs: List[Variable],
+    examples: List[InputOutputExample],
+    getEnum: TypeTree => Iterable[Expr],
+    evaluator: Evaluator,
+    nilClass: ClassType
+  ) = {
+
+    val (emptyDiffsFromCalculate, filteredDiffGroups) = calculateFragments(unorderedFragments, xs)
+    info(filteredDiffGroups.mkString("\n"))
+    assert(filteredDiffGroups.size == 2)
+    
+    // found groups
+    val predicates =
+      calculatePredicates(
+        filteredDiffGroups,
+        getEnum,
+        unorderedFragmentsAll zip examples toMap,
+        evaluator
+      ) flatten
+      
+    fine("groups: " + filteredDiffGroups.mkString("\n"))
+    fine("predicates: " + predicates.mkString("\n"))
+    
+    val initialFragmentFromGroup = {
+      // get all (f1, f2)
+      val (startingFragments, finishingFragments) =
+        filteredDiffGroups.map(_._1).flatten.unzip
+      fine("(startingFragments, finishingFragments): " + (startingFragments, finishingFragments))
+      val initialFragment =
+        startingFragments.filterNot( finishingFragments contains _ )
+      fine("initialFragment: " + initialFragment)
+      assert(initialFragment.size == 1)
+      initialFragment.head
+    }
+    
+    (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentFromGroup :: Nil)
   }
   
   /*

@@ -489,6 +489,22 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         allDiffResults.map(_._3).flatten should be ('empty)
       }
       
+      // FIXME make this a separate test
+//      {
+//        val fragments = inputsPerPredicateMap.keys.toList
+//        
+//        val synthesizer = new Synthesizer
+//       
+//        val (empty, nonEmpty) = synthesizer.calculateFragments(fragments, problem.as.map(_.toVariable))
+//        
+//        info("(empty, nonEmpty): " + (empty, nonEmpty))
+//        
+//        empty shouldBe ('empty)
+//        nonEmpty shouldBe ('empty)
+//        
+//        ???
+//      }
+      
       
 //      info("inputsPerPredicateMap:\n" + inputsPerPredicateMap.mkString("\n"))
       
