@@ -62,23 +62,29 @@ class Synthesizer extends HasLogger {
     info("transformed examples: " +transformedExamples.mkString("\n"))
     
     val xs = inIds.map(_.toVariable)
-//    
-//    // XXX -- hack -- make sort do equivalence classes
-//    val unorderedFragments = unorderedFragmentsAll.filter(_.toString != "Nil")
-//    info("unordered fragments: " + unorderedFragments.mkString("\n"))
-//    
-//    val fragments = Util.sort(unorderedFragments)
-//    info("fragments: " + fragments)
 
-    val (emptyDiffs, filteredDiffGroups) = calculateFragments(transformedExamples, xs)
+    // get amgigous fragments
+    // TODO: this should be merged with previous function (no need to do work twice)
+    val unorderedFragmentsAllAmbFlag = Fragmenter.checkAmbiguity(transformedExamples, xs)
+    info("unorderedFragmentsAllAmbFlag: " + unorderedFragmentsAllAmbFlag.mkString("\n"))
+
+    // get fragments
+    val unorderedFragmentsAll = Fragmenter.constructFragments(transformedExamples, xs)
+    
+    assert(unorderedFragmentsAllAmbFlag.size == unorderedFragmentsAll.size)
+    val (ambigousPairs, unorderedFragmentsPairs) = (unorderedFragmentsAll zip unorderedFragmentsAllAmbFlag).
+      partition( _._2._2 )
+    val ambigous = ambigousPairs.map(_._1)
+    val unorderedFragments = unorderedFragmentsPairs.map(_._1)
+    info("unordered fragments: " + unorderedFragments.mkString("\n"))
+    info("ambigous fragments: " + ambigous.mkString("\n"))
+
+    val (emptyDiffsFromCalculate, filteredDiffGroups) = calculateFragments(unorderedFragments, xs)
+    val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
 //    assert(emptyDiffs.size == 1)
     info(filteredDiffGroups.mkString("\n"))
     assert(filteredDiffGroups.size == 2)
     
-    // get fragments
-    val unorderedFragmentsAll = Fragmenter.constructFragments(transformedExamples, xs)
-    info("unorderedFragmentsAll: " + unorderedFragmentsAll)
-
     assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
     val fragmentToInputMap = unorderedFragmentsAll zip transformedExamples toMap
 
@@ -238,24 +244,8 @@ class Synthesizer extends HasLogger {
    * - path to this form ??
    * - mapping for substitution that would equate these fragments
    */
-  def calculateFragments(examples: List[IO], xs: List[Variable]) = {
-    entering("calculateFragments", examples, xs)
-    
-    // get amgigous fragments
-    // TODO: this should be merged with previous function (no need to do work twice)
-    val unorderedFragmentsAllAmbFlag = Fragmenter.checkAmbiguity(examples, xs)
-    info("unorderedFragmentsAllAmbFlag: " + unorderedFragmentsAllAmbFlag.mkString("\n"))
-
-    // get fragments
-    val unorderedFragmentsAll = Fragmenter.constructFragments(examples, xs)
-    
-    assert(unorderedFragmentsAllAmbFlag.size == unorderedFragmentsAll.size)
-    val (ambigousPairs, unorderedFragmentsPairs) = (unorderedFragmentsAll zip unorderedFragmentsAllAmbFlag).
-      partition( _._2._2 )
-    val ambigous = ambigousPairs.map(_._1)
-    val unorderedFragments = unorderedFragmentsPairs.map(_._1)
-    info("unordered fragments: " + unorderedFragments.mkString("\n"))
-    info("ambigous fragments: " + ambigous.mkString("\n"))
+  def calculateFragments(unorderedFragments: List[Expr], xs: List[Variable]) = {
+    entering("calculateFragments", unorderedFragments, xs)
     
     val fragments = Util.sort(unorderedFragments)
     info("fragments: " + fragments)
@@ -321,7 +311,7 @@ class Synthesizer extends HasLogger {
     info(filteredDiffGroups.mkString("\n"))
     assert(filteredDiffGroups.size == 2)
     
-    (ambigous ::: emptyDiffs.map(_._1), filteredDiffGroups)
+    (emptyDiffs.map(_._1), filteredDiffGroups)
   }
   
   def calculatePredicates(

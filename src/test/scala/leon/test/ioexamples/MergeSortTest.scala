@@ -496,301 +496,302 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  // TODO as in the previous testcase, we should make sure the order of fragments and example later on match
-  ignore("synthesis process, with synthesizer") {
-
-    //    println(mapOfSubexpressions(f3))
-    //    import scala.language.implicitConversions
-    //    import Util.{ diffsToString, diffToString }
-    //    
-    //    implicit def expressionsToString(l: Iterable[Expressions.Expr]) =
-    //      l.map({case a => CustomPrinter(a)}).mkString("\n")
-    //    
-    //    val problems = forFile(ioExamplesTestcaseDir + "MergeSortMerge.scala").toList
-    //    problems.size should be (1)
-    //    
-    //    val (sctx, funDef, problem) = problems.head
-    //    
-    //    implicit val program = sctx.program
-    //    
-    //    val consClass = program.caseClassDef("Cons").typed
-    //    val nilClass = program.caseClassDef("Nil").typed
-    //    val nilExp = CaseClass(nilClass, Nil): Expr
-    //    
-    //    def t(expr: Expr) = {
-    //      caseClassSelector(consClass, expr, consClass.fields.find(_.id.name == "tail").get.id)
-    ////      CaseClassSelector(consClass, expr, consClass.fields.find(_.id.name == "tail").get.id)
-    //    }
-    //    
-    //    val l = Variable(FreshIdentifier("l", consClass))
-    //    
-    //    val extraction = new ExamplesExtraction(sctx, sctx.program)
-    //    val examples = extraction.extract(problem)
-    //    withClue(examples) {
-    //      examples.size should be (5)
-    //    }
-
-    // get fragments
-    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-    info(s"inIds $inIds")
-    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-
-    val synthesizer = new Synthesizer
-
-    info(s"inIds $inIds")
-    info("transformed examples: " + transformedExamples.mkString("\n"))
-
-    val (emptyDiffs, filteredDiffGroups) = synthesizer.calculateFragments(transformedExamples, inIds.map(_.toVariable))
-    //    assert(emptyDiffs.size == 1)
-    info(filteredDiffGroups.mkString("\n"))
-    assert(filteredDiffGroups.size == 2)
-
-    val enum = getEnum
-
-    val evaluator = new DefaultEvaluator(sctx, program)
-
-    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
-    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
-    val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
-
-    // check if these results match the "compatible groups"
-    val compositeFragmentsAndInputs =
-      //        fragmentsAndInputs filter {
-      //          case (f, e@((_, Composite(_)) :: (_, Composite(_)) :: Nil, _))  =>
-      //            true
-      //          case _ =>
-      //            false
-      //        }
-      fragmentsAndInputs filter {
-        case (f, e @ ((_, Atom(_)) :: (_, Atom(_)) :: Nil, _)) =>
-          false
-        case _ =>
-          true
-      }
-
-    val compositeFragmentsAndInputsMap = compositeFragmentsAndInputs.toMap
-    compositeFragmentsAndInputs should have size 4
-
-    {
-      val fragments = compositeFragmentsAndInputs.map(_._1)
-
-      info("Evaluation")
-      val distinguishing =
-        for (
-          ex <- enum.take(30);
-          _ = info(s"example is $ex");
-          (set, diffs) <- filteredDiffGroups;
-          _ = assert(diffs.size == 1);
-          (mapping, fun) = diffs.head
-        ) yield {
-          val res =
-            for (
-              (_, f) <- set.toList;
-              // note that the lowest fragment (out of two) might fail
-              //              if (compositeFragmentsAndInputsMap.contains(f));
-              // NOTE we assume evaluation error actually is one of those simple cases that already work 
-              (inputs, _) = compositeFragmentsAndInputsMap(f)
-            ) yield {
-              evaluator.eval(ex, new Model(inputs.toMap)) match {
-                case EvaluationResults.Successful(BooleanLiteral(v)) =>
-                  //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
-                  info(s"$v for $ex, and inputs ${inputs}")
-                  Some(v)
-                case e: EvaluationResults.EvaluatorError =>
-                  //            print("_")
-                  info("evaluation failure: " + e + s" for inputs ${inputs}")
-                  None
-              }
-            }
-
-          val allEqual = res
-          info(s"results for $ex and $set: $allEqual")
-
-          allEqual.size should be > (0)
-
-          if (allEqual.filterNot(_.isEmpty).distinct.size == 1 //            allEqual.filterNot(_.isEmpty).distinct.size ==
-          //            allEqual.filterNot(_.isEmpty).size
-          )
-            Some((ex, (set, allEqual.filterNot(_.isEmpty).head.get)))
-          else
-            None
-        }
-
-      info("distinguishing:\n" + distinguishing.flatten.mkString("\n"))
-      val distinguishedByGroup =
-        distinguishing.flatten.groupBy(_._1).filter({
-          case (k, res) if res.size == 2 =>
-            val results = res.map(_._2._2)
-
-            info(s"for $k we have:\n${results.mkString("\n")}")
-            info(s"${results.toList.distinct}")
-            results.toList.distinct.size == 2
-          case _ =>
-            false
-        }).map({
-          case (k, v) =>
-            (k, v.map({ case (a, (b, c)) => (b, c) }))
-        })
-      info("distinguishing by group:\n" + distinguishedByGroup.mkString("\n"))
-
-      val results =
-        for (
-          (ex, setResults) <- distinguishedByGroup;
-          _ = info(s"example is $ex");
-          (set, diffs) <- filteredDiffGroups;
-          _ = assert(diffs.size == 1);
-          (mapping, fun) = diffs.head;
-          modifiedEx = ExprOps.replaceFromIDs(mapping.map({ case (k, v) => (k.id, v) }), ex)
-        ) yield {
-
-          val res =
-            for (
-              (chainedFragment, f) <- set.toList;
-              // note that the lowest fragment (out of two) might fail
-              //              if (compositeFragmentsAndInputsMap.contains(f));
-              // NOTE we assume evaluation error actually is one of those simple cases that already work 
-              (inputs, _) = compositeFragmentsAndInputsMap(f)
-            ) yield {
-              evaluator.eval(modifiedEx, new Model(inputs.toMap)) match {
-                case EvaluationResults.Successful(BooleanLiteral(v)) =>
-                  //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
-                  info(s"$v for $modifiedEx, and inputs ${inputs}")
-                  val resultForChainedFragment =
-                    setResults.find(_._1.map(_._2) contains chainedFragment)
-                  info(s"resultForChainedFragment: ${resultForChainedFragment}")
-                  if (resultForChainedFragment.isEmpty || v == resultForChainedFragment.get._2) {
-                    true
-                  } else {
-                    false
-                  }
-                case e: EvaluationResults.EvaluatorError =>
-                  //            print("_")
-                  info("evaluation failure: " + e + s" for inputs ${inputs}")
-                  true
-              }
-            }
-
-          val allEqual = res
-          info(s"results for $ex and $set: $allEqual")
-
-          allEqual.size should be > (0)
-
-          if (allEqual.forall(identity))
-            Some((ex, setResults))
-          else
-            None
-        }
-
-      // same as in previous test
-      if (filteredGroupsToCompare == null)
-        filteredGroupsToCompare = results
-      else
-        results shouldBe filteredGroupsToCompare
-
-      info(results.flatten.mkString("\n"))
-
-    }
-
-  }
-
-  ignore("calculate predicates structure asdasdasd") {
-
-    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-    //      info(s"inIds $inIds")
-    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-
-    val synthesizer = new Synthesizer
-
-    info(s"inIds $inIds")
-    info("transformed examples: " + transformedExamples.mkString("\n"))
-
-    val (emptyDiffs, filteredDiffGroups) = synthesizer.calculateFragments(transformedExamples, inIds.map(_.toVariable))
-    //    assert(emptyDiffs.size == 1)
-    info(filteredDiffGroups.mkString("\n"))
-    //    assert(emptyDiffs.size == 1)
-
-    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
-    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
-    val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
-    val fragmentsAndInputsMap = fragmentsAndInputs.toMap
-
-    // empty diffs is empty
-    val inputsUnmaapped =
-      //(f1 :: f2 :: emptyDiffs.map(_._1) map { x => fragmentsAndInputsMap(x) } map { _._1.map(_._2) }
-      (examples.reverse(0)._1.head._2 :: examples.reverse(1)._1.head._2 :: examples.reverse(3)._1.head._2 :: Nil) ::
-        (examples.reverse(0)._1.tail.head._2 :: examples.reverse(1)._1.tail.head._2 :: examples.reverse(3)._1.tail.head._2 :: Nil) ::
-        Nil
-
-    val inputs = inputsUnmaapped.map(_.map(Util.substituteAllAtom))
-
-    info("inputs are: " + inputs.reverse)
-
-    val predicates = Predicates.calculatePredicates(inputs.reverse, inIds map (_.toVariable))
-
-    println(predicates.map(_.map(_(w))))
-
-  }
-
-  ignore("synthesis process, with synthesizer and evaluator") {
-
-    // get fragments
-    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-    info(s"inIds $inIds")
-    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-
-    val synthesizer = new Synthesizer
-
-    info(s"inIds $inIds")
-    info("transformed examples: " + transformedExamples.mkString("\n"))
-
-    val (emptyDiffs, filteredDiffGroups) = synthesizer.calculateFragments(transformedExamples, inIds.map(_.toVariable))
-    //    assert(emptyDiffs.size == 1)
-    info(filteredDiffGroups.mkString("\n"))
-    assert(filteredDiffGroups.size == 2)
-
-    val enum = getEnum
-
-    val evaluator = new DefaultEvaluator(sctx, program)
-
-    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
-    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
-    val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
-
-    // check if these results match the "compatible groups"
-    val compositeFragmentsAndInputs =
-      //        fragmentsAndInputs filter {
-      //          case (f, e@((_, Composite(_)) :: (_, Composite(_)) :: Nil, _))  =>
-      //            true
-      //          case _ =>
-      //            false
-      //        }
-      fragmentsAndInputs filter {
-        case (f, e @ ((_, Atom(_)) :: (_, Atom(_)) :: Nil, _)) =>
-          false
-        case _ =>
-          true
-      }
-
-    val compositeFragmentsAndInputsMap = compositeFragmentsAndInputs.toMap
-    compositeFragmentsAndInputs should have size 4
-
-    val results =
-      synthesizer.calculatePredicates(
-        filteredDiffGroups,
-        _ => getEnum,
-        compositeFragmentsAndInputsMap,
-        evaluator)
-
-    // same as in previous test
-    if (filteredGroupsToCompare == null)
-      filteredGroupsToCompare = results
-    else
-      results shouldBe filteredGroupsToCompare
-
-
-    info(results.flatten.mkString("\n"))
-
-  }
+	// commented out due to refactoring fragments in synthesizer 
+//  // TODO as in the previous testcase, we should make sure the order of fragments and example later on match
+//  ignore("synthesis process, with synthesizer") {
+//
+//    //    println(mapOfSubexpressions(f3))
+//    //    import scala.language.implicitConversions
+//    //    import Util.{ diffsToString, diffToString }
+//    //    
+//    //    implicit def expressionsToString(l: Iterable[Expressions.Expr]) =
+//    //      l.map({case a => CustomPrinter(a)}).mkString("\n")
+//    //    
+//    //    val problems = forFile(ioExamplesTestcaseDir + "MergeSortMerge.scala").toList
+//    //    problems.size should be (1)
+//    //    
+//    //    val (sctx, funDef, problem) = problems.head
+//    //    
+//    //    implicit val program = sctx.program
+//    //    
+//    //    val consClass = program.caseClassDef("Cons").typed
+//    //    val nilClass = program.caseClassDef("Nil").typed
+//    //    val nilExp = CaseClass(nilClass, Nil): Expr
+//    //    
+//    //    def t(expr: Expr) = {
+//    //      caseClassSelector(consClass, expr, consClass.fields.find(_.id.name == "tail").get.id)
+//    ////      CaseClassSelector(consClass, expr, consClass.fields.find(_.id.name == "tail").get.id)
+//    //    }
+//    //    
+//    //    val l = Variable(FreshIdentifier("l", consClass))
+//    //    
+//    //    val extraction = new ExamplesExtraction(sctx, sctx.program)
+//    //    val examples = extraction.extract(problem)
+//    //    withClue(examples) {
+//    //      examples.size should be (5)
+//    //    }
+//
+//    // get fragments
+//    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+//    info(s"inIds $inIds")
+//    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+//
+//    val synthesizer = new Synthesizer
+//
+//    info(s"inIds $inIds")
+//    info("transformed examples: " + transformedExamples.mkString("\n"))
+//
+//    val (emptyDiffs, filteredDiffGroups) = synthesizer.calculateFragments(transformedExamples, inIds.map(_.toVariable))
+//    //    assert(emptyDiffs.size == 1)
+//    info(filteredDiffGroups.mkString("\n"))
+//    assert(filteredDiffGroups.size == 2)
+//
+//    val enum = getEnum
+//
+//    val evaluator = new DefaultEvaluator(sctx, program)
+//
+//    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
+//    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
+//    val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
+//
+//    // check if these results match the "compatible groups"
+//    val compositeFragmentsAndInputs =
+//      //        fragmentsAndInputs filter {
+//      //          case (f, e@((_, Composite(_)) :: (_, Composite(_)) :: Nil, _))  =>
+//      //            true
+//      //          case _ =>
+//      //            false
+//      //        }
+//      fragmentsAndInputs filter {
+//        case (f, e @ ((_, Atom(_)) :: (_, Atom(_)) :: Nil, _)) =>
+//          false
+//        case _ =>
+//          true
+//      }
+//
+//    val compositeFragmentsAndInputsMap = compositeFragmentsAndInputs.toMap
+//    compositeFragmentsAndInputs should have size 4
+//
+//    {
+//      val fragments = compositeFragmentsAndInputs.map(_._1)
+//
+//      info("Evaluation")
+//      val distinguishing =
+//        for (
+//          ex <- enum.take(30);
+//          _ = info(s"example is $ex");
+//          (set, diffs) <- filteredDiffGroups;
+//          _ = assert(diffs.size == 1);
+//          (mapping, fun) = diffs.head
+//        ) yield {
+//          val res =
+//            for (
+//              (_, f) <- set.toList;
+//              // note that the lowest fragment (out of two) might fail
+//              //              if (compositeFragmentsAndInputsMap.contains(f));
+//              // NOTE we assume evaluation error actually is one of those simple cases that already work 
+//              (inputs, _) = compositeFragmentsAndInputsMap(f)
+//            ) yield {
+//              evaluator.eval(ex, new Model(inputs.toMap)) match {
+//                case EvaluationResults.Successful(BooleanLiteral(v)) =>
+//                  //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
+//                  info(s"$v for $ex, and inputs ${inputs}")
+//                  Some(v)
+//                case e: EvaluationResults.EvaluatorError =>
+//                  //            print("_")
+//                  info("evaluation failure: " + e + s" for inputs ${inputs}")
+//                  None
+//              }
+//            }
+//
+//          val allEqual = res
+//          info(s"results for $ex and $set: $allEqual")
+//
+//          allEqual.size should be > (0)
+//
+//          if (allEqual.filterNot(_.isEmpty).distinct.size == 1 //            allEqual.filterNot(_.isEmpty).distinct.size ==
+//          //            allEqual.filterNot(_.isEmpty).size
+//          )
+//            Some((ex, (set, allEqual.filterNot(_.isEmpty).head.get)))
+//          else
+//            None
+//        }
+//
+//      info("distinguishing:\n" + distinguishing.flatten.mkString("\n"))
+//      val distinguishedByGroup =
+//        distinguishing.flatten.groupBy(_._1).filter({
+//          case (k, res) if res.size == 2 =>
+//            val results = res.map(_._2._2)
+//
+//            info(s"for $k we have:\n${results.mkString("\n")}")
+//            info(s"${results.toList.distinct}")
+//            results.toList.distinct.size == 2
+//          case _ =>
+//            false
+//        }).map({
+//          case (k, v) =>
+//            (k, v.map({ case (a, (b, c)) => (b, c) }))
+//        })
+//      info("distinguishing by group:\n" + distinguishedByGroup.mkString("\n"))
+//
+//      val results =
+//        for (
+//          (ex, setResults) <- distinguishedByGroup;
+//          _ = info(s"example is $ex");
+//          (set, diffs) <- filteredDiffGroups;
+//          _ = assert(diffs.size == 1);
+//          (mapping, fun) = diffs.head;
+//          modifiedEx = ExprOps.replaceFromIDs(mapping.map({ case (k, v) => (k.id, v) }), ex)
+//        ) yield {
+//
+//          val res =
+//            for (
+//              (chainedFragment, f) <- set.toList;
+//              // note that the lowest fragment (out of two) might fail
+//              //              if (compositeFragmentsAndInputsMap.contains(f));
+//              // NOTE we assume evaluation error actually is one of those simple cases that already work 
+//              (inputs, _) = compositeFragmentsAndInputsMap(f)
+//            ) yield {
+//              evaluator.eval(modifiedEx, new Model(inputs.toMap)) match {
+//                case EvaluationResults.Successful(BooleanLiteral(v)) =>
+//                  //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
+//                  info(s"$v for $modifiedEx, and inputs ${inputs}")
+//                  val resultForChainedFragment =
+//                    setResults.find(_._1.map(_._2) contains chainedFragment)
+//                  info(s"resultForChainedFragment: ${resultForChainedFragment}")
+//                  if (resultForChainedFragment.isEmpty || v == resultForChainedFragment.get._2) {
+//                    true
+//                  } else {
+//                    false
+//                  }
+//                case e: EvaluationResults.EvaluatorError =>
+//                  //            print("_")
+//                  info("evaluation failure: " + e + s" for inputs ${inputs}")
+//                  true
+//              }
+//            }
+//
+//          val allEqual = res
+//          info(s"results for $ex and $set: $allEqual")
+//
+//          allEqual.size should be > (0)
+//
+//          if (allEqual.forall(identity))
+//            Some((ex, setResults))
+//          else
+//            None
+//        }
+//
+//      // same as in previous test
+//      if (filteredGroupsToCompare == null)
+//        filteredGroupsToCompare = results
+//      else
+//        results shouldBe filteredGroupsToCompare
+//
+//      info(results.flatten.mkString("\n"))
+//
+//    }
+//
+//  }
+//
+//  ignore("calculate predicates structure asdasdasd") {
+//
+//    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+//    //      info(s"inIds $inIds")
+//    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+//
+//    val synthesizer = new Synthesizer
+//
+//    info(s"inIds $inIds")
+//    info("transformed examples: " + transformedExamples.mkString("\n"))
+//
+//    val (emptyDiffs, filteredDiffGroups) = synthesizer.calculateFragments(transformedExamples, inIds.map(_.toVariable))
+//    //    assert(emptyDiffs.size == 1)
+//    info(filteredDiffGroups.mkString("\n"))
+//    //    assert(emptyDiffs.size == 1)
+//
+//    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
+//    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
+//    val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
+//    val fragmentsAndInputsMap = fragmentsAndInputs.toMap
+//
+//    // empty diffs is empty
+//    val inputsUnmaapped =
+//      //(f1 :: f2 :: emptyDiffs.map(_._1) map { x => fragmentsAndInputsMap(x) } map { _._1.map(_._2) }
+//      (examples.reverse(0)._1.head._2 :: examples.reverse(1)._1.head._2 :: examples.reverse(3)._1.head._2 :: Nil) ::
+//        (examples.reverse(0)._1.tail.head._2 :: examples.reverse(1)._1.tail.head._2 :: examples.reverse(3)._1.tail.head._2 :: Nil) ::
+//        Nil
+//
+//    val inputs = inputsUnmaapped.map(_.map(Util.substituteAllAtom))
+//
+//    info("inputs are: " + inputs.reverse)
+//
+//    val predicates = Predicates.calculatePredicates(inputs.reverse, inIds map (_.toVariable))
+//
+//    println(predicates.map(_.map(_(w))))
+//
+//  }
+//
+//  ignore("synthesis process, with synthesizer and evaluator") {
+//
+//    // get fragments
+//    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+//    info(s"inIds $inIds")
+//    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+//
+//    val synthesizer = new Synthesizer
+//
+//    info(s"inIds $inIds")
+//    info("transformed examples: " + transformedExamples.mkString("\n"))
+//
+//    val (emptyDiffs, filteredDiffGroups) = synthesizer.calculateFragments(transformedExamples, inIds.map(_.toVariable))
+//    //    assert(emptyDiffs.size == 1)
+//    info(filteredDiffGroups.mkString("\n"))
+//    assert(filteredDiffGroups.size == 2)
+//
+//    val enum = getEnum
+//
+//    val evaluator = new DefaultEvaluator(sctx, program)
+//
+//    val (f5 :: f3 :: f4 :: f2 :: f1 :: Nil) = unorderedFragments
+//    val fragments = f1 :: f2 :: f3 :: f4 :: f5 :: Nil
+//    val fragmentsAndInputs: List[(Expressions.Expr, InputOutputExample)] = fragments zip (List(1, 2, 4, 3, 5) map { in => examples.reverse(in - 1) })
+//
+//    // check if these results match the "compatible groups"
+//    val compositeFragmentsAndInputs =
+//      //        fragmentsAndInputs filter {
+//      //          case (f, e@((_, Composite(_)) :: (_, Composite(_)) :: Nil, _))  =>
+//      //            true
+//      //          case _ =>
+//      //            false
+//      //        }
+//      fragmentsAndInputs filter {
+//        case (f, e @ ((_, Atom(_)) :: (_, Atom(_)) :: Nil, _)) =>
+//          false
+//        case _ =>
+//          true
+//      }
+//
+//    val compositeFragmentsAndInputsMap = compositeFragmentsAndInputs.toMap
+//    compositeFragmentsAndInputs should have size 4
+//
+//    val results =
+//      synthesizer.calculatePredicates(
+//        filteredDiffGroups,
+//        _ => getEnum,
+//        compositeFragmentsAndInputsMap,
+//        evaluator)
+//
+//    // same as in previous test
+//    if (filteredGroupsToCompare == null)
+//      filteredGroupsToCompare = results
+//    else
+//      results shouldBe filteredGroupsToCompare
+//
+//
+//    info(results.flatten.mkString("\n"))
+//
+//  }
   
   test("test synthesizer") {
 
