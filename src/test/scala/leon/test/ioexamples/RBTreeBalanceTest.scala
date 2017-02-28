@@ -579,7 +579,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
   }
   
-  ignore("use synthesizer") {
+  test("use synthesizer") {
     val eb = problem.eb
 
     info("invalids:\n" + eb.invalids.mkString("\n"))
@@ -591,6 +591,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
     val resType = problem.xs.head.getType
 
+    val start1 = System.currentTimeMillis()
     val ms = new scope.AccumulatingScope
     val enum = constructEnumerator_new(ms)
 
@@ -839,6 +840,10 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
           val fragments = list.map(_._2)
           (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
         }
+      
+      
+      val start2 = System.currentTimeMillis() - start1
+      println("start2: " + start2)
 
       info("")
       info("")
@@ -885,6 +890,9 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       
         val result =
           synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
+          
+        val start3 = System.currentTimeMillis() - start1
+        println("start3: " + start3)
           
         info("result: " + result)
         
