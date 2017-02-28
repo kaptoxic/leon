@@ -180,9 +180,6 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 //
 // }
 
-
-
-  
   ignore("predicates") {
     val eb = problem.eb
 
@@ -519,6 +516,9 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
           
           subexpressionsSets.size shouldBe 9
           
+          // NOTE paper, input size of the tree
+          ExprOps.formulaSize(pairs.head._1.head) shouldBe 7
+          
           val intersection =
             subexpressionsSets.reduce(_ intersect _)
             
@@ -579,7 +579,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
   }
   
-  test("use synthesizer") {
+  ignore("use synthesizer") {
     val eb = problem.eb
 
     info("invalids:\n" + eb.invalids.mkString("\n"))
