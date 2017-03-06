@@ -426,7 +426,7 @@ class Synthesizer extends HasLogger {
             commonDiffs
           )
       }
-    assert(compatibles == allPairsCompatibles, "just for merge -- remove me")
+//    assert(compatibles == allPairsCompatibles, "just for merge -- remove me")
 
     // find groups for which we need to find distinguishing predicate
     val groups =
