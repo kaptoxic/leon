@@ -40,7 +40,9 @@ class FragmenterTest extends FunSuite with Matchers {
     
     ellArlBrr should be (Cons(elAr, Cons(elBr, nil)))
     
-    assertResult( Cons(Cons(Car(x), nil), Cons(Cdr(x), nil)) :: Nil ) {
+    val nilExpr = Cdr(Cdr(x))
+    
+    assertResult( Cons(Cons(Car(x), nilExpr), Cons(Cdr(x), nilExpr)) :: Nil ) {
       constructFragments((in :: Nil, ellArlBrr) :: Nil, x :: Nil)
     }
   } 

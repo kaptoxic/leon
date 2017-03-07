@@ -75,10 +75,22 @@ object ExampleInputs {
   val oeunpack3 = Cons(elAr, Cons(elBr, nil))
   val oeunpack4 = Cons(elAr, Cons(elBr, Cons(elCr, nil)))
   
-  val fragUnpack1 = nil
-  val fragUnpack2 = Cons(x, nil)
-  val fragUnpack3 = Cons(Cons(Car(x), nil), Cons(Cdr(x), nil))
-  val fragUnpack4 = Cons(Cons(Car(x), nil), Cons(Cons(Car(Cdr(x)), nil), Cons(Cdr(Cdr(x)), nil)))
+  val fragUnpack1 = { 
+    val nil = x
+    nil
+  }
+  val fragUnpack2 = {
+    val nil = Cdr(x)
+    Cons(x, nil)
+  }
+  val fragUnpack3 = {
+    val nil = Cdr(Cdr(x))
+    Cons(Cons(Car(x), nil), Cons(Cdr(x), nil))
+  }
+  val fragUnpack4 = {
+    val nil = Cdr(Cdr(Cdr(x)))
+    Cons(Cons(Car(x), nil), Cons(Cons(Car(Cdr(x)), nil), Cons(Cdr(Cdr(x)), nil)))
+  }
   
   // predicates
   val predUnpack1 = w
