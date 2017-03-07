@@ -50,7 +50,7 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
     l.map({ case a => CustomPrinter(a) }).mkString("\n")
 
   val problems = forFile(ioExamplesTestcaseDir + "Flatten.scala").toList
-  problems.size should be(1)
+  problems.size should be (3)
 
   val (sctx, funDef, problem) = problems.head
 
@@ -69,8 +69,10 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
 
   val extraction = new ExamplesExtraction(sctx, sctx.program)
   val examples = extraction.extract(problem)
-  withClue(examples) {
-    examples.size should be(3)
+  test("num of examples") {
+    withClue(examples) {
+      examples.size should be(3)
+    }
   }
 
   def getEnum = {
@@ -118,8 +120,16 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
 
   var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
   
+  val correctFunctionString =
+    """|if ((l == Nil)) {
+       |  IntNil
+       |} else if ((l == Nil)) {
+       |  IntCons(l.head.fst, IntCons(l.head.snd, ?(l.tail)))
+       |} else {
+       |  ()
+       |}""".stripMargin
   
-  test("test synthesizer") {
+  ignore("test synthesizer, normal case") {
 
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")
@@ -130,14 +140,35 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
     val Some((body, funDef)) = synthesizer.synthesize(examples.toList, _ => getEnum, evaluator, nilClass)
 
     info("(body, funDef) is: " + (body, funDef))
-    body.toString shouldBe
-      """|if ((l == Nil)) {
-         |  IntNil
-         |} else if ((l == Nil)) {
-         |  IntCons(l.head.fst, IntCons(l.head.snd, ?(l.tail)))
-         |} else {
-         |  ()
-         |}""".stripMargin
+    body.toString shouldBe correctFunctionString
+  }
+  
+  ignore("test synthesizer for variying #examples") {
+    
+    val numsOfExamples =
+      for ( (sctx, funDef, problem) <- problems) yield {
+        implicit val program = sctx.program
+      
+        val l :: Nil = problem.as.map(_.toVariable)
+      
+        val extraction = new ExamplesExtraction(sctx, sctx.program)
+        val examples = extraction.extract(problem)
+    
+        val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+        //      info(s"inIds $inIds")
+        val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+    
+        val synthesizer = new Synthesizer
+    
+        val Some((body, funDef)) = synthesizer.synthesize(examples.toList, _ => getEnum, evaluator, nilClass)
+    
+        info("(body, funDef) is: " + (body, funDef))
+        body.toString shouldBe correctFunctionString
+        
+        examples.size
+      }
+    
+    numsOfExamples should contain allOf (3, 4, 5)
 
   }
 
