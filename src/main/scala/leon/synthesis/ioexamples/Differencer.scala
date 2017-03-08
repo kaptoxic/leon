@@ -30,7 +30,10 @@ object Differencer extends HasLogger {
     List[(Variable, Expr)] = {
     entering("differenceConstraints", expr1, expr2, boundVariables)
     
-    def rec(e1: Expr, e2: Expr): List[(Variable, Expr)] = (e1, e2) match {
+    def rec(e1: Expr, e2: Expr): List[(Variable, Expr)] =
+    {
+      entering("rec", e1, e2)
+      (e1, e2) match {
 //      case (`boundVariable`, _) => List(e2)
 //      case (v1: Variable, v2: Variable) if v1 == v2 =>
 //        Nil
@@ -67,6 +70,7 @@ object Differencer extends HasLogger {
       case (_, _) =>
         info("Throwing exception at matching " + e1 + " and " + e2)
         throw new Exception("Cannot satisfy constraint")
+    }
     }
     
     try { rec(expr1, expr2) } 

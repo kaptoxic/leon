@@ -30,9 +30,18 @@ class DifferencerTest extends FunSuite {
     }
 
     {
-      val diffs = differenceConstraints(fragUnpack3, Cons(Cons(Car(Cdr(x)), nil), Cons(Cdr(Cdr(x)), nil)), x).distinct
-      diffs.size should be(1)
-      diffs should contain (x, Cdr(x))
+      val nil = Cdr(Cdr(x))
+      val diffs = differenceConstraints(
+        fragUnpack3,
+        Cons(Cons(Car(Cdr(x)), nil), Cons(Cdr(Cdr(x)), nil)),
+        x
+      ).distinct
+
+      withClue(diffs) {
+        diffs.size should be (2)
+        diffs should contain (x, Cdr(x))
+        diffs should contain (x, x)
+      }
     }
 
   }
@@ -48,7 +57,7 @@ class DifferencerTest extends FunSuite {
       }
 
     allDiffs(0) intersect allDiffs(1) shouldBe Set(Map() + (x -> Cdr(x)))
-    allDiffs(0) union allDiffs(1) shouldBe Set(Map() + (x -> Cdr(x)), Map() + (x -> Car(x)))
+    allDiffs(0) union allDiffs(1) shouldBe Set(Map(x -> Cdr(x)))
   }
 
   test("differences produced for predicates") {
@@ -77,7 +86,7 @@ class DifferencerTest extends FunSuite {
     
     allDiffs(0) intersect allDiffs(1) should not be ('empty)
     allDiffs(0) intersect allDiffs(1) map { _.head._2 } should be(Set(Cdr(x)))
-    allDiffs(0) union allDiffs(1) map { _.head._2 } should be(Set(Cdr(x), Car(x)))
+    allDiffs(0) union allDiffs(1) map { _.head._2 } should be(Set(Cdr(x)))
   }
 
 }
