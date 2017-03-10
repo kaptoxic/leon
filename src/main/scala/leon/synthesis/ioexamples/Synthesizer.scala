@@ -582,6 +582,7 @@ class Synthesizer extends HasLogger {
     entering("calculatePredicatesStructure", inputExamplesVerbatim, xs) 
     
     // we need examples projected over each variable
+    // given i1_x/y, i2_x/y get i1_x/i2_x, i1_y/i2_y
     assert(inputExamplesVerbatim.size >= 2)
     val inputExamplesList =
       (inputExamplesVerbatim.head.map(List(_)) /: inputExamplesVerbatim.tail) {
@@ -591,7 +592,7 @@ class Synthesizer extends HasLogger {
     info("unhandledInputsRightForm: " + inputExamplesList)
 
     // for each variable find predicates
-//    val (predicatesList, predicatesFunsList, partitions) = (
+    // (predicatesList, predicatesFunsList, partitions)
     val predicateGroups = (
       for ((inputExamples, x) <- inputExamplesList zip xs) yield {
         val atomExamples = inputExamples.map(substituteAllAtom)
@@ -605,7 +606,9 @@ class Synthesizer extends HasLogger {
         if (predicates.size >= 1) {
           assert(predicates.size == 1) 
           
-          val partition = (atomExamples zip inputExamples groupBy (_._1) head)._2.map(_._2)
+          // TODO sort in reverse order
+          val partition = ((atomExamples zip inputExamples groupBy (_._1)).toList.sortBy(
+            { p => -ExprOps.formulaSize(p._1) }).head)._2.map(_._2)
           
           Some((predicates.head, predicatesFuns.head, partition))
         }
@@ -630,6 +633,9 @@ class Synthesizer extends HasLogger {
           for ((examples, predicates) <- examplesWithPredicates) yield {
             def condition(ex: List[Expr]) =
               partitioned contains examplesWithComponentsMap((ex, x))
+            fine("partitioned: " + partitioned)
+            fine("examplesWithComponentsMap: " + examplesWithComponentsMap)
+            
             val (yesPredicate, noPredicate) = examples.partition(condition)
             info(s"${(yesPredicate, noPredicate)} partition for $x")
             (yesPredicate, predicates + (x -> predicateFun)) ::

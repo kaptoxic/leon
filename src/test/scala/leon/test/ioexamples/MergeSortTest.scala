@@ -117,7 +117,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
   val evaluator = new DefaultEvaluator(sctx, program)
 
-  var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
+//  var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
   
   
   test("test synthesizer") {
@@ -131,16 +131,19 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
     val Some((body, funDef)) = synthesizer.synthesize(examples.toList, _ => getEnum, evaluator, nilClass)
 
     info("(body, funDef) is: " + (body, funDef))
-    body.toString shouldBe
-      """|if ((l1 == Nil) && (l2 == Nil)) {
-         |  l2
-         |} else if ((l2 == Nil)) {
-         |  l1
-         |} else if (l1.head <= l2.head) {
-         |  Cons(l1.head, rec(l1.tail, l2))
-         |} else {
-         |  Cons(l2.head, rec(l1, l2.tail))
-         |}""".stripMargin
+    val bodyStrings =
+      for (i <- 1 to 2) yield
+        """|if ((l1 == Nil) && (l2 == Nil)) {
+           |  l%d
+           |} else if ((l2 == Nil)) {
+           |  l1
+           |} else if (l1.head <= l2.head) {
+           |  Cons(l1.head, rec(l1.tail, l2))
+           |} else {
+           |  Cons(l2.head, rec(l1, l2.tail))
+           |}""".stripMargin.format(i)
+
+    bodyStrings should contain (body.toString)
 
   }
 
