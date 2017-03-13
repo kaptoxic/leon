@@ -13,7 +13,7 @@
 		<logger name="leon.test.ioexamples" level="off" additivity="false">
 			<appender-ref ref="Console" />
 		</logger>
-		<logger name="leon.synthesis.ioexamples.Predicates$" level="off" additivity="false">
+		<logger name="leon.synthesis.ioexamples" level="off" additivity="false">
 			<appender-ref ref="Console" />
 		</logger>
 		<logger name="leon.synthesis.ioexamples.Util$" level="off" additivity="false">

@@ -52,6 +52,13 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
   }
 
   val (sctx, funDef, problem) = problems.find(_._2.id.name == "balanceTreeInput").get
+ 
+  ignore("check spec size") { 
+    print(
+    ((problem.pc.fullClause :: problem.phi :: Nil) map { x => ExprOps.formulaSize(x) }).sum
+    )
+    ???
+  }
 
   implicit val program = sctx.program
 
@@ -896,7 +903,10 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
           
         info("result: " + result)
         
-        result.get._1.toString shouldBe
+        ExprOps.formulaSize(result.get._1) shouldBe 185
+        
+        // both solutions can happen
+        val solutions =
           """|if (Red == t.left.color && Black == t.left.right.color) {
              |  Node(t.left.color, Node(t.color, t.left.left.left, t.left.left.value, t.left.left.right), t.left.value, Node(t.color, t.left.right, t.value, t.right))
              |} else if (Red == t.left.color && Black != t.left.right.color) {
@@ -907,7 +917,22 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
              |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
              |} else {
              |  ()
-             |}""".stripMargin
+             |}""".stripMargin ::
+          """|if (Black == t.right.color && Black == t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left.left, t.left.left.value, t.left.left.right), t.left.value, Node(t.color, t.left.right, t.value, t.right))
+             |} else if (Black == t.right.color && Black != t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left, t.left.value, t.left.right.left), t.left.right.value, Node(t.color, t.left.right.right, t.value, t.right))
+             |} else if (Black != t.right.color && Black == t.right.right.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left.left), t.right.left.value, Node(t.color, t.right.left.right, t.right.value, t.right.right))
+             |} else if (Black != t.right.color && Black != t.right.right.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
+             |} else {
+             |  ()
+             |}""".stripMargin :: Nil
+
+        withClue("Expected:\n" + solutions.mkString("\n") + "Gotten:\n" + result.get._1.toString) {
+          solutions should contain (result.get._1.toString)
+        }
       }
     }
 
