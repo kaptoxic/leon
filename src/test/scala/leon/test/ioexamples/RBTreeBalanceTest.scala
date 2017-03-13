@@ -849,8 +849,9 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         }
       
       
-      val start2 = System.currentTimeMillis() - start1
-      println("start2: " + start2)
+      // TODO make this a proper benchmark
+//      val start2 = System.currentTimeMillis() - start1
+//      println("start2: " + start2)
 
       info("")
       info("")
@@ -898,8 +899,9 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         val result =
           synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
           
-        val start3 = System.currentTimeMillis() - start1
-        println("start3: " + start3)
+        // TODO benchmark
+//        val start3 = System.currentTimeMillis() - start1
+//        println("start3: " + start3)
           
         info("result: " + result)
         
