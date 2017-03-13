@@ -119,7 +119,7 @@ class Flatten4Test extends FunSuite with Matchers with Inside with HasLogger {
   var filteredGroupsToCompare: Iterable[Option[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]] = _
   
   
-  test("test synthesizer") {
+  ignore("test synthesizer") {
 
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")

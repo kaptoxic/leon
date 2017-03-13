@@ -45,6 +45,18 @@ class PlanningWithErrorsTest extends FunSuite with Matchers with Inside with Has
   }
 
   val (sctx, funDef, problem) = problems.find(_._2.id.name == "solveProblemDisks").get
+  
+ 
+  ignore("check synthesized size") {
+    val funDef =
+      sctx.program.definedFunctions.find(_.id.name == "solve").get
+  
+    print(
+        ExprOps.formulaSize(funDef.fullBody)
+    )
+    ???
+  }
+ 
 
   implicit val program = sctx.program
 
