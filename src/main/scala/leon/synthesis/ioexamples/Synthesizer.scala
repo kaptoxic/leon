@@ -31,6 +31,7 @@ class Synthesizer extends HasLogger {
     precalculatedFragmentsOpt: Option[List[Expr]] = None
   ): Option[(Expr, TypedFunDef)] = {
     require(examples.size > 0)
+
     val inIds =
       examples.head._1.map(_._1)
     val outId =
@@ -39,7 +40,7 @@ class Synthesizer extends HasLogger {
       case (inputs, output) =>
         inputs.map(_._1).toSet == inIds.toSet &&
         output._1 == outId
-    }))
+    }), "given examples should have a consistent input/output identifiers across examples")
     
     require({
       val usedIds = (Set[Identifier]() /: examples) {
@@ -50,7 +51,7 @@ class Synthesizer extends HasLogger {
           })(outExp)
       }
       (usedIds diff inIds.toSet).isEmpty
-    })
+    }, "given examples should use variables that are arguments to the function")
 
     val transformed = ExamplesExtraction.transformMappings(examples)
     if (transformed.isEmpty)
