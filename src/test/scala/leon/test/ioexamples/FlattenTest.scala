@@ -50,7 +50,7 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
     l.map({ case a => CustomPrinter(a) }).mkString("\n")
 
   val problems = forFile(ioExamplesTestcaseDir + "Flatten.scala").toList
-  problems.size should be (3)
+  problems.size should be (4)
 
   val (sctx, funDef, problem) = problems.head
 
@@ -92,7 +92,7 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
       import Witnesses.Hint
 
       val TopLevelAnds(ws) = problem.ws
-      val hints = ws.collect { case Hint(e) if formulaSize(e) >= 4 => e }
+//      val hints = ws.collect { case Hint(e) if formulaSize(e) >= 4 => e }
       val inputs = /*problem.allAs.map(_.toVariable) ++ hints ++*/ heads
       val exclude = sctx.settings.functionsToIgnore
       val recCalls = {
@@ -129,9 +129,9 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
        |  ()
        |}""".stripMargin
   
-  ignore("test synthesizer, normal case") {
+  test("test synthesizer, normal case") {
 
-    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+    val ((inIds, _), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     //      info(s"inIds $inIds")
     val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
 
@@ -146,29 +146,28 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
   ignore("test synthesizer for variying #examples") {
     
     val numsOfExamples =
-      for ( (sctx, funDef, problem) <- problems) yield {
+      for ( (sctx, funDef, problem) <- problems.filter(_._2.id.name == "flatten2")) yield {
         implicit val program = sctx.program
       
         val l :: Nil = problem.as.map(_.toVariable)
       
         val extraction = new ExamplesExtraction(sctx, sctx.program)
         val examples = extraction.extract(problem)
-    
-        val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-        //      info(s"inIds $inIds")
-        val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+        info("examples are: " + examples.mkString("\n"))
     
         val synthesizer = new Synthesizer
     
         val Some((body, funDef)) = synthesizer.synthesize(examples.toList, _ => getEnum, evaluator, nilClass)
     
-        info("(body, funDef) is: " + (body, funDef))
-        body.toString shouldBe correctFunctionString
+        withClue("synthesized: " + body) {
+          info("(body, funDef) is: " + (body, funDef))
+          body.toString shouldBe correctFunctionString
+        }
         
         examples.size
       }
     
-    numsOfExamples should contain allOf (3, 4, 5)
+//    numsOfExamples should contain allOf (3, 4, 5)
 
   }
 

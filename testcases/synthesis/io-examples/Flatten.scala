@@ -11,8 +11,9 @@ object Flatten {
   sealed abstract class IntList
   case class IntCons(head: Int, tail: IntList) extends IntList
   case object IntNil extends IntList
+  
 
-  def flatten(l: List): IntList = choose {
+  def flatten3(l: List): IntList = choose {
     (out: IntList) => (l, out) passes {
       case Nil => IntNil
       case Cons(Pair(1, 2), Nil) => IntCons(1, IntCons(2, IntNil))
@@ -24,6 +25,13 @@ object Flatten {
 //      case Cons(Pair(1, 2), Cons(Pair(3, 4), Cons(Pair(5, 6), Cons(Pair(7, 8), Nil)))) =>
 //        IntCons(1, IntCons(2, IntCons(3, IntCons(4, IntCons(5, IntCons(6,
 //          IntCons(7, IntCons(8, IntNil))))))))
+    }
+  }
+  
+  def flatten2(l: List): IntList = choose {
+    (out: IntList) => (l, out) passes {
+      case Nil => IntNil
+      case Cons(Pair(1, 2), Nil) => IntCons(1, IntCons(2, IntNil))
     }
   }
 
