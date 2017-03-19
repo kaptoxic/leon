@@ -53,18 +53,22 @@ class Synthesizer extends HasLogger {
       (usedIds diff inIds.toSet).isEmpty
     }, "given examples should use variables that are arguments to the function")
 
-    val transformed = ExamplesExtraction.transformMappings(examples)
-    if (transformed.isEmpty)
-      throw new Exception("Examples do not match in terms of used variables")
-
-    val ((inIds_check, outId_check), transformedExamples) = transformed.get
-    assert(inIds_check == inIds)
-    assert(outId_check == outId)
-    info(s"inIds $inIds")
-    info("transformed examples: " +transformedExamples.mkString("\n"))
-    
-    val xs = inIds.map(_.toVariable)
-
+    /*
+     * tranfsform from ([inputId], outId) -> ([inputValue], outVal) to
+     *  [(inputId, inputVal)], (outId, outVal)
+     */
+    val ((inIds_check, outId_check), transformedExamples) =
+      ExamplesExtraction.transformMappings(examples) match {
+        case None =>
+          throw new Exception("Examples do not match in terms of used variables")
+        case Some(((inIds_check, outId_check), transformedExamples)) =>
+          assert(inIds_check == inIds)
+          assert(outId_check == outId)
+          info(s"inIds $inIds")
+          info("transformed examples: " + transformedExamples.mkString("\n"))
+          ((inIds_check, outId_check), transformedExamples)
+      }
+    val inVars = inIds.map(_.toVariable)
     
     val (ambigous, unorderedFragments, unorderedFragmentsAll) =
       precalculatedFragmentsOpt match {
@@ -75,11 +79,11 @@ class Synthesizer extends HasLogger {
         case None =>
           // get amgigous fragments
           // TODO: this should be merged with previous function (no need to do work twice)
-          val unorderedFragmentsAllAmbFlag = Fragmenter.checkAmbiguity(transformedExamples, xs)
+          val unorderedFragmentsAllAmbFlag = Fragmenter.checkAmbiguity(transformedExamples, inVars)
           info("unorderedFragmentsAllAmbFlag: " + unorderedFragmentsAllAmbFlag.mkString("\n"))
       
           // get fragments
-          val unorderedFragmentsAll = Fragmenter.constructFragments(transformedExamples, xs)
+          val unorderedFragmentsAll = Fragmenter.constructFragments(transformedExamples, inVars)
           assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
           
           assert(unorderedFragmentsAllAmbFlag.size == unorderedFragmentsAll.size)
@@ -110,7 +114,7 @@ class Synthesizer extends HasLogger {
         getChainedBranches(
           unorderedFragments: List[Expr],
           unorderedFragmentsAll: List[Expr],
-          xs: List[Variable],
+          inVars: List[Variable],
           examples: List[InputOutputExample],
           getEnum: TypeTree => Iterable[Expr],
           evaluator: Evaluator,
@@ -137,10 +141,10 @@ class Synthesizer extends HasLogger {
         info("unhandled inputs: " + unhandledInputs)
         
         val intialPredicatesIn =
-          calculatePredicatesStructure(unhandledInputs, xs)
+          calculatePredicatesStructure(unhandledInputs, inVars)
           
         // all variables are Nil
-        val fullConditioned = xs
+        val fullConditioned = inVars
         
         // forgive me for doing this but I need this working
         // should overwrite inputps with modified fragment
@@ -162,10 +166,10 @@ class Synthesizer extends HasLogger {
           (examples, conditions)
         }
       } else {
-        assert(xs.size == 1)
+        assert(inVars.size == 1)
         assert(fragmentToInputMap.size == 4, fragmentToInputMap.size)
         val predicates =
-          calculatePredicatesStructureMapDifference(fragmentToInputMap.toSeq, xs)
+          calculatePredicatesStructureMapDifference(fragmentToInputMap.toSeq, inVars)
           
         val res =
           predicates map {
@@ -216,7 +220,7 @@ class Synthesizer extends HasLogger {
       val newFun = new FunDef(
         FreshIdentifier("rec"),
         Nil,
-        xs map { v => ValDef(v.id) },
+        inVars map { v => ValDef(v.id) },
         resType
       ).typed
       
@@ -226,7 +230,7 @@ class Synthesizer extends HasLogger {
           fragments.find(_._2).get
         val (_, (mapB, a) :: Nil) =
           filteredDiffGroups.find(_._1 == fragmentsThatAreTrue).get
-        a(FunctionInvocation(newFun, xs map mapB))
+        a(FunctionInvocation(newFun, inVars map mapB))
       }
         
       val recursiveFragmentFalse = {
@@ -234,7 +238,7 @@ class Synthesizer extends HasLogger {
           fragments.find(!_._2).get
         val (_, (mapB, a) :: Nil) =
           filteredDiffGroups.find(_._1 == fragmentsThatAreFalse).get
-        a(FunctionInvocation(newFun, xs map mapB))
+        a(FunctionInvocation(newFun, inVars map mapB))
       }
       
       val finalIfExpr = 
@@ -261,7 +265,7 @@ class Synthesizer extends HasLogger {
       val newFun = new FunDef(
         FreshIdentifier("rec"),
         Nil,
-        xs map { v => ValDef(v.id) },
+        inVars map { v => ValDef(v.id) },
         resType
       ).typed
       

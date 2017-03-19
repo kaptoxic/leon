@@ -37,6 +37,10 @@ class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
 
 object ExamplesExtraction {
   
+  /**
+   * tranfsform from ([inputId], outId) -> ([inputValue], outVal) to
+   *  [(inputId, inputVal)], (outId, outVal)
+   */
   def transformMappings(mappings: Seq[InputOutputExample]) = {
     val idsAndExamples =
       ((Set[(List[Identifier], Identifier)](), List[(List[Expr], Expr)]()) /: mappings) {
