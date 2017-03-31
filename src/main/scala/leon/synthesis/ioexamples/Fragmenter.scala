@@ -33,6 +33,7 @@ object Fragmenter extends HasLogger {
   
   // compute fragments for each given example pair
   def constructFragments(examples: List[IO], inputVariables: List[Variable]): List[Expr] = {
+    // for each example
     for ((ie, oe) <- examples) yield {
       // all subexpressions of input
       val subexprMaps = u.mapOfSubexpressionsToPathFunctions(ie)
@@ -98,9 +99,9 @@ object Fragmenter extends HasLogger {
     }, false)(tree, false)
   }
   
-  // check if there are ambigous examples, in terms of fragments (can be explained with either variable,
+  // check if there are ambiguous examples, in terms of fragments (can be explained with either variable,
   //  with same size of expression
-  // TODO: refactor this since it is almost identical to prvious function
+  // TODO: refactor this since it is almost identical to previous function
   def checkAmbiguity(examples: List[IO], inputVariables: List[Variable]) = {
     entering("checkAmbiguity")
     

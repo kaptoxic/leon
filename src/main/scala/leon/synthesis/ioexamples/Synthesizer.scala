@@ -16,6 +16,8 @@ import solvers._
 
 import utils.logging.HasLogger
 
+import scala.language.postfixOps
+
 class Synthesizer extends HasLogger {
 
   type IO = (List[Expr], Expr)
@@ -70,19 +72,21 @@ class Synthesizer extends HasLogger {
       }
     val inVars = inIds.map(_.toVariable)
     
+    // calculate fragments (if not already given)
+    // ambiguous -- 
     val (ambigous, unorderedFragments, unorderedFragmentsAll) =
       precalculatedFragmentsOpt match {
+        // if I got fragments already, don't bother with ambiguity
         case Some(precalculatedFragments) =>
-          // if I give you fragments already, don't bother with ambiguituy
           (precalculatedFragments, Nil, precalculatedFragments)
           
         case None =>
-          // get amgigous fragments
+          // get ambiguous fragments
           // TODO: this should be merged with previous function (no need to do work twice)
           val unorderedFragmentsAllAmbFlag = Fragmenter.checkAmbiguity(transformedExamples, inVars)
-          info("unorderedFragmentsAllAmbFlag: " + unorderedFragmentsAllAmbFlag.mkString("\n"))
+          fine("unorderedFragmentsAllAmbFlag: " + unorderedFragmentsAllAmbFlag.mkString("\n"))
       
-          // get fragments
+          // construct fragments
           val unorderedFragmentsAll = Fragmenter.constructFragments(transformedExamples, inVars)
           assert(unorderedFragmentsAll.toSet.size == unorderedFragmentsAll.size)
           
@@ -94,8 +98,11 @@ class Synthesizer extends HasLogger {
           info("unordered fragments: " + unorderedFragments.mkString("\n"))
           info("ambigous fragments: " + ambigous.mkString("\n"))
           
+          assert((ambigous.toSet union unorderedFragments.toSet) == unorderedFragmentsAll.toSet)
           (ambigous, unorderedFragments, unorderedFragmentsAll)
       }
+    fine("ambigous fragments: " + ambigous.mkString("\n"))
+    fine("unordered fragments: " + unorderedFragments.mkString("\n"))
     
     val fragmentToInputMap =
       (Map[Expr, Set[InputOutputExampleVal]]() /: (unorderedFragmentsAll zip transformedExamples)) {
@@ -104,11 +111,11 @@ class Synthesizer extends HasLogger {
       }
     fine("fragmentToInputMap: " + fragmentToInputMap)
     
-    
     // needed in the initial branches computation
     val transformedInputs = transformedExamples.map(_._1)
     var inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
     
+    // initialFragmentsFromGroupPairs -- used to calculate initial predicates
     val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroupPairs) =
       if (unorderedFragments.size > 1) {
         getChainedBranches(
@@ -122,6 +129,11 @@ class Synthesizer extends HasLogger {
         )
       } else
         (Nil, Nil, Nil, Nil)
+    fine("predicates : " + predicates.mkString("\n"))
+    fine("filteredDiffGroups: " + filteredDiffGroups.mkString("\n"))
+    fine("emptyDiffsFromCalculate: " + emptyDiffsFromCalculate.mkString("\n"))
+    fine("initialFragmentsFromGroupPairs: " + initialFragmentsFromGroupPairs.mkString("\n"))
+    ???
 
     val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
     
@@ -207,7 +219,7 @@ class Synthesizer extends HasLogger {
           
         (and(conditions.toSeq: _*), branch)
       }
-    
+    info("inital branches:\n" + initialBranches.map({ case (a, b) => a + "=>" + b }).mkString("\n"))
     
     if (predicates.size > 0) {
       
@@ -329,37 +341,34 @@ class Synthesizer extends HasLogger {
     nilClass: ClassType
   ) = {
 
+    // (fragments without found form, groups of fragments with common form)
     val (emptyDiffsFromCalculate, filteredDiffGroups) = calculateFragments(unorderedFragments, xs)
-    info(filteredDiffGroups.mkString("\n"))
+    fine("emptyDiffsFromCalculate:\n" + emptyDiffsFromCalculate.mkString("\n"))
+    fine("filteredDiffGroups:\n" + filteredDiffGroups.mkString("\n"))
     
-      
-    val initialFragmentFromGroup = {
-      // get all (f1, f2)
-      val (startingFragments, finishingFragments) =
-        filteredDiffGroups.map(_._1).flatten.unzip
-      fine("(startingFragments, finishingFragments): " + (startingFragments, finishingFragments))
-      val initialFragment =
-        startingFragments.filterNot( finishingFragments contains _ )
-      fine("initialFragment: " + initialFragment)
-      assert(initialFragment.size == 1)
-      initialFragment.head
-    }
+    // fragment that is the first within the group with common form  
+    val initialFragmentsFromGroup =
+      for ((startingFragments, finishingFragments) <- filteredDiffGroups.map(_._1.unzip)) yield {
+        finest("startingFragmentsfinishingFragments: " + startingFragments)
+        finest("finishingFragments: " + finishingFragments)
+        val initialFragment =
+          startingFragments.filterNot( finishingFragments contains _ )
+        finest("initialFragment: " + initialFragment)
+        assert(initialFragment.size == 1)
+        initialFragment.head
+      }
+    fine("initialFragmentFromGroup: " + initialFragmentsFromGroup)
 
     val (predicates, infoToTransformFragment) =
-//    assert(filteredDiffGroups.size == 2)
+      // if there is only one group of fragments with common form
       if (filteredDiffGroups.size == 1) {
-        val (fragmentConnections, subs) = filteredDiffGroups.head
-        
-        // note that we can pick whichever fragment for substitution here (after substitution, should be the
-        //  same anyway
-        val (_, fragmentToSubstitute) = fragmentConnections.head
+        val (_, subs) = filteredDiffGroups.head
         
         // we don't know how to deal with this ambiguity though (should not happen?)
         assert(subs.size == 1)
         val (subMap, f) = subs.head
         
         val singleGeneralizedFragment =
-  //        ExprOps.replaceFromIDs(subMap.map(p => (p._1.id, p._2)), fragmentToSubstitute)
           f(Hole(UnitType, xs.map(subMap)))
   
         (Nil, singleGeneralizedFragment)
@@ -377,18 +386,21 @@ class Synthesizer extends HasLogger {
         fine("groups: " + filteredDiffGroups.mkString("\n"))
         fine("predicates: " + predicates.mkString("\n"))
         
-        (predicates, initialFragmentFromGroup)
+        (predicates, initialFragmentsFromGroup.head)
       }
     
     (predicates, filteredDiffGroups, emptyDiffsFromCalculate,
-      (initialFragmentFromGroup, infoToTransformFragment) :: Nil)
+      (initialFragmentsFromGroup.head, infoToTransformFragment) :: Nil)
   }
   
   /*
    * returns:
-   * - list of n fragments (last n one), for which some common form was identified
-   * - path to this form ??
-   * - mapping for substitution that would equate these fragments
+   * - list of fragments for which common form was not identified
+   * - list of n fragments (last n one), for which some common form was identified, as
+   * -- (smaller, larger fragment) that share form
+   * -- list of mappings and paths
+   * --- mapping for substitution that would equate these fragments
+   * --- path to the found form
    */
   def calculateFragments(unorderedFragments: List[Expr], xs: List[Variable]) = {
     entering("calculateFragments", unorderedFragments, xs)
