@@ -586,7 +586,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
   }
   
-  test("use synthesizer") {
+  ignore("use synthesizer") {
     val eb = problem.eb
 
     info("invalids:\n" + eb.invalids.mkString("\n"))
@@ -927,6 +927,17 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
              |} else if (Black != t.right.color && Black == t.right.right.color) {
              |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left.left), t.right.left.value, Node(t.color, t.right.left.right, t.right.value, t.right.right))
              |} else if (Black != t.right.color && Black != t.right.right.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
+             |} else {
+             |  ()
+             |}""".stripMargin ::
+          """|if (Red == t.left.color && Black == t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left.left, t.left.left.value, t.left.left.right), t.left.value, Node(t.color, t.left.right, t.value, t.right))
+             |} else if (Red == t.left.color && Black != t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left, t.left.value, t.left.right.left), t.left.right.value, Node(t.color, t.left.right.right, t.value, t.right))
+             |} else if (Red != t.left.color && Black == t.right.right.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left.left), t.right.left.value, Node(t.color, t.right.left.right, t.right.value, t.right.right))
+             |} else if (Red != t.left.color && Black != t.right.right.color) {
              |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
              |} else {
              |  ()

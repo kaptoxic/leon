@@ -123,10 +123,8 @@ class FlattenTest extends FunSuite with Matchers with Inside with HasLogger {
   val correctFunctionString =
     """|if ((l == Nil)) {
        |  IntNil
-       |} else if ((l == Nil)) {
-       |  IntCons(l.head.fst, IntCons(l.head.snd, ?(l.tail)))
        |} else {
-       |  ()
+       |  IntCons(l.head.fst, IntCons(l.head.snd, ?(l.tail)))
        |}""".stripMargin
   
   test("test synthesizer, normal case") {
