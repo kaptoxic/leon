@@ -30,7 +30,7 @@ import java.io.{ BufferedWriter, FileWriter, File }
  * NOTES:
  * if we have l1, l2 that makes problem for sorting
  */
-class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
+class MergeSortTest extends FunSuite with Matchers with Inside with CancelAfterFailure with HasLogger {
 
   import Scaffold._
   import Constructors._
@@ -132,17 +132,27 @@ class MergeSortTest extends FunSuite with Matchers with Inside with HasLogger {
 
     info("(body, funDef) is: " + (body, funDef))
     val bodyStrings =
-      for (i <- 1 to 2) yield
+      (for (i <- 1 to 2; cond <-
+        "l1.head <= l2.head" :: "l2.head < l1.head" :: Nil) yield
         """|if ((l1 == Nil) && (l2 == Nil)) {
            |  l%d
            |} else if ((l2 == Nil)) {
            |  l1
-           |} else if (l1.head <= l2.head) {
+           |} else if (%s) {
            |  Cons(l1.head, rec(l1.tail, l2))
            |} else {
            |  Cons(l2.head, rec(l1, l2.tail))
-           |}""".stripMargin.format(i)
-
+           |}""".format(i, cond)) ++
+      ("""|if ((l1 == Nil) && (l2 == Nil)) {
+         |  l2
+         |} else if ((l2 == Nil)) {
+         |  l1
+         |} else if (l2.head < l1.head) {
+         |  Cons(l2.head, rec(l1, l2.tail))
+         |} else {
+         |  Cons(l1.head, rec(l1.tail, l2))
+         |}""" :: Nil) map (_.stripMargin)
+     
     bodyStrings should contain (body.toString)
 
   }
