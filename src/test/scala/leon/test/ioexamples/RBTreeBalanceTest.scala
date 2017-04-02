@@ -54,11 +54,10 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
   }
 
   val (sctx, funDef, problem) = problems.find(_._2.id.name == "balanceTreeInput").get
- 
-  ignore("check spec size") { 
+
+  ignore("check spec size") {
     print(
-    ((problem.pc.fullClause :: problem.phi :: Nil) map { x => ExprOps.formulaSize(x) }).sum
-    )
+      ((problem.pc.fullClause :: problem.phi :: Nil) map { x => ExprOps.formulaSize(x) }).sum)
     ???
   }
 
@@ -108,12 +107,12 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
   val evaluator = new CodeGenEvaluator(sctx, program)
 
   import scife._
-  import enumeration.{Map => _, _}
+  import enumeration.{ Map => _, _ }
   import dependent._
   import memoization._
   import scife.{ enumeration => e }
   import scife.util._
-  
+
   val leaf =
     CaseClass(program.caseClassDef("Empty").typed, Nil)
   val nodeClass = program.caseClassDef("Node").typed
@@ -169,25 +168,25 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
     treesOfSize
   }
-//
-// ignore("datastructure generation") {
-//   
-//
-//   val ms = new scope.AccumulatingScope
-//   val enum = constructEnumerator_new(ms)
-//
-//   val elements = (
-//     for (size <- 3 to 5) yield {
-//       for (
-//         blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
-//         e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
-//         ind <- 0 until e.size
-//       ) yield e(ind)
-//     }).flatten
-//
-//   elements should have size 25
-//
-// }
+  //
+  // ignore("datastructure generation") {
+  //   
+  //
+  //   val ms = new scope.AccumulatingScope
+  //   val enum = constructEnumerator_new(ms)
+  //
+  //   val elements = (
+  //     for (size <- 3 to 5) yield {
+  //       for (
+  //         blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
+  //         e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
+  //         ind <- 0 until e.size
+  //       ) yield e(ind)
+  //     }).flatten
+  //
+  //   elements should have size 25
+  //
+  // }
 
   ignore("predicates") {
     val eb = problem.eb
@@ -214,70 +213,69 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
           ind <- 0 until e.size
         ) yield e(ind)
       }).flatten
-      
+
     info("enumerated datastructs: " + firstNNormal.mkString("\n"))
-        
+
     val firstNReverted =
       for (
         tree <- firstNNormal
       ) yield {
         tree match {
-          case
-            CaseClass(`nodeClass`,
-              `black` ::
+          case CaseClass(`nodeClass`,
+            `black` ::
               CaseClass(`nodeClass`,
-                `red` :: ll :: lv :: lr :: Nil) ::
+              `red` :: ll :: lv :: lr :: Nil) ::
               v ::
               CaseClass(`nodeClass`,
-                `red` :: rl :: rv :: rr :: Nil) ::
-            Nil) =>
-              val v1 =
-                CaseClass(nodeClass,
-                  black ::
+              `red` :: rl :: rv :: rr :: Nil) ::
+              Nil) =>
+            val v1 =
+              CaseClass(nodeClass,
+                black ::
                   CaseClass(nodeClass,
                     red ::
-                    CaseClass(nodeClass,
-                      red :: ll :: lv :: lr :: Nil) ::
-                    v :: rl :: Nil) ::
-                  rv ::
-                  rr ::
-                Nil)
-                
-              val v2 =
-                CaseClass(nodeClass,
-                  black ::
+                      CaseClass(nodeClass,
+                        red :: ll :: lv :: lr :: Nil) ::
+                        v :: rl :: Nil) ::
+                    rv ::
+                    rr ::
+                    Nil)
+
+            val v2 =
+              CaseClass(nodeClass,
+                black ::
                   CaseClass(nodeClass,
                     red :: ll :: lv ::
-                    CaseClass(nodeClass,
-                      red :: lr :: v :: rl :: Nil) :: Nil) ::
-                  rv ::
-                  rr ::
-                Nil)
-                
-              val v3 =
-                CaseClass(nodeClass,
-                  black ::
+                      CaseClass(nodeClass,
+                        red :: lr :: v :: rl :: Nil) :: Nil) ::
+                    rv ::
+                    rr ::
+                    Nil)
+
+            val v3 =
+              CaseClass(nodeClass,
+                black ::
                   ll ::
                   lv ::
                   CaseClass(nodeClass,
                     red ::
-                    CaseClass(nodeClass,
-                      red :: lr :: v :: rl :: Nil) ::
-                    rv :: rr :: Nil) ::
-                Nil)
-                
-              val v4 =
-                CaseClass(nodeClass,
-                  black ::
+                      CaseClass(nodeClass,
+                        red :: lr :: v :: rl :: Nil) ::
+                        rv :: rr :: Nil) ::
+                    Nil)
+
+            val v4 =
+              CaseClass(nodeClass,
+                black ::
                   ll ::
                   lv ::
                   CaseClass(nodeClass,
                     red :: lr :: v ::
-                    CaseClass(nodeClass,
-                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
-                Nil)
-                
-              v1 :: v2 :: v3 :: v4 :: Nil
+                      CaseClass(nodeClass,
+                        red :: rl :: rv :: rr :: Nil) :: Nil) ::
+                    Nil)
+
+            v1 :: v2 :: v3 :: v4 :: Nil
           case _ =>
             Nil
         }
@@ -285,40 +283,40 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
     val firstN =
       firstNNormal ++
-      firstNReverted.flatten
+        firstNReverted.flatten
 
     val numOfExamples = 42
-      
+
     info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
-//    firstN.size shouldBe numOfExamples
+    //    firstN.size shouldBe numOfExamples
 
     val filteredExamples =
-    {
-      val phi = problem.phi
+      {
+        val phi = problem.phi
 
-      problem.as should have size 1
-      val in = problem.as.head
-      problem.xs should have size 1
-      val out = problem.xs.head
-      val pc = problem.pc
-      val toEvaluate = pc.toClause
-      val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+        problem.as should have size 1
+        val in = problem.as.head
+        problem.xs should have size 1
+        val out = problem.xs.head
+        val pc = problem.pc
+        val toEvaluate = pc.toClause
+        val compiled = evaluator.compile(toEvaluate, in :: Nil).get
 
-      for (ex1 <- firstN) yield {
-        val res = compiled(new Model(Map(in -> ex1)))
+        for (ex1 <- firstN) yield {
+          val res = compiled(new Model(Map(in -> ex1)))
 
-        res match {
-          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-            info("pass precondition for: " + ex1)
-            Some(ex1)
-          case e: EvaluationResults.EvaluatorError =>
-            None
-          case _                                   =>
-            None
+          res match {
+            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+              info("pass precondition for: " + ex1)
+              Some(ex1)
+            case e: EvaluationResults.EvaluatorError =>
+              None
+            case _ =>
+              None
+          }
         }
-      }
 
-    }
+      }
 
     //    "output finding" -
     {
@@ -330,23 +328,23 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       problem.xs should have size 1
       val out = problem.xs.head
 
-//      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
-//      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
+      //      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
+      //      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
       val results = new collection.mutable.MutableList[(Expr, Expr)]()
 
-//      import scala.util.Random
-//      val randomGen = new Random("random number my version".hashCode)
-//      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
-//      info("randoms " + randoms)
+      //      import scala.util.Random
+      //      val randomGen = new Random("random number my version".hashCode)
+      //      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
+      //      info("randoms " + randoms)
 
       val pc = problem.pc
       val toEvaluate = And(pc.toClause, phi)
       val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
-            
-      filteredExamples.flatten.size shouldBe 36
-//      info(filteredExamples.map(p => "in : " + p).mkString("\n"))
 
-//      for (ex1 <- firstN) {
+      filteredExamples.flatten.size shouldBe 36
+      //      info(filteredExamples.map(p => "in : " + p).mkString("\n"))
+
+      //      for (ex1 <- firstN) {
       for (ex1 <- filteredExamples.flatten) {
         //        _ = info("*******");
         var flag = true
@@ -370,9 +368,9 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
               //              results should not contain key (ex1)
               //              }
 
-//              assert(!(results contains ex1))
-//              assert(results.getOrElse(ex1, ex2))
-//              results(ex1) += ex2
+              //              assert(!(results contains ex1))
+              //              assert(results.getOrElse(ex1, ex2))
+              //              results(ex1) += ex2
               results += ((ex1, ex2))
             //          info(s"$v for $ex, ${v1}, $v2")
             case e: EvaluationResults.EvaluatorError =>
@@ -383,21 +381,21 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       }
 
       results.size shouldBe >(0)
-//      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
-//      results should have size (56)
+      //      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+      //      results should have size (56)
 
-//      info(s"result with more than 6 results: " + {
-//        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
-//        val v2 = v.map({ case (k, v) => v })
-//        k + "\n" + v2
-//      })
+      //      info(s"result with more than 6 results: " + {
+      //        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
+      //        val v2 = v.map({ case (k, v) => v })
+      //        k + "\n" + v2
+      //      })
 
       val extraction = new ExamplesExtraction(sctx, sctx.program)
-      
-//      val resultsSmallest = results map {
-//        case (k, v) =>
-//          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
-//      }
+
+      //      val resultsSmallest = results map {
+      //        case (k, v) =>
+      //          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
+      //      }
 
       val examples = results.map({
         case (inEx, outEx) =>
@@ -405,7 +403,7 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       }).toList
 
       //      info("examples\n" + examples.mkString("\n"))
-//      examples should have size (56)
+      //      examples should have size (56)
 
       //      test: attempt synthesis
       // get fragments
@@ -414,19 +412,19 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       info("transformed examples: " + transformedExamples.mkString("\n"))
       val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
       info("unordered fragments: " + unorderedFragments.mkString("\n"))
-      
+
       val unorederdFragmentsSet = unorderedFragments.toSet
       info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
-      
+
       transformedExamples should have size unorderedFragments.size
       val zipped = (transformedExamples zip unorderedFragments)
-      
+
       val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
-      
+
       info("" + ioexamples.Util.mapOfSubexpressionsToPathFunctions(zippedSorted.last._1._1.head).map(
-        {case (k,v) => "" + k + "\n" + v(w) }))
+        { case (k, v) => "" + k + "\n" + v(w) }))
       info("" + zippedSorted.last)
-      
+
       val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
       var covering = transformedExamples.map(_._1).toSet
 
@@ -434,18 +432,18 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         zippedSorted.takeWhile({
           case _ if covering.isEmpty =>
             false
-          case p@(exPair, fragment) =>
+          case p @ (exPair, fragment) =>
             covering = covering - exPair._1
             taken += p
             true
         })
-        
+
       info(s"zipped size ${zipped.size}; coveringPairs size: " + coveringPairs.size)
       info("covering pairs\n: " + coveringPairs.mkString("\n"))
-      
+
       val groupped = zipped.groupBy(_._1._1)
       val sorted =
-        for ( (input, list) <- groupped ) yield {
+        for ((input, list) <- groupped) yield {
           val fragments = list.map(_._2)
           (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
         }
@@ -455,17 +453,17 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       info("")
       info("sorted:\n" + sorted.
         map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
-        
+
       info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
-      
-//      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
-//        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
-//      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
-        
+
+      //      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
+      //        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
+      //      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
+
       val inputsPerPredicate =
         for ((examplePair, fragment) <- zipped) yield {
           val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
-          
+
           (fragmentHead, examplePair)
         }
 
@@ -474,91 +472,88 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
           case (current, (fragment, pair)) =>
             current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + pair))
         }
-      
+
       inputsPerPredicateMap.size shouldBe 4
-      
-      
+
       // FIXME make this a separate test
       {
         val fragments = inputsPerPredicateMap.keys
-        
+
         val synthesizer = new Synthesizer
-       
+
         val allDiffResults =
-    	    (for((f1, f2) <- fragments zip fragments.tail) yield {
-    	      val diffs = Differencer.differences(f1, f2, problem.as.map(_.toVariable))
-    	      info(s"diffs for $f1 and $f2 are $diffs")
-    	      (f1, f2, diffs)
-    	    })
-        info("allDiffResults: " + allDiffResults.map(_._3.map({ case (k, v) => (k, v(w))})))
-        
-        allDiffResults.map(_._3).flatten should be ('empty)
+          (for ((f1, f2) <- fragments zip fragments.tail) yield {
+            val diffs = Differencer.differences(f1, f2, problem.as.map(_.toVariable))
+            info(s"diffs for $f1 and $f2 are $diffs")
+            (f1, f2, diffs)
+          })
+        info("allDiffResults: " + allDiffResults.map(_._3.map({ case (k, v) => (k, v(w)) })))
+
+        allDiffResults.map(_._3).flatten should be('empty)
       }
-      
+
       // FIXME make this a separate test
-//      {
-//        val fragments = inputsPerPredicateMap.keys.toList
-//        
-//        val synthesizer = new Synthesizer
-//       
-//        val (empty, nonEmpty) = synthesizer.calculateFragments(fragments, problem.as.map(_.toVariable))
-//        
-//        info("(empty, nonEmpty): " + (empty, nonEmpty))
-//        
-//        empty shouldBe ('empty)
-//        nonEmpty shouldBe ('empty)
-//        
-//        ???
-//      }
-      
-      
-//      info("inputsPerPredicateMap:\n" + inputsPerPredicateMap.mkString("\n"))
-      
+      //      {
+      //        val fragments = inputsPerPredicateMap.keys.toList
+      //        
+      //        val synthesizer = new Synthesizer
+      //       
+      //        val (empty, nonEmpty) = synthesizer.calculateFragments(fragments, problem.as.map(_.toVariable))
+      //        
+      //        info("(empty, nonEmpty): " + (empty, nonEmpty))
+      //        
+      //        empty shouldBe ('empty)
+      //        nonEmpty shouldBe ('empty)
+      //        
+      //        ???
+      //      }
+
+      //      info("inputsPerPredicateMap:\n" + inputsPerPredicateMap.mkString("\n"))
+
       val intersections =
         for ((fragment, pairs) <- inputsPerPredicateMap) yield {
-          
+
           val subexpressionsSets =
-            for ((inputs, _) <- pairs) yield         
-              ioexamples.Util.subexpressionToPathFunctionsPairs(inputs.head).map({ case (k, v) => (k, v(w)) }).toSet
-              
+            for ((inputs, _) <- pairs) yield ioexamples.Util.subexpressionToPathFunctionsPairs(inputs.head).map({ case (k, v) => (k, v(w)) }).toSet
+
           info("subexpressionsSets:\n" + subexpressionsSets.mkString("\n"))
-          
+
           subexpressionsSets.size shouldBe 9
-          
+
           // NOTE paper, input size of the tree
           ExprOps.formulaSize(pairs.head._1.head) shouldBe 7
-          
+
           val intersection =
             subexpressionsSets.reduce(_ intersect _)
-            
+
           info("intersection:\n" + intersection.mkString("\n"))
-          
+
           intersection
         }
-      
-//      val groupedBySize =
-//        for (intersection <- intersections) yield {
-//          
-////          val diffed =
-////            (intersection /: intersections) {
-////              case (curr,  intersectionToRemove) if intersection != intersectionToRemove =>
-////                curr diff intersectionToRemove
-////              case (curr, _) =>
-////                curr
-////            }
-////          
-////          info("diffed: " + diffed)
-//
-//          intersection.map( x => (x, ExprOps.formulaSize(x._2)) ).groupBy(_._2)
-//        }
-//
-//      info("groupedBySize: " + groupedBySize.mkString("\n"))
-      
+
+      //      val groupedBySize =
+      //        for (intersection <- intersections) yield {
+      //          
+      ////          val diffed =
+      ////            (intersection /: intersections) {
+      ////              case (curr,  intersectionToRemove) if intersection != intersectionToRemove =>
+      ////                curr diff intersectionToRemove
+      ////              case (curr, _) =>
+      ////                curr
+      ////            }
+      ////          
+      ////          info("diffed: " + diffed)
+      //
+      //          intersection.map( x => (x, ExprOps.formulaSize(x._2)) ).groupBy(_._2)
+      //        }
+      //
+      //      info("groupedBySize: " + groupedBySize.mkString("\n"))
+
       val sortedBySize =
         intersections.flatten.toList.distinct.sortBy(x => ExprOps.formulaSize(x._2))
-          
+
       val partitions = (intersections, Set[(Expr, Expr)]()) :: Nil
-      
+
       val newPartitions =
         (partitions /: sortedBySize) {
           case (current, expr) if current.size < intersections.size =>
@@ -567,29 +562,29 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
               for ((partition, partitionSet) <- current) yield {
                 val (have, dontHave) =
                   partition.partition(p => p contains expr)
-                  
+
                 if (have.isEmpty || dontHave.isEmpty)
                   (partition, partitionSet) :: Nil
                 else
                   (have, partitionSet + expr) ::
                     (dontHave, partitionSet + ((expr._1, (Not(expr._2): Expr)))) :: Nil
               }
-            
+
             info("newPartitions:\n" + newPartitions.flatten.mkString("\n"))
             info("*********")
             newPartitions.flatten
           case r =>
             r._1
         }
-      
+
       info("newPartitions: " + newPartitions.map(_._2).mkString("\n"))
-      
+
     }
 
   }
-  
+
   def generateTrees = {
-    
+
     val ms = new scope.AccumulatingScope
     val enum = constructEnumerator_new(ms)
 
@@ -603,243 +598,244 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
           ind <- 0 until e.size
         ) yield e(ind)
       }).flatten
-      
+
     info("enumerated datastructs: " + firstNNormal.mkString("\n"))
-        
+
     val firstNReverted =
       for (
         tree <- firstNNormal
       ) yield {
         tree match {
-          case
-            CaseClass(`nodeClass`,
-              `black` ::
+          case CaseClass(`nodeClass`,
+            `black` ::
               CaseClass(`nodeClass`,
-                `red` :: ll :: lv :: lr :: Nil) ::
+              `red` :: ll :: lv :: lr :: Nil) ::
               v ::
               CaseClass(`nodeClass`,
-                `red` :: rl :: rv :: rr :: Nil) ::
-            Nil) =>
-              val v1 =
-                CaseClass(nodeClass,
-                  black ::
+              `red` :: rl :: rv :: rr :: Nil) ::
+              Nil) =>
+            val v1 =
+              CaseClass(nodeClass,
+                black ::
                   CaseClass(nodeClass,
                     red ::
-                    CaseClass(nodeClass,
-                      red :: ll :: lv :: lr :: Nil) ::
-                    v :: rl :: Nil) ::
-                  rv ::
-                  rr ::
-                Nil)
-                
-              val v2 =
-                CaseClass(nodeClass,
-                  black ::
+                      CaseClass(nodeClass,
+                        red :: ll :: lv :: lr :: Nil) ::
+                        v :: rl :: Nil) ::
+                    rv ::
+                    rr ::
+                    Nil)
+
+            val v2 =
+              CaseClass(nodeClass,
+                black ::
                   CaseClass(nodeClass,
                     red :: ll :: lv ::
-                    CaseClass(nodeClass,
-                      red :: lr :: v :: rl :: Nil) :: Nil) ::
-                  rv ::
-                  rr ::
-                Nil)
-                
-              val v3 =
-                CaseClass(nodeClass,
-                  black ::
+                      CaseClass(nodeClass,
+                        red :: lr :: v :: rl :: Nil) :: Nil) ::
+                    rv ::
+                    rr ::
+                    Nil)
+
+            val v3 =
+              CaseClass(nodeClass,
+                black ::
                   ll ::
                   lv ::
                   CaseClass(nodeClass,
                     red ::
-                    CaseClass(nodeClass,
-                      red :: lr :: v :: rl :: Nil) ::
-                    rv :: rr :: Nil) ::
-                Nil)
-                
-              val v4 =
-                CaseClass(nodeClass,
-                  black ::
+                      CaseClass(nodeClass,
+                        red :: lr :: v :: rl :: Nil) ::
+                        rv :: rr :: Nil) ::
+                    Nil)
+
+            val v4 =
+              CaseClass(nodeClass,
+                black ::
                   ll ::
                   lv ::
                   CaseClass(nodeClass,
                     red :: lr :: v ::
-                    CaseClass(nodeClass,
-                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
-                Nil)
-                
-              v1 :: v2 :: v3 :: v4 :: Nil
+                      CaseClass(nodeClass,
+                        red :: rl :: rv :: rr :: Nil) :: Nil) ::
+                    Nil)
+
+            v1 :: v2 :: v3 :: v4 :: Nil
           case _ =>
             Nil
         }
       }
 
-      firstNNormal ++
+    firstNNormal ++
       firstNReverted.flatten
   }
-  
+
   test("generate trees") {
-    
+
     val filePath = "./tmp/generated"
-      if (!Files.exists(Paths.get(filePath))) {
-        
-    val eb = problem.eb
+    if (!Files.exists(Paths.get(filePath))) {
 
-    info("invalids:\n" + eb.invalids.mkString("\n"))
-    info("valids:\n" + eb.valids.mkString("\n"))
+      val eb = problem.eb
 
-    problem.hasOutputTests shouldBe false
+      info("invalids:\n" + eb.invalids.mkString("\n"))
+      info("valids:\n" + eb.valids.mkString("\n"))
 
-    problem.xs should have size 1
+      problem.hasOutputTests shouldBe false
 
-    val resType = problem.xs.head.getType
-
-    val start1 = System.currentTimeMillis()
-    
-    val firstN = generateTrees
-
-    val numOfExamples = 42
-      
-    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
-//    firstN.size shouldBe numOfExamples
-
-    val filteredExamples =
-    {
-      val phi = problem.phi
-
-      problem.as should have size 1
-      val in = problem.as.head
       problem.xs should have size 1
-      val out = problem.xs.head
-      val pc = problem.pc
-      val toEvaluate = pc.toClause
-      val compiled = evaluator.compile(toEvaluate, in :: Nil).get
 
-      for (ex1 <- firstN) yield {
-        val res = compiled(new Model(Map(in -> ex1)))
+      val resType = problem.xs.head.getType
 
-        res match {
-          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-            info("pass precondition for: " + ex1)
-            Some(ex1)
-          case e: EvaluationResults.EvaluatorError =>
-            None
-          case _                                   =>
-            None
+      val start1 = System.currentTimeMillis()
+
+      val firstN = generateTrees
+
+      val numOfExamples = 42
+
+      info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
+      //    firstN.size shouldBe numOfExamples
+
+      val filteredExamples =
+        {
+          val phi = problem.phi
+
+          problem.as should have size 1
+          val in = problem.as.head
+          problem.xs should have size 1
+          val out = problem.xs.head
+          val pc = problem.pc
+          val toEvaluate = pc.toClause
+          val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+
+          for (ex1 <- firstN) yield {
+            val res = compiled(new Model(Map(in -> ex1)))
+
+            res match {
+              case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+                info("pass precondition for: " + ex1)
+                Some(ex1)
+              case e: EvaluationResults.EvaluatorError =>
+                None
+              case _ =>
+                None
+            }
+          }
+
         }
+
+      //    "output finding" -
+      {
+        val phi = problem.phi
+
+        problem.as should have size 1
+        val in = problem.as.head
+
+        problem.xs should have size 1
+        val out = problem.xs.head
+
+        //      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
+        //      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
+        val results = new collection.mutable.MutableList[(Expr, Expr)]()
+
+        //      import scala.util.Random
+        //      val randomGen = new Random("random number my version".hashCode)
+        //      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
+        //      info("randoms " + randoms)
+
+        val pc = problem.pc
+        val toEvaluate = And(pc.toClause, phi)
+        val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+
+        filteredExamples.flatten.size shouldBe 36
+        //      info(filteredExamples.map(p => "in : " + p).mkString("\n"))
+
+        //      for (ex1 <- firstN) {
+        for (ex1 <- filteredExamples.flatten) {
+          //        _ = info("*******");
+          var flag = true
+          val ex2it = firstN.iterator;
+          while (flag && ex2it.nonEmpty) {
+            val ex2 = ex2it.next
+            //        info("toEvaluate " + toEvaluate)
+
+            //        info(s"for in $ex1, out $ex2")
+            //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+            val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+            //          info(s"for in $ex1, out $ex2, got $res")
+
+            res match {
+              case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+                //            info(s"for in $ex1, out $ex2")
+                //            info("***")
+                //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+                //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+                //                results.getOrElse(ex1, ex2) shouldBe ex2
+                //              results should not contain key (ex1)
+                //              }
+
+                //              assert(!(results contains ex1))
+                //              assert(results.getOrElse(ex1, ex2))
+                //              results(ex1) += ex2
+                results += ((ex1, ex2))
+              //          info(s"$v for $ex, ${v1}, $v2")
+              case e: EvaluationResults.EvaluatorError =>
+              //          info("evaluation failure: " + e + s" for $v1 and $v2")
+              case _                                   =>
+            }
+          }
+        }
+
+        results.size shouldBe >(0)
+        //      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+        //      results should have size (56)
+
+        //      info(s"result with more than 6 results: " + {
+        //        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
+        //        val v2 = v.map({ case (k, v) => v })
+        //        k + "\n" + v2
+        //      })
+        //
+        //      val extraction = new ExamplesExtraction(sctx, sctx.program)
+        //      
+        //      val resultsSmallest = results map {
+        //        case (k, v) =>
+        //          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
+        //      }
+
+        //      Files.createDirectories(Paths.get(filePath))
+        //      Files.createFile(Paths.get(filePath))
+        val fos = new FileOutputStream(filePath, false)
+        val oos = new ObjectOutputStream(fos)
+        //      val printWriter = new PrintWriter(fos)
+
+        //      for (result <- results)
+        //        printWriter.println(firstN.indexOf(result))
+
+        oos.writeObject(results.toList.map({
+          case (a, b) =>
+            (firstN.indexOf(a), firstN.indexOf(b))
+        }).toList)
+        oos.close
       }
 
     }
-
-    //    "output finding" -
-    {
-      val phi = problem.phi
-
-      problem.as should have size 1
-      val in = problem.as.head
-
-      problem.xs should have size 1
-      val out = problem.xs.head
-
-//      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
-//      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
-      val results = new collection.mutable.MutableList[(Expr, Expr)]()
-
-//      import scala.util.Random
-//      val randomGen = new Random("random number my version".hashCode)
-//      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
-//      info("randoms " + randoms)
-
-      val pc = problem.pc
-      val toEvaluate = And(pc.toClause, phi)
-      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
-            
-      filteredExamples.flatten.size shouldBe 36
-//      info(filteredExamples.map(p => "in : " + p).mkString("\n"))
-
-//      for (ex1 <- firstN) {
-      for (ex1 <- filteredExamples.flatten) {
-        //        _ = info("*******");
-        var flag = true
-        val ex2it = firstN.iterator;
-        while (flag && ex2it.nonEmpty) {
-          val ex2 = ex2it.next
-          //        info("toEvaluate " + toEvaluate)
-
-          //        info(s"for in $ex1, out $ex2")
-          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
-          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
-          //          info(s"for in $ex1, out $ex2, got $res")
-
-          res match {
-            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-              //            info(s"for in $ex1, out $ex2")
-              //            info("***")
-              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-              //                results.getOrElse(ex1, ex2) shouldBe ex2
-              //              results should not contain key (ex1)
-              //              }
-
-//              assert(!(results contains ex1))
-//              assert(results.getOrElse(ex1, ex2))
-//              results(ex1) += ex2
-              results += ((ex1, ex2))
-            //          info(s"$v for $ex, ${v1}, $v2")
-            case e: EvaluationResults.EvaluatorError =>
-            //          info("evaluation failure: " + e + s" for $v1 and $v2")
-            case _                                   =>
-          }
-        }
-      }
-
-      results.size shouldBe >(0)
-//      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
-//      results should have size (56)
-
-//      info(s"result with more than 6 results: " + {
-//        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
-//        val v2 = v.map({ case (k, v) => v })
-//        k + "\n" + v2
-//      })
-//
-//      val extraction = new ExamplesExtraction(sctx, sctx.program)
-//      
-//      val resultsSmallest = results map {
-//        case (k, v) =>
-//          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
-//      }
-      
-//      Files.createDirectories(Paths.get(filePath))
-//      Files.createFile(Paths.get(filePath))
-      val fos = new FileOutputStream(filePath, false)
-      val oos = new ObjectOutputStream(fos)
-//      val printWriter = new PrintWriter(fos)
-      
-//      for (result <- results)
-//        printWriter.println(firstN.indexOf(result))
-    
-      oos.writeObject(results.toList.map({case (a, b) =>
-        (firstN.indexOf(a), firstN.indexOf(b))}).toList)
-      oos.close
-    } 
-    
   }
-  }
-  
+
   test("use synthesizer") {
-    
+
     val filePath = "./tmp/generated"
-    if (!Files.exists(Paths.get(filePath))) 
+    if (!Files.exists(Paths.get(filePath)))
       fail("No file")
-    
+
     val fis = new FileInputStream(filePath)
     val ois = new ObjectInputStream(fis)
-  
+
     val resultsInd = ois.readObject.asInstanceOf[List[(Int, Int)]]
     ois.close
-    
+
     val firstN = generateTrees
     val results = resultsInd map { case (a, b) => (firstN(a), firstN(b)) }
-    
+
     val eb = problem.eb
     val phi = problem.phi
 
@@ -848,121 +844,120 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
     problem.xs should have size 1
     val out = problem.xs.head
-    
 
-      val examples = results.map({
-        case (inEx, outEx) =>
-          ((in, inEx) :: Nil, (out, outEx))
-      }).toList
+    val examples = results.map({
+      case (inEx, outEx) =>
+        ((in, inEx) :: Nil, (out, outEx))
+    }).toList
 
-      //      info("examples\n" + examples.mkString("\n"))
-//      examples should have size (56)
+    //      info("examples\n" + examples.mkString("\n"))
+    //      examples should have size (56)
 
-      //      test: attempt synthesis
-      // get fragments
-      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-      info(s"inIds $inIds")
-      info("transformed examples: " + transformedExamples.mkString("\n"))
-      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-      info("unordered fragments: " + unorderedFragments.mkString("\n"))
-      
-      val unorederdFragmentsSet = unorderedFragments.toSet
-      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
-      
-      transformedExamples should have size unorderedFragments.size
-      val zipped = (examples zip unorderedFragments)
-      
-      val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
-      
-//      info("" + ioexamples.Util.mapOfSubexpressionsToPathFunctions(zippedSorted.last._1._1.head).map(
-//        {case (k,v) => "" + k + "\n" + v(w) }))
-//      info("" + zippedSorted.last)
-      
-      val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
-      var covering = transformedExamples.map(_._1).toSet
+    //      test: attempt synthesis
+    // get fragments
+    val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+    info(s"inIds $inIds")
+    info("transformed examples: " + transformedExamples.mkString("\n"))
+    val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+    info("unordered fragments: " + unorderedFragments.mkString("\n"))
 
-//      val coveringPairs =
-//        zippedSorted.takeWhile({
-//          case _ if covering.isEmpty =>
-//            false
-//          case p@(exPair, fragment) =>
-//            covering = covering - exPair._1
-//            taken += p
-//            true
-//        })
-//        
-//      info(s"zipped size ${zipped.size}; coveringPairs size: " + coveringPairs.size)
-//      info("covering pairs\n: " + coveringPairs.mkString("\n"))
-      
-      val groupped = zipped.groupBy(_._1._1)
-      val sorted =
-        for ( (input, list) <- groupped ) yield {
-          val fragments = list.map(_._2)
-          (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
-        }
-      
-      
-      // TODO make this a proper benchmark
-//      val start2 = System.currentTimeMillis() - start1
-//      println("start2: " + start2)
+    val unorederdFragmentsSet = unorderedFragments.toSet
+    info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
 
-      info("")
-      info("")
-      info("")
-      info("sorted:\n" + sorted.
-        map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
-        
-      info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
-      
-//      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
-//        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
-//      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
-        
-      val inputsPerPredicate =
-        for ((examplePair, fragment) <- zipped) yield {
-          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
-          
-          (fragmentHead, examplePair)
-        }
+    transformedExamples should have size unorderedFragments.size
+    val zipped = (examples zip unorderedFragments)
 
-      val inputsPerPredicateMap =
-        (Map[Expr, Set[InputOutputExample]]() /: inputsPerPredicate) {
-          case (current, (fragment, pair)) =>
-            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExample]()) + pair))
-        }
-      
-      inputsPerPredicateMap.size shouldBe 4
-      
-      val synthesizer = new Synthesizer
-      
-//      val resultPredicates =
-//        synthesizer.calculatePredicatesStructureMapDifference(inputsPerPredicateMap.toSeq)
-//
-//      info("res: " + resultPredicates)
-      {
-        
-        val (examples, fragments) =
-          (for (fragment <- inputsPerPredicateMap.keys.toList;
-            example <- inputsPerPredicateMap(fragment).toList) yield
-            (example, fragment)).unzip
-            
-        info("examples: " + examples)
-        info("fragments: " + fragments)
-      
-        val result =
-          synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
-          
-        // TODO benchmark
-//        val start3 = System.currentTimeMillis() - start1
-//        println("start3: " + start3)
-          
-        info("result: " + result)
-        
-        ExprOps.formulaSize(result.get._1) shouldBe 185
-        
-        // both solutions can happen
-        val solutions =
-          """|if (Red == t.left.color && Black == t.left.right.color) {
+    val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
+
+    //      info("" + ioexamples.Util.mapOfSubexpressionsToPathFunctions(zippedSorted.last._1._1.head).map(
+    //        {case (k,v) => "" + k + "\n" + v(w) }))
+    //      info("" + zippedSorted.last)
+
+    val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
+    var covering = transformedExamples.map(_._1).toSet
+
+    //      val coveringPairs =
+    //        zippedSorted.takeWhile({
+    //          case _ if covering.isEmpty =>
+    //            false
+    //          case p@(exPair, fragment) =>
+    //            covering = covering - exPair._1
+    //            taken += p
+    //            true
+    //        })
+    //        
+    //      info(s"zipped size ${zipped.size}; coveringPairs size: " + coveringPairs.size)
+    //      info("covering pairs\n: " + coveringPairs.mkString("\n"))
+
+    val groupped = zipped.groupBy(_._1._1)
+    val sorted =
+      for ((input, list) <- groupped) yield {
+        val fragments = list.map(_._2)
+        (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
+      }
+
+    // TODO make this a proper benchmark
+    //      val start2 = System.currentTimeMillis() - start1
+    //      println("start2: " + start2)
+
+    info("")
+    info("")
+    info("")
+    info("sorted:\n" + sorted.
+      map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
+
+    info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
+
+    //      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
+    //        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
+    //      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
+
+    val inputsPerPredicate =
+      for ((examplePair, fragment) <- zipped) yield {
+        val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
+
+        (fragmentHead, examplePair)
+      }
+
+    val inputsPerPredicateMap =
+      (Map[Expr, Set[InputOutputExample]]() /: inputsPerPredicate) {
+        case (current, (fragment, pair)) =>
+          current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExample]()) + pair))
+      }
+
+    inputsPerPredicateMap.size shouldBe 4
+
+    val synthesizer = new Synthesizer
+
+    //      val resultPredicates =
+    //        synthesizer.calculatePredicatesStructureMapDifference(inputsPerPredicateMap.toSeq)
+    //
+    //      info("res: " + resultPredicates)
+    {
+
+      val (examples, fragments) =
+        (for (
+          fragment <- inputsPerPredicateMap.keys.toList;
+          example <- inputsPerPredicateMap(fragment).toList
+        ) yield (example, fragment)).unzip
+
+      info("examples: " + examples)
+      info("fragments: " + fragments)
+
+      val result =
+        synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
+
+      // TODO benchmark
+      //        val start3 = System.currentTimeMillis() - start1
+      //        println("start3: " + start3)
+
+      info("result: " + result)
+
+      ExprOps.formulaSize(result.get._1) shouldBe 185
+
+      // both solutions can happen
+      val solutions =
+        """|if (Red == t.left.color && Black == t.left.right.color) {
              |  Node(t.left.color, Node(t.color, t.left.left.left, t.left.left.value, t.left.left.right), t.left.value, Node(t.color, t.left.right, t.value, t.right))
              |} else if (Red == t.left.color && Black != t.left.right.color) {
              |  Node(t.left.color, Node(t.color, t.left.left, t.left.value, t.left.right.left), t.left.right.value, Node(t.color, t.left.right.right, t.value, t.right))
@@ -996,801 +991,801 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
              |  ()
              |}""".stripMargin :: Nil
 
-        withClue("Expected:\n" + solutions.mkString("\n") + "Gotten:\n" + result.get._1.toString) {
-          solutions should contain (result.get._1.toString)
-        }
+      withClue("Expected:\n" + solutions.mkString("\n") + "Gotten:\n" + result.get._1.toString) {
+        solutions should contain(result.get._1.toString)
       }
     }
+  }
 
-//
-//
-//
-//
-//  ignore("example extraction") {
-//    val eb = problem.eb
-//
-//    info("invalids:\n" + eb.invalids.mkString("\n"))
-//    info("valids:\n" + eb.valids.mkString("\n"))
-//
-//    problem.hasOutputTests shouldBe false
-//
-//    problem.xs should have size 1
-//
-//    val resType = problem.xs.head.getType
-//
-//    val enum = getEnum(resType)
-//
-//    val firstN = enum.take(2000).toArray.sortBy(_.hashCode)
-//
-//    val numOfExamples = 1152
-//
-//    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
-//    firstN.size shouldBe numOfExamples
-//
-//    //    "output finding" -
-//    {
-//      val phi = problem.phi
-//
-//      problem.as should have size 1
-//      val in = problem.as.head
-//
-//      problem.xs should have size 1
-//      val out = problem.xs.head
-//
-//      //      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
-//      val results = new collection.mutable.MutableList[(Expr, Expr)]()
-//
-//      import scala.util.Random
-//      val randomGen = new Random("random number my version".hashCode)
-//      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
-//      info("randoms " + randoms)
-//
-//      val pc = problem.pc
-//      val toEvaluate = And(pc.toClause, phi)
-//      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
-//
-//      for (ex1 <- randoms map { firstN }) {
-//        //        _ = info("*******");
-//        var flag = true
-//        val ex2it = firstN.iterator;
-//        while (flag && ex2it.nonEmpty) {
-//          val ex2 = ex2it.next
-//          //        info("toEvaluate " + toEvaluate)
-//
-//          //        info(s"for in $ex1, out $ex2")
-//          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
-//          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
-//          //          info(s"for in $ex1, out $ex2, got $res")
-//
-//          res match {
-//            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//              //            info(s"for in $ex1, out $ex2")
-//              //            info("***")
-//              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-//              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-//              //                results.getOrElse(ex1, ex2) shouldBe ex2
-//              //              results should not contain key (ex1)
-//              //              }
-//
-//              //              results(ex1) += ex2
-//              results += ((ex1, ex2))
-//            //          info(s"$v for $ex, ${v1}, $v2")
-//            case e: EvaluationResults.EvaluatorError =>
-//            //          info("evaluation failure: " + e + s" for $v1 and $v2")
-//            case _                                   =>
-//          }
-//        }
-//      }
-//
-//      results.size shouldBe >(0)
-//      results should have size (96)
-//
-//      info(s"result with more than 6 results: " + {
-//        val (k, v) = results.groupBy(_._1).find(_._2.size > 2).get
-//        val v2 = v.map({ case (k, v) => v })
-//        k + "\n" + v2
-//      })
-//
-//      val extraction = new ExamplesExtraction(sctx, sctx.program)
-//
-//      val examples = results.map({
-//        case (inEx, outEx) =>
-//          ((in, inEx) :: Nil, (out, outEx))
-//      }).toList
-//
-//      //      info("examples\n" + examples.mkString("\n"))
-//      examples should have size (96)
-//
-//      //      test: attempt synthesis
-//      // get fragments
-//      //      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-//      //      info(s"inIds $inIds")
-//      //      info("transformed examples: " + transformedExamples.mkString("\n"))
-//      //      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-//      //      info("unordered fragments: " + unorderedFragments.mkString("\n"))
-//
-//    }
-//
-//  }
-//  
-//  ignore("synthesis, two cases") {
-//    val eb = problem.eb
-//
-//    info("invalids:\n" + eb.invalids.mkString("\n"))
-//    info("valids:\n" + eb.valids.mkString("\n"))
-//
-//    problem.hasOutputTests shouldBe false
-//
-//    problem.xs should have size 1
-//
-//    val resType = problem.xs.head.getType
-//
-//    val ms = new scope.AccumulatingScope
-//    val enum = constructEnumerator_new(ms)
-//
-//    info("going into enumeration")
-//
-//    val firstNNormal = (
-//      for (size <- 3 to 7) yield {
-//        for (
-//          blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
-//          e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
-//          ind <- 0 until e.size
-//        ) yield e(ind)
-//      }).flatten
-//      
-//    info("enumerated datastructs: " + firstNNormal.mkString("\n"))
-//        
-//    val firstNReverted =
-//      for (
-//        tree <- firstNNormal
-//      ) yield {
-//        tree match {
-////          case
-////            CaseClass(_,
-////              `black` ::
-////              CaseClass(_,
-////                `red` :: ll :: lv :: lr :: Nil) ::
-////              v ::
-////              CaseClass(_,
-////                `red` :: rl :: rv :: rr :: Nil) ::
-////            Nil) =>
-////              ???
-//          case
-//            CaseClass(`nodeClass`,
-//              `black` ::
-//              CaseClass(`nodeClass`,
-//                `red` :: ll :: lv :: lr :: Nil) ::
-//              v ::
-//              CaseClass(`nodeClass`,
-//                `red` :: rl :: rv :: rr :: Nil) ::
-//            Nil) =>
-//              val v1 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  CaseClass(nodeClass,
-//                    red ::
-//                    CaseClass(nodeClass,
-//                      red :: ll :: lv :: lr :: Nil) ::
-//                    v :: rl :: Nil) ::
-//                  rv ::
-//                  rr ::
-//                Nil)
-//                
-//              val v2 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  CaseClass(nodeClass,
-//                    red :: ll :: lv ::
-//                    CaseClass(nodeClass,
-//                      red :: lr :: v :: rl :: Nil) :: Nil) ::
-//                  rv ::
-//                  rr ::
-//                Nil)
-//                
-////              val v3 =
-////                CaseClass(nodeClass,
-////                  ??? ::
-////                  CaseClass(nodeClass,
-////                    ??? ::
-////                    CaseClass(nodeClass,
-////                      ??? :: ??? :: ??? :: ??? :: Nil) ::
-////                    ??? :: ??? :: Nil) ::
-////                  ??? ::
-////                  ??? ::
-////                Nil)
-////                
-////                
-////              val v4 =
-////                CaseClass(nodeClass,
-////                  ??? ::
-////                  CaseClass(nodeClass,
-////                    ??? ::
-////                    CaseClass(nodeClass,
-////                      ??? :: ??? :: ??? :: ??? :: Nil) ::
-////                    ??? :: ??? :: Nil) ::
-////                  ??? ::
-////                  ??? ::
-////                Nil)
-////                
-//              v1 :: v2 :: Nil // v3 :: v4 :: Nil
-//          case _ =>
-//            Nil
-//        }
-//      }
-//
-////      only red to black
-////      firstNNormal map {
-////        case CaseClass(nodeClass, color :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil) =>
-////          if (color == red)
-////            CaseClass(nodeClass, black :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
-////          else
-////            CaseClass(nodeClass, red :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
-////      }
-//    
-//    val firstN =
-//      firstNNormal ++
-//      firstNReverted.flatten
-//
-//    val numOfExamples = 42
-//      
-//    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
-////    firstN.size shouldBe numOfExamples
-//
-//    val filteredExamples =
-//    {
-//      val phi = problem.phi
-//
-//      problem.as should have size 1
-//      val in = problem.as.head
-//      problem.xs should have size 1
-//      val out = problem.xs.head
-//      val pc = problem.pc
-//      val toEvaluate = pc.toClause
-//      val compiled = evaluator.compile(toEvaluate, in :: Nil).get
-//
-//      for (ex1 <- firstN) yield {
-//        //        _ = info("*******");
-//        val res = compiled(new Model(Map(in -> ex1)))
-//        //          info(s"for in $ex1, out $ex2, got $res")
-//
-//        res match {
-//          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//            //            info(s"for in $ex1, out $ex2")
-//            //            info("***")
-//            //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-//            //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-//            //                results.getOrElse(ex1, ex2) shouldBe ex2
-//            //              results should not contain key (ex1)
-//            //              }
-//
-////              assert(!(results contains ex1))
-////              assert(results.getOrElse(ex1, ex2))
-////              results(ex1) = ex2
-//            info("pass precondition for: " + ex1)
-//            Some(ex1)
-//          //          info(s"$v for $ex, ${v1}, $v2")
-//          case e: EvaluationResults.EvaluatorError =>
-////                    info("evaluation failure: " + e + s" for $ex1")
-//            None
-//          case _                                   =>
-////            info("ffs")
-//            None
-//        }
-//      }
-//
-//    }
-//
-//    //    "output finding" -
-//    {
-//      val phi = problem.phi
-//
-//      problem.as should have size 1
-//      val in = problem.as.head
-//
-//      problem.xs should have size 1
-//      val out = problem.xs.head
-//
-////      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
-////      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
-//      val results = new collection.mutable.MutableList[(Expr, Expr)]()
-//
-////      import scala.util.Random
-////      val randomGen = new Random("random number my version".hashCode)
-////      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
-////      info("randoms " + randoms)
-//
-//      val pc = problem.pc
-//      val toEvaluate = And(pc.toClause, phi)
-//      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
-//
-////      for (ex1 <- firstN) {
-//      for (ex1 <- filteredExamples.flatten) {
-//        //        _ = info("*******");
-//        var flag = true
-//        val ex2it = firstN.iterator;
-//        while (flag && ex2it.nonEmpty) {
-//          val ex2 = ex2it.next
-//          //        info("toEvaluate " + toEvaluate)
-//
-//          //        info(s"for in $ex1, out $ex2")
-//          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
-//          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
-//          //          info(s"for in $ex1, out $ex2, got $res")
-//
-//          res match {
-//            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//              //            info(s"for in $ex1, out $ex2")
-//              //            info("***")
-//              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-//              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-//              //                results.getOrElse(ex1, ex2) shouldBe ex2
-//              //              results should not contain key (ex1)
-//              //              }
-//
-////              assert(!(results contains ex1))
-////              assert(results.getOrElse(ex1, ex2))
-////              results(ex1) += ex2
-//              results += ((ex1, ex2))
-//            //          info(s"$v for $ex, ${v1}, $v2")
-//            case e: EvaluationResults.EvaluatorError =>
-//            //          info("evaluation failure: " + e + s" for $v1 and $v2")
-//            case _                                   =>
-//          }
-//        }
-//      }
-//
-//      results.size shouldBe >(0)
-////      results should have size (56)
-//
-////      info(s"result with more than 6 results: " + {
-////        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
-////        val v2 = v.map({ case (k, v) => v })
-////        k + "\n" + v2
-////      })
-//
-//      val extraction = new ExamplesExtraction(sctx, sctx.program)
-//      
-////      val resultsSmallest = results map {
-////        case (k, v) =>
-////          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
-////      }
-//
-//      val examples = results.map({
-//        case (inEx, outEx) =>
-//          ((in, inEx) :: Nil, (out, outEx))
-//      }).toList
-//
-//      //      info("examples\n" + examples.mkString("\n"))
-////      examples should have size (56)
-//
-//      //      test: attempt synthesis
-//      // get fragments
-//      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-//      info(s"inIds $inIds")
-//      info("transformed examples: " + transformedExamples.mkString("\n"))
-//      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-//      info("unordered fragments: " + unorderedFragments.mkString("\n"))
-//      
-//      transformedExamples should have size unorderedFragments.size
-//      val zipped = (transformedExamples zip unorderedFragments)
-//      val groupped = zipped.groupBy(_._1._1)
-//      val sorted =
-//        for ( (input, list) <- groupped ) yield {
-//          val fragments = list.map(_._2)
-//          (input, fragments.sortBy(ExprOps.formulaSize _).head)
-//        }
-//
-//      info("")
-//      info("")
-//      info("")
-//      info("sorted:\n" + sorted.
-//        map({ case (k, v) => k.head + "\n" + v }).mkString("\n******\n"))
-////      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
-////        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
-////      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
-//
-//    }
-//
-//  }
-//  
-//  ignore("datageneration, with precondition") {
-//    val eb = problem.eb
-//
-//    info("invalids:\n" + eb.invalids.mkString("\n"))
-//    info("valids:\n" + eb.valids.mkString("\n"))
-//
-//    problem.hasOutputTests shouldBe false
-//
-//    problem.xs should have size 1
-//
-//    val resType = problem.xs.head.getType
-//
-//    val ms = new scope.AccumulatingScope
-//    val enum = constructEnumerator_new(ms)
-//
-//    info("going into enumeration")
-//
-//    val firstNNormal = (
-//      for (size <- 3 to 7) yield {
-//        for (
-//          blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
-//          e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
-//          ind <- 0 until e.size
-//        ) yield e(ind)
-//      }).flatten
-//      
-//    info("enumerated datastructs: " + firstNNormal.mkString("\n"))
-//        
-//    val firstNReverted =
-//      for (
-//        tree <- firstNNormal
-//      ) yield {
-//        tree match {
-////          case
-////            CaseClass(_,
-////              `black` ::
-////              CaseClass(_,
-////                `red` :: ll :: lv :: lr :: Nil) ::
-////              v ::
-////              CaseClass(_,
-////                `red` :: rl :: rv :: rr :: Nil) ::
-////            Nil) =>
-////              ???
-//          case
-//            CaseClass(`nodeClass`,
-//              `black` ::
-//              CaseClass(`nodeClass`,
-//                `red` :: ll :: lv :: lr :: Nil) ::
-//              v ::
-//              CaseClass(`nodeClass`,
-//                `red` :: rl :: rv :: rr :: Nil) ::
-//            Nil) =>
-//              val v1 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  CaseClass(nodeClass,
-//                    red ::
-//                    CaseClass(nodeClass,
-//                      red :: ll :: lv :: lr :: Nil) ::
-//                    v :: rl :: Nil) ::
-//                  rv ::
-//                  rr ::
-//                Nil)
-//                
-//              val v2 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  CaseClass(nodeClass,
-//                    red :: ll :: lv ::
-//                    CaseClass(nodeClass,
-//                      red :: lr :: v :: rl :: Nil) :: Nil) ::
-//                  rv ::
-//                  rr ::
-//                Nil)
-//                
-//              val v3 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  ll ::
-//                  lv ::
-//                  CaseClass(nodeClass,
-//                    red ::
-//                    CaseClass(nodeClass,
-//                      red :: lr :: v :: rl :: Nil) ::
-//                    rv :: rr :: Nil) ::
-//                Nil)
-//                
-//              val v4 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  ll ::
-//                  lv ::
-//                  CaseClass(nodeClass,
-//                    red :: lr :: v ::
-//                    CaseClass(nodeClass,
-//                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
-//                Nil)
-//                
-//              v1 :: v2 :: v3 :: v4 :: Nil
-//          case _ =>
-//            Nil
-//        }
-//      }
-//
-////      only red to black
-////      firstNNormal map {
-////        case CaseClass(nodeClass, color :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil) =>
-////          if (color == red)
-////            CaseClass(nodeClass, black :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
-////          else
-////            CaseClass(nodeClass, red :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
-////      }
-//    
-//    val firstN =
-//      firstNNormal ++
-//      firstNReverted.flatten
-//
-//    val numOfExamples = 42
-//      
-//    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
-////    firstN.size shouldBe numOfExamples
-//
-//    val phi = problem.phi
-//
-//    problem.as should have size 1
-//    val in = problem.as.head
-//    problem.xs should have size 1
-//    val out = problem.xs.head
-//    val pc = problem.pc
-//    info("precondition to evaluate: " + pc)
-//    val toEvaluate = pc.toClause
-//    val compiled = evaluator.compile(toEvaluate, in :: Nil).get
-//
-//    for (ex1 <- firstN) {
-//      val res = compiled(new Model(Map(in -> ex1)))
-//
-//      res match {
-//        case EvaluationResults.Successful(BooleanLiteral(v)) =>
-//          info("pass precondition for: " + ex1)
-//          
-//          v shouldBe (firstNReverted.flatten contains ex1)
-//          v shouldBe !(firstNNormal contains ex1)
-//        case e: EvaluationResults.EvaluatorError =>
-//          None
-//        case _                                   =>
-//          None
-//      }
-//    }
-//
-//  }
-//  
-//  ignore("synthesis") {
-//    val eb = problem.eb
-//
-//    info("invalids:\n" + eb.invalids.mkString("\n"))
-//    info("valids:\n" + eb.valids.mkString("\n"))
-//
-//    problem.hasOutputTests shouldBe false
-//
-//    problem.xs should have size 1
-//
-//    val resType = problem.xs.head.getType
-//
-//    val ms = new scope.AccumulatingScope
-//    val enum = constructEnumerator_new(ms)
-//
-//    info("going into enumeration")
-//
-//    val firstNNormal = (
-//      for (size <- 3 to 7) yield {
-//        for (
-//          blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
-//          e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
-//          ind <- 0 until e.size
-//        ) yield e(ind)
-//      }).flatten
-//      
-//    info("enumerated datastructs: " + firstNNormal.mkString("\n"))
-//        
-//    val firstNReverted =
-//      for (
-//        tree <- firstNNormal
-//      ) yield {
-//        tree match {
-//          case
-//            CaseClass(`nodeClass`,
-//              `black` ::
-//              CaseClass(`nodeClass`,
-//                `red` :: ll :: lv :: lr :: Nil) ::
-//              v ::
-//              CaseClass(`nodeClass`,
-//                `red` :: rl :: rv :: rr :: Nil) ::
-//            Nil) =>
-//              val v1 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  CaseClass(nodeClass,
-//                    red ::
-//                    CaseClass(nodeClass,
-//                      red :: ll :: lv :: lr :: Nil) ::
-//                    v :: rl :: Nil) ::
-//                  rv ::
-//                  rr ::
-//                Nil)
-//                
-//              val v2 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  CaseClass(nodeClass,
-//                    red :: ll :: lv ::
-//                    CaseClass(nodeClass,
-//                      red :: lr :: v :: rl :: Nil) :: Nil) ::
-//                  rv ::
-//                  rr ::
-//                Nil)
-//                
-//              val v3 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  ll ::
-//                  lv ::
-//                  CaseClass(nodeClass,
-//                    red ::
-//                    CaseClass(nodeClass,
-//                      red :: lr :: v :: rl :: Nil) ::
-//                    rv :: rr :: Nil) ::
-//                Nil)
-//                
-//              val v4 =
-//                CaseClass(nodeClass,
-//                  black ::
-//                  ll ::
-//                  lv ::
-//                  CaseClass(nodeClass,
-//                    red :: lr :: v ::
-//                    CaseClass(nodeClass,
-//                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
-//                Nil)
-//                
-//              v1 :: v2 :: v3 :: v4 :: Nil
-//          case _ =>
-//            Nil
-//        }
-//      }
-//
-//    val firstN =
-//      firstNNormal ++
-//      firstNReverted.flatten
-//
-//    val numOfExamples = 42
-//      
-//    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
-////    firstN.size shouldBe numOfExamples
-//
-//    val filteredExamples =
-//    {
-//      val phi = problem.phi
-//
-//      problem.as should have size 1
-//      val in = problem.as.head
-//      problem.xs should have size 1
-//      val out = problem.xs.head
-//      val pc = problem.pc
-//      val toEvaluate = pc.toClause
-//      val compiled = evaluator.compile(toEvaluate, in :: Nil).get
-//
-//      for (ex1 <- firstN) yield {
-//        val res = compiled(new Model(Map(in -> ex1)))
-//
-//        res match {
-//          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//            info("pass precondition for: " + ex1)
-//            Some(ex1)
-//          case e: EvaluationResults.EvaluatorError =>
-//            None
-//          case _                                   =>
-//            None
-//        }
-//      }
-//
-//    }
-//
-//    //    "output finding" -
-//    {
-//      val phi = problem.phi
-//
-//      problem.as should have size 1
-//      val in = problem.as.head
-//
-//      problem.xs should have size 1
-//      val out = problem.xs.head
-//
-////      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
-////      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
-//      val results = new collection.mutable.MutableList[(Expr, Expr)]()
-//
-////      import scala.util.Random
-////      val randomGen = new Random("random number my version".hashCode)
-////      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
-////      info("randoms " + randoms)
-//
-//      val pc = problem.pc
-//      val toEvaluate = And(pc.toClause, phi)
-//      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
-//
-////      for (ex1 <- firstN) {
-//      for (ex1 <- filteredExamples.flatten) {
-//        //        _ = info("*******");
-//        var flag = true
-//        val ex2it = firstN.iterator;
-//        while (flag && ex2it.nonEmpty) {
-//          val ex2 = ex2it.next
-//          //        info("toEvaluate " + toEvaluate)
-//
-//          //        info(s"for in $ex1, out $ex2")
-//          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
-//          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
-//          //          info(s"for in $ex1, out $ex2, got $res")
-//
-//          res match {
-//            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//              //            info(s"for in $ex1, out $ex2")
-//              //            info("***")
-//              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-//              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-//              //                results.getOrElse(ex1, ex2) shouldBe ex2
-//              //              results should not contain key (ex1)
-//              //              }
-//
-////              assert(!(results contains ex1))
-////              assert(results.getOrElse(ex1, ex2))
-////              results(ex1) += ex2
-//              results += ((ex1, ex2))
-//            //          info(s"$v for $ex, ${v1}, $v2")
-//            case e: EvaluationResults.EvaluatorError =>
-//            //          info("evaluation failure: " + e + s" for $v1 and $v2")
-//            case _                                   =>
-//          }
-//        }
-//      }
-//
-//      results.size shouldBe >(0)
-////      results should have size (56)
-//
-////      info(s"result with more than 6 results: " + {
-////        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
-////        val v2 = v.map({ case (k, v) => v })
-////        k + "\n" + v2
-////      })
-//
-//      val extraction = new ExamplesExtraction(sctx, sctx.program)
-//      
-////      val resultsSmallest = results map {
-////        case (k, v) =>
-////          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
-////      }
-//
-//      val examples = results.map({
-//        case (inEx, outEx) =>
-//          ((in, inEx) :: Nil, (out, outEx))
-//      }).toList
-//
-//      //      info("examples\n" + examples.mkString("\n"))
-////      examples should have size (56)
-//
-//      //      test: attempt synthesis
-//      // get fragments
-//      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-//      info(s"inIds $inIds")
-//      info("transformed examples: " + transformedExamples.mkString("\n"))
-//      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-//      info("unordered fragments: " + unorderedFragments.mkString("\n"))
-//      
-//      val unorederdFragmentsSet = unorderedFragments.toSet
-//      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
-//      ???
-//      
-//      transformedExamples should have size unorderedFragments.size
-//      val zipped = (transformedExamples zip unorderedFragments)
-//      val groupped = zipped.groupBy(_._1._1)
-//      val sorted =
-//        for ( (input, list) <- groupped ) yield {
-//          val fragments = list.map(_._2)
-//          (input, fragments.sortBy(ExprOps.formulaSize _).head)
-//        }
-//
-//      info("")
-//      info("")
-//      info("")
-//      info("sorted:\n" + sorted.
-//        map({ case (k, v) => k.head + "\n" + v }).mkString("\n******\n"))
-////      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
-////        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
-////      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
-//
-//    }
-//
-//  }
+  //
+  //
+  //
+  //
+  //  ignore("example extraction") {
+  //    val eb = problem.eb
+  //
+  //    info("invalids:\n" + eb.invalids.mkString("\n"))
+  //    info("valids:\n" + eb.valids.mkString("\n"))
+  //
+  //    problem.hasOutputTests shouldBe false
+  //
+  //    problem.xs should have size 1
+  //
+  //    val resType = problem.xs.head.getType
+  //
+  //    val enum = getEnum(resType)
+  //
+  //    val firstN = enum.take(2000).toArray.sortBy(_.hashCode)
+  //
+  //    val numOfExamples = 1152
+  //
+  //    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
+  //    firstN.size shouldBe numOfExamples
+  //
+  //    //    "output finding" -
+  //    {
+  //      val phi = problem.phi
+  //
+  //      problem.as should have size 1
+  //      val in = problem.as.head
+  //
+  //      problem.xs should have size 1
+  //      val out = problem.xs.head
+  //
+  //      //      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
+  //      val results = new collection.mutable.MutableList[(Expr, Expr)]()
+  //
+  //      import scala.util.Random
+  //      val randomGen = new Random("random number my version".hashCode)
+  //      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
+  //      info("randoms " + randoms)
+  //
+  //      val pc = problem.pc
+  //      val toEvaluate = And(pc.toClause, phi)
+  //      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+  //
+  //      for (ex1 <- randoms map { firstN }) {
+  //        //        _ = info("*******");
+  //        var flag = true
+  //        val ex2it = firstN.iterator;
+  //        while (flag && ex2it.nonEmpty) {
+  //          val ex2 = ex2it.next
+  //          //        info("toEvaluate " + toEvaluate)
+  //
+  //          //        info(s"for in $ex1, out $ex2")
+  //          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+  //          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+  //          //          info(s"for in $ex1, out $ex2, got $res")
+  //
+  //          res match {
+  //            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+  //              //            info(s"for in $ex1, out $ex2")
+  //              //            info("***")
+  //              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+  //              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+  //              //                results.getOrElse(ex1, ex2) shouldBe ex2
+  //              //              results should not contain key (ex1)
+  //              //              }
+  //
+  //              //              results(ex1) += ex2
+  //              results += ((ex1, ex2))
+  //            //          info(s"$v for $ex, ${v1}, $v2")
+  //            case e: EvaluationResults.EvaluatorError =>
+  //            //          info("evaluation failure: " + e + s" for $v1 and $v2")
+  //            case _                                   =>
+  //          }
+  //        }
+  //      }
+  //
+  //      results.size shouldBe >(0)
+  //      results should have size (96)
+  //
+  //      info(s"result with more than 6 results: " + {
+  //        val (k, v) = results.groupBy(_._1).find(_._2.size > 2).get
+  //        val v2 = v.map({ case (k, v) => v })
+  //        k + "\n" + v2
+  //      })
+  //
+  //      val extraction = new ExamplesExtraction(sctx, sctx.program)
+  //
+  //      val examples = results.map({
+  //        case (inEx, outEx) =>
+  //          ((in, inEx) :: Nil, (out, outEx))
+  //      }).toList
+  //
+  //      //      info("examples\n" + examples.mkString("\n"))
+  //      examples should have size (96)
+  //
+  //      //      test: attempt synthesis
+  //      // get fragments
+  //      //      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+  //      //      info(s"inIds $inIds")
+  //      //      info("transformed examples: " + transformedExamples.mkString("\n"))
+  //      //      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+  //      //      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+  //
+  //    }
+  //
+  //  }
+  //  
+  //  ignore("synthesis, two cases") {
+  //    val eb = problem.eb
+  //
+  //    info("invalids:\n" + eb.invalids.mkString("\n"))
+  //    info("valids:\n" + eb.valids.mkString("\n"))
+  //
+  //    problem.hasOutputTests shouldBe false
+  //
+  //    problem.xs should have size 1
+  //
+  //    val resType = problem.xs.head.getType
+  //
+  //    val ms = new scope.AccumulatingScope
+  //    val enum = constructEnumerator_new(ms)
+  //
+  //    info("going into enumeration")
+  //
+  //    val firstNNormal = (
+  //      for (size <- 3 to 7) yield {
+  //        for (
+  //          blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
+  //          e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
+  //          ind <- 0 until e.size
+  //        ) yield e(ind)
+  //      }).flatten
+  //      
+  //    info("enumerated datastructs: " + firstNNormal.mkString("\n"))
+  //        
+  //    val firstNReverted =
+  //      for (
+  //        tree <- firstNNormal
+  //      ) yield {
+  //        tree match {
+  ////          case
+  ////            CaseClass(_,
+  ////              `black` ::
+  ////              CaseClass(_,
+  ////                `red` :: ll :: lv :: lr :: Nil) ::
+  ////              v ::
+  ////              CaseClass(_,
+  ////                `red` :: rl :: rv :: rr :: Nil) ::
+  ////            Nil) =>
+  ////              ???
+  //          case
+  //            CaseClass(`nodeClass`,
+  //              `black` ::
+  //              CaseClass(`nodeClass`,
+  //                `red` :: ll :: lv :: lr :: Nil) ::
+  //              v ::
+  //              CaseClass(`nodeClass`,
+  //                `red` :: rl :: rv :: rr :: Nil) ::
+  //            Nil) =>
+  //              val v1 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  CaseClass(nodeClass,
+  //                    red ::
+  //                    CaseClass(nodeClass,
+  //                      red :: ll :: lv :: lr :: Nil) ::
+  //                    v :: rl :: Nil) ::
+  //                  rv ::
+  //                  rr ::
+  //                Nil)
+  //                
+  //              val v2 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  CaseClass(nodeClass,
+  //                    red :: ll :: lv ::
+  //                    CaseClass(nodeClass,
+  //                      red :: lr :: v :: rl :: Nil) :: Nil) ::
+  //                  rv ::
+  //                  rr ::
+  //                Nil)
+  //                
+  ////              val v3 =
+  ////                CaseClass(nodeClass,
+  ////                  ??? ::
+  ////                  CaseClass(nodeClass,
+  ////                    ??? ::
+  ////                    CaseClass(nodeClass,
+  ////                      ??? :: ??? :: ??? :: ??? :: Nil) ::
+  ////                    ??? :: ??? :: Nil) ::
+  ////                  ??? ::
+  ////                  ??? ::
+  ////                Nil)
+  ////                
+  ////                
+  ////              val v4 =
+  ////                CaseClass(nodeClass,
+  ////                  ??? ::
+  ////                  CaseClass(nodeClass,
+  ////                    ??? ::
+  ////                    CaseClass(nodeClass,
+  ////                      ??? :: ??? :: ??? :: ??? :: Nil) ::
+  ////                    ??? :: ??? :: Nil) ::
+  ////                  ??? ::
+  ////                  ??? ::
+  ////                Nil)
+  ////                
+  //              v1 :: v2 :: Nil // v3 :: v4 :: Nil
+  //          case _ =>
+  //            Nil
+  //        }
+  //      }
+  //
+  ////      only red to black
+  ////      firstNNormal map {
+  ////        case CaseClass(nodeClass, color :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil) =>
+  ////          if (color == red)
+  ////            CaseClass(nodeClass, black :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
+  ////          else
+  ////            CaseClass(nodeClass, red :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
+  ////      }
+  //    
+  //    val firstN =
+  //      firstNNormal ++
+  //      firstNReverted.flatten
+  //
+  //    val numOfExamples = 42
+  //      
+  //    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
+  ////    firstN.size shouldBe numOfExamples
+  //
+  //    val filteredExamples =
+  //    {
+  //      val phi = problem.phi
+  //
+  //      problem.as should have size 1
+  //      val in = problem.as.head
+  //      problem.xs should have size 1
+  //      val out = problem.xs.head
+  //      val pc = problem.pc
+  //      val toEvaluate = pc.toClause
+  //      val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+  //
+  //      for (ex1 <- firstN) yield {
+  //        //        _ = info("*******");
+  //        val res = compiled(new Model(Map(in -> ex1)))
+  //        //          info(s"for in $ex1, out $ex2, got $res")
+  //
+  //        res match {
+  //          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+  //            //            info(s"for in $ex1, out $ex2")
+  //            //            info("***")
+  //            //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+  //            //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+  //            //                results.getOrElse(ex1, ex2) shouldBe ex2
+  //            //              results should not contain key (ex1)
+  //            //              }
+  //
+  ////              assert(!(results contains ex1))
+  ////              assert(results.getOrElse(ex1, ex2))
+  ////              results(ex1) = ex2
+  //            info("pass precondition for: " + ex1)
+  //            Some(ex1)
+  //          //          info(s"$v for $ex, ${v1}, $v2")
+  //          case e: EvaluationResults.EvaluatorError =>
+  ////                    info("evaluation failure: " + e + s" for $ex1")
+  //            None
+  //          case _                                   =>
+  ////            info("ffs")
+  //            None
+  //        }
+  //      }
+  //
+  //    }
+  //
+  //    //    "output finding" -
+  //    {
+  //      val phi = problem.phi
+  //
+  //      problem.as should have size 1
+  //      val in = problem.as.head
+  //
+  //      problem.xs should have size 1
+  //      val out = problem.xs.head
+  //
+  ////      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
+  ////      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
+  //      val results = new collection.mutable.MutableList[(Expr, Expr)]()
+  //
+  ////      import scala.util.Random
+  ////      val randomGen = new Random("random number my version".hashCode)
+  ////      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
+  ////      info("randoms " + randoms)
+  //
+  //      val pc = problem.pc
+  //      val toEvaluate = And(pc.toClause, phi)
+  //      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+  //
+  ////      for (ex1 <- firstN) {
+  //      for (ex1 <- filteredExamples.flatten) {
+  //        //        _ = info("*******");
+  //        var flag = true
+  //        val ex2it = firstN.iterator;
+  //        while (flag && ex2it.nonEmpty) {
+  //          val ex2 = ex2it.next
+  //          //        info("toEvaluate " + toEvaluate)
+  //
+  //          //        info(s"for in $ex1, out $ex2")
+  //          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+  //          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+  //          //          info(s"for in $ex1, out $ex2, got $res")
+  //
+  //          res match {
+  //            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+  //              //            info(s"for in $ex1, out $ex2")
+  //              //            info("***")
+  //              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+  //              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+  //              //                results.getOrElse(ex1, ex2) shouldBe ex2
+  //              //              results should not contain key (ex1)
+  //              //              }
+  //
+  ////              assert(!(results contains ex1))
+  ////              assert(results.getOrElse(ex1, ex2))
+  ////              results(ex1) += ex2
+  //              results += ((ex1, ex2))
+  //            //          info(s"$v for $ex, ${v1}, $v2")
+  //            case e: EvaluationResults.EvaluatorError =>
+  //            //          info("evaluation failure: " + e + s" for $v1 and $v2")
+  //            case _                                   =>
+  //          }
+  //        }
+  //      }
+  //
+  //      results.size shouldBe >(0)
+  ////      results should have size (56)
+  //
+  ////      info(s"result with more than 6 results: " + {
+  ////        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
+  ////        val v2 = v.map({ case (k, v) => v })
+  ////        k + "\n" + v2
+  ////      })
+  //
+  //      val extraction = new ExamplesExtraction(sctx, sctx.program)
+  //      
+  ////      val resultsSmallest = results map {
+  ////        case (k, v) =>
+  ////          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
+  ////      }
+  //
+  //      val examples = results.map({
+  //        case (inEx, outEx) =>
+  //          ((in, inEx) :: Nil, (out, outEx))
+  //      }).toList
+  //
+  //      //      info("examples\n" + examples.mkString("\n"))
+  ////      examples should have size (56)
+  //
+  //      //      test: attempt synthesis
+  //      // get fragments
+  //      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+  //      info(s"inIds $inIds")
+  //      info("transformed examples: " + transformedExamples.mkString("\n"))
+  //      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+  //      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+  //      
+  //      transformedExamples should have size unorderedFragments.size
+  //      val zipped = (transformedExamples zip unorderedFragments)
+  //      val groupped = zipped.groupBy(_._1._1)
+  //      val sorted =
+  //        for ( (input, list) <- groupped ) yield {
+  //          val fragments = list.map(_._2)
+  //          (input, fragments.sortBy(ExprOps.formulaSize _).head)
+  //        }
+  //
+  //      info("")
+  //      info("")
+  //      info("")
+  //      info("sorted:\n" + sorted.
+  //        map({ case (k, v) => k.head + "\n" + v }).mkString("\n******\n"))
+  ////      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
+  ////        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
+  ////      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
+  //
+  //    }
+  //
+  //  }
+  //  
+  //  ignore("datageneration, with precondition") {
+  //    val eb = problem.eb
+  //
+  //    info("invalids:\n" + eb.invalids.mkString("\n"))
+  //    info("valids:\n" + eb.valids.mkString("\n"))
+  //
+  //    problem.hasOutputTests shouldBe false
+  //
+  //    problem.xs should have size 1
+  //
+  //    val resType = problem.xs.head.getType
+  //
+  //    val ms = new scope.AccumulatingScope
+  //    val enum = constructEnumerator_new(ms)
+  //
+  //    info("going into enumeration")
+  //
+  //    val firstNNormal = (
+  //      for (size <- 3 to 7) yield {
+  //        for (
+  //          blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
+  //          e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
+  //          ind <- 0 until e.size
+  //        ) yield e(ind)
+  //      }).flatten
+  //      
+  //    info("enumerated datastructs: " + firstNNormal.mkString("\n"))
+  //        
+  //    val firstNReverted =
+  //      for (
+  //        tree <- firstNNormal
+  //      ) yield {
+  //        tree match {
+  ////          case
+  ////            CaseClass(_,
+  ////              `black` ::
+  ////              CaseClass(_,
+  ////                `red` :: ll :: lv :: lr :: Nil) ::
+  ////              v ::
+  ////              CaseClass(_,
+  ////                `red` :: rl :: rv :: rr :: Nil) ::
+  ////            Nil) =>
+  ////              ???
+  //          case
+  //            CaseClass(`nodeClass`,
+  //              `black` ::
+  //              CaseClass(`nodeClass`,
+  //                `red` :: ll :: lv :: lr :: Nil) ::
+  //              v ::
+  //              CaseClass(`nodeClass`,
+  //                `red` :: rl :: rv :: rr :: Nil) ::
+  //            Nil) =>
+  //              val v1 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  CaseClass(nodeClass,
+  //                    red ::
+  //                    CaseClass(nodeClass,
+  //                      red :: ll :: lv :: lr :: Nil) ::
+  //                    v :: rl :: Nil) ::
+  //                  rv ::
+  //                  rr ::
+  //                Nil)
+  //                
+  //              val v2 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  CaseClass(nodeClass,
+  //                    red :: ll :: lv ::
+  //                    CaseClass(nodeClass,
+  //                      red :: lr :: v :: rl :: Nil) :: Nil) ::
+  //                  rv ::
+  //                  rr ::
+  //                Nil)
+  //                
+  //              val v3 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  ll ::
+  //                  lv ::
+  //                  CaseClass(nodeClass,
+  //                    red ::
+  //                    CaseClass(nodeClass,
+  //                      red :: lr :: v :: rl :: Nil) ::
+  //                    rv :: rr :: Nil) ::
+  //                Nil)
+  //                
+  //              val v4 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  ll ::
+  //                  lv ::
+  //                  CaseClass(nodeClass,
+  //                    red :: lr :: v ::
+  //                    CaseClass(nodeClass,
+  //                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
+  //                Nil)
+  //                
+  //              v1 :: v2 :: v3 :: v4 :: Nil
+  //          case _ =>
+  //            Nil
+  //        }
+  //      }
+  //
+  ////      only red to black
+  ////      firstNNormal map {
+  ////        case CaseClass(nodeClass, color :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil) =>
+  ////          if (color == red)
+  ////            CaseClass(nodeClass, black :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
+  ////          else
+  ////            CaseClass(nodeClass, red :: leftTree :: IntLiteral(currRoot) :: rightTree :: Nil)
+  ////      }
+  //    
+  //    val firstN =
+  //      firstNNormal ++
+  //      firstNReverted.flatten
+  //
+  //    val numOfExamples = 42
+  //      
+  //    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
+  ////    firstN.size shouldBe numOfExamples
+  //
+  //    val phi = problem.phi
+  //
+  //    problem.as should have size 1
+  //    val in = problem.as.head
+  //    problem.xs should have size 1
+  //    val out = problem.xs.head
+  //    val pc = problem.pc
+  //    info("precondition to evaluate: " + pc)
+  //    val toEvaluate = pc.toClause
+  //    val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+  //
+  //    for (ex1 <- firstN) {
+  //      val res = compiled(new Model(Map(in -> ex1)))
+  //
+  //      res match {
+  //        case EvaluationResults.Successful(BooleanLiteral(v)) =>
+  //          info("pass precondition for: " + ex1)
+  //          
+  //          v shouldBe (firstNReverted.flatten contains ex1)
+  //          v shouldBe !(firstNNormal contains ex1)
+  //        case e: EvaluationResults.EvaluatorError =>
+  //          None
+  //        case _                                   =>
+  //          None
+  //      }
+  //    }
+  //
+  //  }
+  //  
+  //  ignore("synthesis") {
+  //    val eb = problem.eb
+  //
+  //    info("invalids:\n" + eb.invalids.mkString("\n"))
+  //    info("valids:\n" + eb.valids.mkString("\n"))
+  //
+  //    problem.hasOutputTests shouldBe false
+  //
+  //    problem.xs should have size 1
+  //
+  //    val resType = problem.xs.head.getType
+  //
+  //    val ms = new scope.AccumulatingScope
+  //    val enum = constructEnumerator_new(ms)
+  //
+  //    info("going into enumeration")
+  //
+  //    val firstNNormal = (
+  //      for (size <- 3 to 7) yield {
+  //        for (
+  //          blackHeight <- 1 to (Math.log2(size + 1).toInt + 1);
+  //          e = enum.getEnum(size, 1 to size, 0 to 1, blackHeight);
+  //          ind <- 0 until e.size
+  //        ) yield e(ind)
+  //      }).flatten
+  //      
+  //    info("enumerated datastructs: " + firstNNormal.mkString("\n"))
+  //        
+  //    val firstNReverted =
+  //      for (
+  //        tree <- firstNNormal
+  //      ) yield {
+  //        tree match {
+  //          case
+  //            CaseClass(`nodeClass`,
+  //              `black` ::
+  //              CaseClass(`nodeClass`,
+  //                `red` :: ll :: lv :: lr :: Nil) ::
+  //              v ::
+  //              CaseClass(`nodeClass`,
+  //                `red` :: rl :: rv :: rr :: Nil) ::
+  //            Nil) =>
+  //              val v1 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  CaseClass(nodeClass,
+  //                    red ::
+  //                    CaseClass(nodeClass,
+  //                      red :: ll :: lv :: lr :: Nil) ::
+  //                    v :: rl :: Nil) ::
+  //                  rv ::
+  //                  rr ::
+  //                Nil)
+  //                
+  //              val v2 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  CaseClass(nodeClass,
+  //                    red :: ll :: lv ::
+  //                    CaseClass(nodeClass,
+  //                      red :: lr :: v :: rl :: Nil) :: Nil) ::
+  //                  rv ::
+  //                  rr ::
+  //                Nil)
+  //                
+  //              val v3 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  ll ::
+  //                  lv ::
+  //                  CaseClass(nodeClass,
+  //                    red ::
+  //                    CaseClass(nodeClass,
+  //                      red :: lr :: v :: rl :: Nil) ::
+  //                    rv :: rr :: Nil) ::
+  //                Nil)
+  //                
+  //              val v4 =
+  //                CaseClass(nodeClass,
+  //                  black ::
+  //                  ll ::
+  //                  lv ::
+  //                  CaseClass(nodeClass,
+  //                    red :: lr :: v ::
+  //                    CaseClass(nodeClass,
+  //                      red :: rl :: rv :: rr :: Nil) :: Nil) ::
+  //                Nil)
+  //                
+  //              v1 :: v2 :: v3 :: v4 :: Nil
+  //          case _ =>
+  //            Nil
+  //        }
+  //      }
+  //
+  //    val firstN =
+  //      firstNNormal ++
+  //      firstNReverted.flatten
+  //
+  //    val numOfExamples = 42
+  //      
+  //    info("firstN:\n" + firstN.zipWithIndex.mkString("\n"))
+  ////    firstN.size shouldBe numOfExamples
+  //
+  //    val filteredExamples =
+  //    {
+  //      val phi = problem.phi
+  //
+  //      problem.as should have size 1
+  //      val in = problem.as.head
+  //      problem.xs should have size 1
+  //      val out = problem.xs.head
+  //      val pc = problem.pc
+  //      val toEvaluate = pc.toClause
+  //      val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+  //
+  //      for (ex1 <- firstN) yield {
+  //        val res = compiled(new Model(Map(in -> ex1)))
+  //
+  //        res match {
+  //          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+  //            info("pass precondition for: " + ex1)
+  //            Some(ex1)
+  //          case e: EvaluationResults.EvaluatorError =>
+  //            None
+  //          case _                                   =>
+  //            None
+  //        }
+  //      }
+  //
+  //    }
+  //
+  //    //    "output finding" -
+  //    {
+  //      val phi = problem.phi
+  //
+  //      problem.as should have size 1
+  //      val in = problem.as.head
+  //
+  //      problem.xs should have size 1
+  //      val out = problem.xs.head
+  //
+  ////      val results = collection.mutable.Map[Expr, Expr]()//.withDefaultValue(Set())     
+  ////      val results = collection.mutable.Map[Expr, Set[Expr]]().withDefaultValue(Set())     
+  //      val results = new collection.mutable.MutableList[(Expr, Expr)]()
+  //
+  ////      import scala.util.Random
+  ////      val randomGen = new Random("random number my version".hashCode)
+  ////      val randoms = Seq.fill(300)(randomGen.nextInt(numOfExamples))
+  ////      info("randoms " + randoms)
+  //
+  //      val pc = problem.pc
+  //      val toEvaluate = And(pc.toClause, phi)
+  //      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+  //
+  ////      for (ex1 <- firstN) {
+  //      for (ex1 <- filteredExamples.flatten) {
+  //        //        _ = info("*******");
+  //        var flag = true
+  //        val ex2it = firstN.iterator;
+  //        while (flag && ex2it.nonEmpty) {
+  //          val ex2 = ex2it.next
+  //          //        info("toEvaluate " + toEvaluate)
+  //
+  //          //        info(s"for in $ex1, out $ex2")
+  //          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+  //          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+  //          //          info(s"for in $ex1, out $ex2, got $res")
+  //
+  //          res match {
+  //            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+  //              //            info(s"for in $ex1, out $ex2")
+  //              //            info("***")
+  //              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+  //              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+  //              //                results.getOrElse(ex1, ex2) shouldBe ex2
+  //              //              results should not contain key (ex1)
+  //              //              }
+  //
+  ////              assert(!(results contains ex1))
+  ////              assert(results.getOrElse(ex1, ex2))
+  ////              results(ex1) += ex2
+  //              results += ((ex1, ex2))
+  //            //          info(s"$v for $ex, ${v1}, $v2")
+  //            case e: EvaluationResults.EvaluatorError =>
+  //            //          info("evaluation failure: " + e + s" for $v1 and $v2")
+  //            case _                                   =>
+  //          }
+  //        }
+  //      }
+  //
+  //      results.size shouldBe >(0)
+  ////      results should have size (56)
+  //
+  ////      info(s"result with more than 6 results: " + {
+  ////        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
+  ////        val v2 = v.map({ case (k, v) => v })
+  ////        k + "\n" + v2
+  ////      })
+  //
+  //      val extraction = new ExamplesExtraction(sctx, sctx.program)
+  //      
+  ////      val resultsSmallest = results map {
+  ////        case (k, v) =>
+  ////          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
+  ////      }
+  //
+  //      val examples = results.map({
+  //        case (inEx, outEx) =>
+  //          ((in, inEx) :: Nil, (out, outEx))
+  //      }).toList
+  //
+  //      //      info("examples\n" + examples.mkString("\n"))
+  ////      examples should have size (56)
+  //
+  //      //      test: attempt synthesis
+  //      // get fragments
+  //      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+  //      info(s"inIds $inIds")
+  //      info("transformed examples: " + transformedExamples.mkString("\n"))
+  //      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+  //      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+  //      
+  //      val unorederdFragmentsSet = unorderedFragments.toSet
+  //      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
+  //      ???
+  //      
+  //      transformedExamples should have size unorderedFragments.size
+  //      val zipped = (transformedExamples zip unorderedFragments)
+  //      val groupped = zipped.groupBy(_._1._1)
+  //      val sorted =
+  //        for ( (input, list) <- groupped ) yield {
+  //          val fragments = list.map(_._2)
+  //          (input, fragments.sortBy(ExprOps.formulaSize _).head)
+  //        }
+  //
+  //      info("")
+  //      info("")
+  //      info("")
+  //      info("sorted:\n" + sorted.
+  //        map({ case (k, v) => k.head + "\n" + v }).mkString("\n******\n"))
+  ////      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
+  ////        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
+  ////      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
+  //
+  //    }
+  //
+  //  }
 
 }
