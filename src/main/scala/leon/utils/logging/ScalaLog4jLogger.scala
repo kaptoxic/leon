@@ -27,8 +27,15 @@ class ScalaLog4jLogger(logger: Logger4J) extends Logger {
    
   def finest(msg: => String)(implicit hasLogger: HasLogger) = log(msg, TRACE)
      
-  def entering(method: => String, arguments: Any*)(implicit hasLogger: HasLogger) =
-	  log("Entering " + method + " with " + arguments.mkString(", "), TRACE)
+  def entering(method: => String, arguments: Any*)(implicit hasLogger: HasLogger) = {
+    if (logger.isEnabled(TRACE)) {
+      val argumentStrings = arguments map (_.toString)
+      if ((argumentStrings map (_.size) sum) <= 80)
+    	  log("Entering " + method + " with " + arguments.mkString(", "), TRACE)
+  	  else
+    	  log("Entering " + method + " with:\n" + arguments.mkString("\n"), TRACE)
+    }
+  }
      
   def exiting(method: => String, result: => String)(implicit hasLogger: HasLogger) =
 	  log("Exiting " + method + " with " + result, TRACE)
