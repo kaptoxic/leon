@@ -25,6 +25,8 @@ import org.scalatest._
 import org.scalatest.Matchers._
 
 import java.io.{ BufferedWriter, FileWriter, File }
+import java.io._
+import java.nio.file._
 
 class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogger {
 
@@ -586,19 +588,8 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 
   }
   
-  ignore("use synthesizer") {
-    val eb = problem.eb
-
-    info("invalids:\n" + eb.invalids.mkString("\n"))
-    info("valids:\n" + eb.valids.mkString("\n"))
-
-    problem.hasOutputTests shouldBe false
-
-    problem.xs should have size 1
-
-    val resType = problem.xs.head.getType
-
-    val start1 = System.currentTimeMillis()
+  def generateTrees = {
+    
     val ms = new scope.AccumulatingScope
     val enum = constructEnumerator_new(ms)
 
@@ -681,9 +672,29 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
         }
       }
 
-    val firstN =
       firstNNormal ++
       firstNReverted.flatten
+  }
+  
+  test("generate trees") {
+    
+    val filePath = "./tmp/generated"
+      if (!Files.exists(Paths.get(filePath))) {
+        
+    val eb = problem.eb
+
+    info("invalids:\n" + eb.invalids.mkString("\n"))
+    info("valids:\n" + eb.valids.mkString("\n"))
+
+    problem.hasOutputTests shouldBe false
+
+    problem.xs should have size 1
+
+    val resType = problem.xs.head.getType
+
+    val start1 = System.currentTimeMillis()
+    
+    val firstN = generateTrees
 
     val numOfExamples = 42
       
@@ -789,13 +800,55 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
 //        val v2 = v.map({ case (k, v) => v })
 //        k + "\n" + v2
 //      })
-
-      val extraction = new ExamplesExtraction(sctx, sctx.program)
-      
+//
+//      val extraction = new ExamplesExtraction(sctx, sctx.program)
+//      
 //      val resultsSmallest = results map {
 //        case (k, v) =>
 //          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
 //      }
+      
+//      Files.createDirectories(Paths.get(filePath))
+//      Files.createFile(Paths.get(filePath))
+      val fos = new FileOutputStream(filePath, false)
+      val oos = new ObjectOutputStream(fos)
+//      val printWriter = new PrintWriter(fos)
+      
+//      for (result <- results)
+//        printWriter.println(firstN.indexOf(result))
+    
+      oos.writeObject(results.toList.map({case (a, b) =>
+        (firstN.indexOf(a), firstN.indexOf(b))}).toList)
+      oos.close
+    } 
+    
+  }
+  }
+  
+  test("use synthesizer") {
+    
+    val filePath = "./tmp/generated"
+    if (!Files.exists(Paths.get(filePath))) 
+      fail("No file")
+    
+    val fis = new FileInputStream(filePath)
+    val ois = new ObjectInputStream(fis)
+  
+    val resultsInd = ois.readObject.asInstanceOf[List[(Int, Int)]]
+    ois.close
+    
+    val firstN = generateTrees
+    val results = resultsInd map { case (a, b) => (firstN(a), firstN(b)) }
+    
+    val eb = problem.eb
+    val phi = problem.phi
+
+    problem.as should have size 1
+    val in = problem.as.head
+
+    problem.xs should have size 1
+    val out = problem.xs.head
+    
 
       val examples = results.map({
         case (inEx, outEx) =>
@@ -949,8 +1002,6 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
       }
     }
 
-  }
-  
 //
 //
 //
