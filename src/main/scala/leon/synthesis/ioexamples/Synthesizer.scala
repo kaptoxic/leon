@@ -115,45 +115,65 @@ class Synthesizer extends HasLogger {
     val transformedInputs = transformedExamples.map(_._1)
     var inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
     
-    // initialFragmentsFromGroupPairs -- used to calculate initial predicates
-    val (predicates, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
-      if (unorderedFragments.size > 1) {
-        getChainedBranches(
-          unorderedFragments: List[Expr],
-          unorderedFragmentsAll: List[Expr],
-          inVars: List[Variable],
-          examples: List[InputOutputExample],
-          getEnum: TypeTree => Iterable[Expr],
-          evaluator: Evaluator,
-          nilClass: ClassType
-        )
-      } else
-        (???, Nil, Nil)
-    fine("predicates : " + predicates)
-    fine("emptyDiffsFromCalculate: " + emptyDiffsFromCalculate.mkString("\n"))
-//    fine("initialFragmentsFromGroupPairs: " + initialFragmentsFromGroup.mkString("\n"))
+    
+    def fromExampleConditionToBranches(predicates: List[(List[List[Expr]], List[Expr])]) =
+      for ( (examples, conditions) <- predicates) yield {
+        
+        val fragments = examples.map(inputToFragmentMap)
+        info("fragments: " + fragments)
+        
+        if (fragments.distinct.size != 1) {
+          throw new Exception
+        }
+            
+        val branch =
+          fragments.head
+          
+        (and(conditions.toSeq: _*), Left(branch))
+      }
+//    info("inital branches:\n" + initialBranches.map({ case (a, b) => a + "=>" + b }).mkString("\n"))
     
     // these predicates will tell us, for the given examples, this expression is *not* nil
-    val initialPredicates =
+    val (elseBranch, predicates) =
       // every input has different fragment 
-      if (fragmentToInputMap.forall(_._2.size == 1)) {
+      if (fragmentToInputMap.forall(_._2.size == 1) && unorderedFragments.size > 1) {
         // find differences by observing the inputs as a chain
+        
+        // initialFragmentsFromGroupPairs -- used to calculate initial predicates
+        val (predicates, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
+          getChainedBranches(
+            unorderedFragments: List[Expr],
+            unorderedFragmentsAll: List[Expr],
+            inVars: List[Variable],
+            examples: List[InputOutputExample],
+            getEnum: TypeTree => Iterable[Expr],
+            evaluator: Evaluator,
+            nilClass: ClassType
+          )
+        fine("predicates : " + predicates)
+        fine("emptyDiffsFromCalculate: " + emptyDiffsFromCalculate.mkString("\n"))
+        fine("initialFragmentsFromGroupPairs: " + initialFragmentsFromGroup.mkString("\n"))
         
         val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
 
         val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head)
+        info("unhandled examples: " + unhandledExamples)
         
 //        val (initialFragmentsFromGroup, initialFragmentsFromGroupTransformed) =
 //          initialFragmentsFromGroupPairs.unzip
         
         val inputsForInitialFragments =
           initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)
+        fine(initialFragmentsFromGroup.map(x => fragmentToInputMap(x)).toString)
         val unhandledInputs =
           (unhandledExamples ::: inputsForInitialFragments).map(_._1)
         info("unhandled inputs: " + unhandledInputs)
+        ???
         
         val intialPredicatesIn =
-          calculatePredicatesStructure(unhandledInputs, inVars)
+          // drop last one since in includes one fragment from inputsForInitialFragments
+          calculatePredicatesStructure(unhandledInputs, inVars).init
+        fine("intialPredicatesIn:\n" + intialPredicatesIn)
           
         // all variables are Nil
         val fullConditioned = inVars
@@ -169,17 +189,24 @@ class Synthesizer extends HasLogger {
 //        inputToFragmentMap =
 //          inputToFragmentMap ++ mapOfInputsToNewFragments
        
-        for ( (examples, predicates) <- intialPredicatesIn) yield { 
-          val conditionsToRemove = 
-            for ((x, predicate) <- predicates) yield predicate(x)
-          val currentNils = fullConditioned.toSet -- conditionsToRemove
-          val conditions =
-            for (varToCheck <- currentNils) yield {
-              IsInstanceOf(varToCheck, nilClass)
-            }
-          
-          (examples, conditions)
-        }
+        val initialPredicates =
+          for ( (examples, predicates) <- intialPredicatesIn) yield { 
+            val conditionsToRemove = 
+              for ((x, predicate) <- predicates) yield predicate(x)
+            val currentNils = fullConditioned.toSet -- conditionsToRemove
+            val conditions =
+              for (varToCheck <- currentNils) yield {
+                IsInstanceOf(varToCheck, nilClass)
+              }
+            
+            (examples, conditions.toList)
+          }
+        
+        val (restPredicates, (elseBranchExprFun, elseArgMap)) = predicates
+        
+        (Some(elseBranchExprFun, elseArgMap), 
+          fromExampleConditionToBranches(initialPredicates) ::: restPredicates)
+
       } else {
         // find predicates by identifying "selectors" that differentiate between inputs
         
@@ -200,33 +227,13 @@ class Synthesizer extends HasLogger {
               
               // FIXME change this not to be a function
 //              (k.toList.map(_._1), Map((xs.head: Expr) -> ((_: Expr) => and(equalities.toSeq: _*))))
-              (k.toList.map(_._1), equalities)
+              (k.toList.map(_._1), equalities.toList)
           }
         
-        res
-        
+        (None, fromExampleConditionToBranches(res))
       }
-    info("initialPredicates: " + initialPredicates)//.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
+    info("initialPredicates: " + predicates)//.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
 
-    val initialBranches =
-      for ( (examples, conditions) <- initialPredicates) yield {
-        
-        val fragments = examples.map(inputToFragmentMap)
-        info("fragments: " + fragments)
-        
-        if (fragments.distinct.size != 1) {
-          throw new Exception
-        }
-            
-        val branch =
-          fragments.head
-          
-        (and(conditions.toSeq: _*), Left(branch))
-      }
-    info("inital branches:\n" + initialBranches.map({ case (a, b) => a + "=>" + b }).mkString("\n"))
-    
-    val (restPredicates, (elseBranchExprFun, elseArgMap)) = predicates
-    
     // get type as type of output expression
     val resType = examples.head._2._2.getType
    
@@ -239,11 +246,16 @@ class Synthesizer extends HasLogger {
     ).typed
     
     val finalElseBranch =
-      elseBranchExprFun(FunctionInvocation(newFun, inVars map elseArgMap))
+      elseBranch match { 
+        case Some((elseBranchExprFun, elseArgMap)) =>
+          elseBranchExprFun(FunctionInvocation(newFun, inVars map elseArgMap))
+        case None =>
+          UnitLiteral()
+      }
       
     // create final if-then-else expression by folding the "unfolded" fragments
     val ifExpr = 
-      ((finalElseBranch: Expr) /: (initialBranches ::: restPredicates).reverse) {
+      ((finalElseBranch: Expr) /: predicates.reverse) {
         case (current, (condition, Left(branch))) =>
           IfExpr(condition, branch, current) 
         case (current, (condition, Right((branchFun, argFun)))) =>
