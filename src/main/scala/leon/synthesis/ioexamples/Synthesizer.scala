@@ -73,7 +73,7 @@ class Synthesizer extends HasLogger {
     val inVars = inIds.map(_.toVariable)
     
     // calculate fragments (if not already given)
-    // ambiguous -- 
+    // ambiguous -- fragments that can be explained by multiple expressions of the same size
     val (ambigous, unorderedFragments, unorderedFragmentsAll) =
       precalculatedFragmentsOpt match {
         // if I got fragments already, don't bother with ambiguity
@@ -116,7 +116,7 @@ class Synthesizer extends HasLogger {
     var inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
     
     // initialFragmentsFromGroupPairs -- used to calculate initial predicates
-    val (predicates, filteredDiffGroups, emptyDiffsFromCalculate, initialFragmentsFromGroupPairs) =
+    val (predicates, emptyDiffsFromCalculate, initialFragmentsFromGroupPairs) =
       if (unorderedFragments.size > 1) {
         getChainedBranches(
           unorderedFragments: List[Expr],
@@ -128,19 +128,19 @@ class Synthesizer extends HasLogger {
           nilClass: ClassType
         )
       } else
-        (Nil, Nil, Nil, Nil)
-    fine("predicates : " + predicates.mkString("\n"))
-    fine("filteredDiffGroups: " + filteredDiffGroups.mkString("\n"))
+        (???, Nil, Nil)
+    fine("predicates : " + predicates)
     fine("emptyDiffsFromCalculate: " + emptyDiffsFromCalculate.mkString("\n"))
     fine("initialFragmentsFromGroupPairs: " + initialFragmentsFromGroupPairs.mkString("\n"))
-    ???
-
-    val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
     
-    
-    // these predicates will tell us (for these examples, this expression is *not* nil)
+    // these predicates will tell us, for the given examples, this expression is *not* nil
     val initialPredicates =
+      // every input has different fragment 
       if (fragmentToInputMap.forall(_._2.size == 1)) {
+        // find differences by observing the inputs as a chain
+        
+        val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
+
         val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head)
         
         val (initialFragmentsFromGroup, initialFragmentsFromGroupTransformed) =
@@ -163,6 +163,9 @@ class Synthesizer extends HasLogger {
         // TODO propagate the modified fragment in some better way
         val mapOfInputsToNewFragments =
           (inputsForInitialFragments.map(_._1) zip initialFragmentsFromGroupTransformed).toMap
+        fine("mapOfInputsToNewFragments: " + mapOfInputsToNewFragments.mkString("\n"))
+        fine("old inputToFragmentMap: " + inputToFragmentMap.mkString("\n"))
+
         inputToFragmentMap =
           inputToFragmentMap ++ mapOfInputsToNewFragments
        
@@ -178,6 +181,8 @@ class Synthesizer extends HasLogger {
           (examples, conditions)
         }
       } else {
+        // find predicates by identifying "selectors" that differentiate between inputs
+        
         assert(inVars.size == 1)
         assert(fragmentToInputMap.size == 4, fragmentToInputMap.size)
         val predicates =
@@ -217,82 +222,113 @@ class Synthesizer extends HasLogger {
         val branch =
           fragments.head
           
-        (and(conditions.toSeq: _*), branch)
+        (and(conditions.toSeq: _*), Left(branch))
       }
     info("inital branches:\n" + initialBranches.map({ case (a, b) => a + "=>" + b }).mkString("\n"))
     
-    if (predicates.size > 0) {
+    val (restPredicates, (elseBranchExprFun, elseArgMap)) = predicates
+    
+    // get type as type of output expression
+    val resType = examples.head._2._2.getType
+   
+    // create a recursive function definition
+    val newFun = new FunDef(
+      FreshIdentifier("rec"),
+      Nil,
+      inVars map { v => ValDef(v.id) },
+      resType
+    ).typed
+    
+    val finalElseBranch =
+      elseBranchExprFun(FunctionInvocation(newFun, inVars map elseArgMap))
       
-      val (condition, fragments) = predicates.head
-      
-      // get type as type of output expression
-      val resType = examples.head._2._2.getType
-     
-      // create a recursive function definition
-      val newFun = new FunDef(
-        FreshIdentifier("rec"),
-        Nil,
-        inVars map { v => ValDef(v.id) },
-        resType
-      ).typed
-      
-      
-      val recursiveFragmentTrue = {
-        val (fragmentsThatAreTrue, _) =
-          fragments.find(_._2).get
-        val (_, (mapB, a) :: Nil) =
-          filteredDiffGroups.find(_._1 == fragmentsThatAreTrue).get
-        a(FunctionInvocation(newFun, inVars map mapB))
+    // create final if-then-else expression by folding the "unfolded" fragments
+    val ifExpr = 
+      ((finalElseBranch: Expr) /: (initialBranches ::: restPredicates).reverse) {
+        case (current, (condition, Left(branch))) =>
+          IfExpr(condition, branch, current) 
+        case (current, (condition, Right((branchFun, argFun)))) =>
+          IfExpr(condition, branchFun(FunctionInvocation(newFun, inVars map argFun)), current) 
       }
-        
-      val recursiveFragmentFalse = {
-        val (fragmentsThatAreFalse, _) =
-          fragments.find(!_._2).get
-        val (_, (mapB, a) :: Nil) =
-          filteredDiffGroups.find(_._1 == fragmentsThatAreFalse).get
-        a(FunctionInvocation(newFun, inVars map mapB))
-      }
-      
-      val finalIfExpr = 
-        IfExpr(condition, recursiveFragmentTrue, recursiveFragmentFalse) 
-      
-      // create final if-then-else expression by folding the "unfolded" fragments
-      val ifExpr = 
-        ((finalIfExpr: Expr) /: initialBranches.reverse) {
-          case (current, (condition, branch)) =>
-            IfExpr(condition, branch, current) 
-        }
-      
-      // last if-then case
-      newFun.fd.body = Some(ifExpr)
-      
-      Some((ifExpr, newFun))
-      
-    } else if (initialBranches.size > 0) {
-      
-      // get type as type of output expression
-      val resType = examples.head._2._2.getType
-     
-      // create a recursive function definition
-      val newFun = new FunDef(
-        FreshIdentifier("rec"),
-        Nil,
-        inVars map { v => ValDef(v.id) },
-        resType
-      ).typed
-      
-      // create final if-then-else expression by folding the "unfolded" fragments
-      val ifExpr = 
-        ((UnitLiteral(): Expr) /: initialBranches.reverse) {
-          case (current, (condition, branch)) =>
-            IfExpr(condition, branch, current) 
-        }
-
-      // last if-then case
-      newFun.fd.body = Some(ifExpr)
-      
-      Some((ifExpr, newFun))
-    } else None
+    
+    // last if-then case
+    newFun.fd.body = Some(ifExpr)
+    
+    Some((ifExpr, newFun))
+    
+//    // create final if-then-else expression by folding the "unfolded" fragments
+//    val ifExpr = 
+//      ((UnitLiteral(): Expr) /: restPredicates) {
+//        case (current, (condition, branch)) =>
+//          IfExpr(condition, branch, current) 
+//      }
+//
+//    // last if-then case
+//    newFun.fd.body = Some(ifExpr)
+//    
+//    Some((ifExpr, newFun))
+//
+//    if (predicates.size > 0) {
+//      
+//      for ((condition, f, argumentsMap) <- predicates) {
+//      
+//      
+////      val recursiveFragmentTrue = {
+////        val (fragmentsThatAreTrue, _) =
+////          fragments.find(_._2).get
+////        val (_, (mapB, a) :: Nil) =
+////          filteredDiffGroups.find(_._1 == fragmentsThatAreTrue).get
+////        a(FunctionInvocation(newFun, inVars map mapB))
+////      }
+////        
+////      val recursiveFragmentFalse = {
+////        val (fragmentsThatAreFalse, _) =
+////          fragments.find(!_._2).get
+////        val (_, (mapB, a) :: Nil) =
+////          filteredDiffGroups.find(_._1 == fragmentsThatAreFalse).get
+////        a(FunctionInvocation(newFun, inVars map mapB))
+////      }
+//      
+//      val finalIfExpr = 
+//        IfExpr(condition, recursiveFragmentTrue, recursiveFragmentFalse) 
+//      
+//      // create final if-then-else expression by folding the "unfolded" fragments
+//      val ifExpr = 
+//        ((finalIfExpr: Expr) /: initialBranches.reverse) {
+//          case (current, (condition, branch)) =>
+//            IfExpr(condition, branch, current) 
+//        }
+//      
+//      // last if-then case
+//      newFun.fd.body = Some(ifExpr)
+//      
+//      Some((ifExpr, newFun))
+//      
+//    } else if (initialBranches.size > 0) {
+//      
+//      // get type as type of output expression
+//      val resType = examples.head._2._2.getType
+//     
+//      // create a recursive function definition
+//      val newFun = new FunDef(
+//        FreshIdentifier("rec"),
+//        Nil,
+//        inVars map { v => ValDef(v.id) },
+//        resType
+//      ).typed
+//      
+//      // create final if-then-else expression by folding the "unfolded" fragments
+//      val ifExpr = 
+//        ((UnitLiteral(): Expr) /: initialBranches.reverse) {
+//          case (current, (condition, branch)) =>
+//            IfExpr(condition, branch, current) 
+//        }
+//
+//      // last if-then case
+//      newFun.fd.body = Some(ifExpr)
+//      
+//      Some((ifExpr, newFun))
+//    } else None
 //    (fragments, predicates) match {
 //      case (Some((fragments, a, b)), Some(p)) =>
 //        if (fragments.size == p.size) {
@@ -331,6 +367,10 @@ class Synthesizer extends HasLogger {
 //    }
   }
   
+  // currently just arbitrarily take one
+  def choosePredicate(predicates: Iterable[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]) =
+    predicates.head
+  
   def getChainedBranches(
     unorderedFragments: List[Expr],
     unorderedFragmentsAll: List[Expr],
@@ -340,6 +380,7 @@ class Synthesizer extends HasLogger {
     evaluator: Evaluator,
     nilClass: ClassType
   ) = {
+    entering("getChainedBranches", unorderedFragments, unorderedFragmentsAll)
 
     // (fragments without found form, groups of fragments with common form)
     val (emptyDiffsFromCalculate, filteredDiffGroups) = calculateFragments(unorderedFragments, xs)
@@ -354,12 +395,13 @@ class Synthesizer extends HasLogger {
         val initialFragment =
           startingFragments.filterNot( finishingFragments contains _ )
         finest("initialFragment: " + initialFragment)
-        assert(initialFragment.size == 1)
-        initialFragment.head
+        val sorted = startingFragments.toList.sortBy(ExprOps.formulaSize(_))
+        assert(sorted.count(x => ExprOps.formulaSize(sorted.head) == ExprOps.formulaSize(x)) == 1)
+        sorted.head
       }
     fine("initialFragmentFromGroup: " + initialFragmentsFromGroup)
 
-    val (predicates, infoToTransformFragment) =
+    val predicates =
       // if there is only one group of fragments with common form
       if (filteredDiffGroups.size == 1) {
         val (_, subs) = filteredDiffGroups.head
@@ -368,13 +410,14 @@ class Synthesizer extends HasLogger {
         assert(subs.size == 1)
         val (subMap, f) = subs.head
         
-        val singleGeneralizedFragment =
-          f(Hole(UnitType, xs.map(subMap)))
+//        val singleGeneralizedFragment =
+//          f(Hole(UnitType, xs.map(subMap)))
   
-        (Nil, singleGeneralizedFragment)
+        (Nil, (f, subMap))
       } else {
         // found groups
         // TODO check if this is generalized to size >2
+        // NOTE this will only partition the group into two
         val predicates =
           calculatePredicates(
             filteredDiffGroups,
@@ -382,15 +425,33 @@ class Synthesizer extends HasLogger {
             unorderedFragmentsAll zip examples toMap,
             evaluator
           ) flatten
-          
+
         fine("groups: " + filteredDiffGroups.mkString("\n"))
         fine("predicates: " + predicates.mkString("\n"))
+          
+        val chosenPredicate = choosePredicate(predicates)
+        val (condition, fragmentsWithResult) = chosenPredicate
         
-        (predicates, initialFragmentsFromGroup.head)
+        val (fragmentsThatAreTrue, fragmentsThatAreFalse) = {
+          val (fragmentsThatAreTrue, fragmentsThatAreFalse) =
+            fragmentsWithResult.partition(_._2)
+
+          (fragmentsThatAreTrue.head._1, fragmentsThatAreFalse.head._1)
+        }
+          
+        def getExprAndArgumentMap(fragments: Set[(Expr, Expr)]) = {
+          val (_, (mapB, a) :: Nil) =
+            filteredDiffGroups.find(_._1 == fragments).get
+
+          (a, mapB)
+        }
+          
+        ((condition, Right(getExprAndArgumentMap(fragmentsThatAreTrue))) :: Nil,
+          getExprAndArgumentMap(fragmentsThatAreFalse))
       }
     
-    (predicates, filteredDiffGroups, emptyDiffsFromCalculate,
-      (initialFragmentsFromGroup.head, infoToTransformFragment) :: Nil)
+    (predicates, emptyDiffsFromCalculate,
+      (initialFragmentsFromGroup.head, initialFragmentsFromGroup.head) :: Nil)
   }
   
   /*
@@ -483,11 +544,13 @@ class Synthesizer extends HasLogger {
 //    entering("calculatePredicates", inputExamplesList, xs)
     
     val enum = getEnum(BooleanType)
+    val testedExpressions = enum.take(30)
+    assert(testedExpressions.toList.distinct.size == testedExpressions.size)
     
     info("Evaluation")
     val distinguishing =
-      for (ex <- enum.take(30);
-        _ = info(s"example is $ex");
+      for (conditionExpr <- testedExpressions;
+        _ = info(s"example is $conditionExpr");
         (set, diffs) <- filteredDiffGroups;
         _ = assert(diffs.size == 1);
         (mapping, fun) = diffs.head
@@ -498,10 +561,10 @@ class Synthesizer extends HasLogger {
 //              if (compositeFragmentsAndInputsMap.contains(f));
             // NOTE we assume evaluation error actually is one of those simple cases that already work 
             (inputs, _) = fragmentsAndInputsMap(f)) yield {
-            evaluator.eval(ex, new Model(inputs.toMap)) match {
+            evaluator.eval(conditionExpr, new Model(inputs.toMap)) match {
               case EvaluationResults.Successful(BooleanLiteral(v)) =>
     //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
-                info(s"$v for $ex, and inputs ${inputs}")
+                info(s"$v for $conditionExpr, and inputs ${inputs}")
                 Some(v)
               case e: EvaluationResults.EvaluatorError =>
     //            print("_")
@@ -511,7 +574,7 @@ class Synthesizer extends HasLogger {
           }
           
         val allEqual = res
-        info(s"results for $ex and $set: $allEqual")
+        info(s"results for $conditionExpr and $set: $allEqual")
         
         assert(allEqual.size > 0)
 
@@ -520,7 +583,7 @@ class Synthesizer extends HasLogger {
 //            allEqual.filterNot(_.isEmpty).distinct.size ==
 //            allEqual.filterNot(_.isEmpty).size
         )
-          Some((ex, (set, allEqual.filterNot(_.isEmpty).head.get)))
+          Some((conditionExpr, (set, allEqual.filterNot(_.isEmpty).head.get)))
         else
           None
       }
