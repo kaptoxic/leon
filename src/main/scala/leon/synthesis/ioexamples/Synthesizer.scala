@@ -116,7 +116,7 @@ class Synthesizer extends HasLogger {
     var inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
     
     // initialFragmentsFromGroupPairs -- used to calculate initial predicates
-    val (predicates, emptyDiffsFromCalculate, initialFragmentsFromGroupPairs) =
+    val (predicates, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
       if (unorderedFragments.size > 1) {
         getChainedBranches(
           unorderedFragments: List[Expr],
@@ -131,7 +131,7 @@ class Synthesizer extends HasLogger {
         (???, Nil, Nil)
     fine("predicates : " + predicates)
     fine("emptyDiffsFromCalculate: " + emptyDiffsFromCalculate.mkString("\n"))
-    fine("initialFragmentsFromGroupPairs: " + initialFragmentsFromGroupPairs.mkString("\n"))
+//    fine("initialFragmentsFromGroupPairs: " + initialFragmentsFromGroup.mkString("\n"))
     
     // these predicates will tell us, for the given examples, this expression is *not* nil
     val initialPredicates =
@@ -143,8 +143,8 @@ class Synthesizer extends HasLogger {
 
         val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head)
         
-        val (initialFragmentsFromGroup, initialFragmentsFromGroupTransformed) =
-          initialFragmentsFromGroupPairs.unzip
+//        val (initialFragmentsFromGroup, initialFragmentsFromGroupTransformed) =
+//          initialFragmentsFromGroupPairs.unzip
         
         val inputsForInitialFragments =
           initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)
@@ -161,13 +161,13 @@ class Synthesizer extends HasLogger {
         // forgive me for doing this but I need this working
         // should overwrite inputps with modified fragment
         // TODO propagate the modified fragment in some better way
-        val mapOfInputsToNewFragments =
-          (inputsForInitialFragments.map(_._1) zip initialFragmentsFromGroupTransformed).toMap
-        fine("mapOfInputsToNewFragments: " + mapOfInputsToNewFragments.mkString("\n"))
-        fine("old inputToFragmentMap: " + inputToFragmentMap.mkString("\n"))
+//        val mapOfInputsToNewFragments =
+//          (inputsForInitialFragments.map(_._1) zip initialFragmentsFromGroupTransformed).toMap
+//        fine("mapOfInputsToNewFragments: " + mapOfInputsToNewFragments.mkString("\n"))
+//        fine("old inputToFragmentMap: " + inputToFragmentMap.mkString("\n"))
 
-        inputToFragmentMap =
-          inputToFragmentMap ++ mapOfInputsToNewFragments
+//        inputToFragmentMap =
+//          inputToFragmentMap ++ mapOfInputsToNewFragments
        
         for ( (examples, predicates) <- intialPredicatesIn) yield { 
           val conditionsToRemove = 
@@ -207,7 +207,6 @@ class Synthesizer extends HasLogger {
         
       }
     info("initialPredicates: " + initialPredicates)//.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
-    
 
     val initialBranches =
       for ( (examples, conditions) <- initialPredicates) yield {
@@ -451,7 +450,7 @@ class Synthesizer extends HasLogger {
       }
     
     (predicates, emptyDiffsFromCalculate,
-      (initialFragmentsFromGroup.head, initialFragmentsFromGroup.head) :: Nil)
+      initialFragmentsFromGroup.head :: Nil)
   }
   
   /*
