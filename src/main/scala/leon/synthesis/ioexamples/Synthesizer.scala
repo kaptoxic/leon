@@ -152,7 +152,7 @@ class Synthesizer extends HasLogger {
           )
         fine("predicates : " + predicates)
         fine("emptyDiffsFromCalculate: " + emptyDiffsFromCalculate.mkString("\n"))
-        fine("initialFragmentsFromGroupPairs: " + initialFragmentsFromGroup.mkString("\n"))
+        fine("initialFragmentsFromGroup: " + initialFragmentsFromGroup.mkString("\n"))
         
         val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
 
@@ -162,17 +162,20 @@ class Synthesizer extends HasLogger {
 //        val (initialFragmentsFromGroup, initialFragmentsFromGroupTransformed) =
 //          initialFragmentsFromGroupPairs.unzip
         
+        // differentiate when to take initialfragmentsfromgorups
+        println(initialFragmentsFromGroup.forall(f => emptyDiffsFromCalculate contains f))
+        println(initialFragmentsFromGroup.toSet intersect emptyDiffsFromCalculate.toSet)
+
         val inputsForInitialFragments =
           initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)
         fine(initialFragmentsFromGroup.map(x => fragmentToInputMap(x)).toString)
         val unhandledInputs =
           (unhandledExamples ::: inputsForInitialFragments).map(_._1)
         info("unhandled inputs: " + unhandledInputs)
-        ???
         
         val intialPredicatesIn =
           // drop last one since in includes one fragment from inputsForInitialFragments
-          calculatePredicatesStructure(unhandledInputs, inVars).init
+          calculatePredicatesStructure(unhandledInputs, inVars)//.init
         fine("intialPredicatesIn:\n" + intialPredicatesIn)
           
         // all variables are Nil
@@ -379,7 +382,7 @@ class Synthesizer extends HasLogger {
   }
   
   // currently just arbitrarily take one
-  def choosePredicate(predicates: Iterable[(Expr, Iterable[(Set[(Expr, Expr)], Boolean)])]) =
+  def choosePredicate(predicates: Iterable[(Expr, Iterable[(Set[(Expr, Expr)], Boolean, List[Expr])])]) =
     predicates.head
   
   def getChainedBranches(
@@ -412,7 +415,7 @@ class Synthesizer extends HasLogger {
       }
     fine("initialFragmentFromGroup: " + initialFragmentsFromGroup)
 
-    val predicates =
+    val (predicates, nonCovered) =
       // if there is only one group of fragments with common form
       if (filteredDiffGroups.size == 1) {
         val (_, subs) = filteredDiffGroups.head
@@ -424,7 +427,7 @@ class Synthesizer extends HasLogger {
 //        val singleGeneralizedFragment =
 //          f(Hole(UnitType, xs.map(subMap)))
   
-        (Nil, (f, subMap))
+        ((Nil, (f, subMap)), Nil)
       } else {
         // found groups
         // TODO check if this is generalized to size >2
@@ -457,11 +460,17 @@ class Synthesizer extends HasLogger {
           (a, mapB)
         }
           
-        ((condition, Right(getExprAndArgumentMap(fragmentsThatAreTrue))) :: Nil,
-          getExprAndArgumentMap(fragmentsThatAreFalse))
+        assert(fragmentsWithResult.map(_._3).forall(_.size <= 1), fragmentsWithResult.mkString("\n"))
+        (
+          (
+            (condition, Right(getExprAndArgumentMap(fragmentsThatAreTrue))) :: Nil,
+            getExprAndArgumentMap(fragmentsThatAreFalse)
+          ),
+          fragmentsWithResult.map(_._3).flatten.toList
+        )
       }
     
-    (predicates, emptyDiffsFromCalculate,
+    (predicates, emptyDiffsFromCalculate ::: nonCovered,
       initialFragmentsFromGroup.head :: Nil)
   }
   
@@ -546,19 +555,27 @@ class Synthesizer extends HasLogger {
       (emptyDiffs.map(_._1), filteredDiffGroups)
   }
   
+  /***
+   * returns:
+   *   Iterable[Option[
+   *   	 found condition,
+   *     (Expr,
+   *       (set of chains (of 2 exprs) such that ._2 of the pair is equal to the Boolean
+   *       Iterable[(Set[(Expr, Expr)], Boolean)])
+   *   ]]
+   */
   def calculatePredicates(
     filteredDiffGroups: List[(Set[(Expr, Expr)], Iterable[(Map[Variable, Expr], Expr => Expr)])],
     getEnum: TypeTree => Iterable[Expr],
     fragmentsAndInputsMap: Map[Expressions.Expr, InputOutputExample],
-    evaluator: Evaluator
+    evaluator: Evaluator,
+    numberOfExpressions: Int = 30
   ) = {
-//    entering("calculatePredicates", inputExamplesList, xs)
-    
     val enum = getEnum(BooleanType)
-    val testedExpressions = enum.take(30)
+    val testedExpressions = enum.take(numberOfExpressions)
     assert(testedExpressions.toList.distinct.size == testedExpressions.size)
     
-    info("Evaluation")
+    // for all test conditions, pair condition and chain, if both expr in chain return same boolean
     val distinguishing =
       for (conditionExpr <- testedExpressions;
         _ = info(s"example is $conditionExpr");
@@ -569,18 +586,16 @@ class Synthesizer extends HasLogger {
         val res =
           for((_, f) <- set.toList;
             // note that the lowest fragment (out of two) might fail
-//              if (compositeFragmentsAndInputsMap.contains(f));
             // NOTE we assume evaluation error actually is one of those simple cases that already work 
-            (inputs, _) = fragmentsAndInputsMap(f)) yield {
+            (inputs, _) = fragmentsAndInputsMap(f)
+          ) yield {
             evaluator.eval(conditionExpr, new Model(inputs.toMap)) match {
               case EvaluationResults.Successful(BooleanLiteral(v)) =>
-    //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
-                info(s"$v for $conditionExpr, and inputs ${inputs}")
-                Some(v)
+                info(s"evaluation success: $v for $conditionExpr, and inputs ${inputs}")
+                Left(v)
               case e: EvaluationResults.EvaluatorError =>
-    //            print("_")
                 info("evaluation failure: " + e + s" for inputs ${inputs}")
-                None
+                Right(f)
             }
           }
           
@@ -589,33 +604,35 @@ class Synthesizer extends HasLogger {
         
         assert(allEqual.size > 0)
 
-        if(
-          allEqual.filterNot(_.isEmpty).distinct.size == 1
-//            allEqual.filterNot(_.isEmpty).distinct.size ==
-//            allEqual.filterNot(_.isEmpty).size
-        )
-          Some((conditionExpr, (set, allEqual.filterNot(_.isEmpty).head.get)))
+        if(allEqual.filterNot(_.isRight).distinct.size == 1) {
+          val (booleanResults, undefinedExamples) = allEqual.partition(_.isLeft)
+          Some(
+            (conditionExpr, (set, booleanResults.head.left.get), undefinedExamples.map(_.right.get))
+          )
+        }
         else
           None
       }
     
+    // for each condition, get only those that have associated two groups with both false and true
     info("distinguishing:\n" + distinguishing.flatten.mkString("\n")) 
     val distinguishedByGroup =
       distinguishing.flatten.groupBy(_._1).filter({
         case (k, res) if res.size == 2 =>
           val results = res.map(_._2._2)
 
-          info(s"for $k we have:\n${results.mkString("\n")}")
-          info(s"${results.toList.distinct}")
+          fine(s"for $k we have:\n${results.mkString("\n")}")
+          fine(s"${results.toList.distinct}")
           results.toList.distinct.size == 2
         case _ =>
           false
       }).map({
         case (k, v) =>
-          (k, v.map({ case (a, (b, c)) => (b, c)}))
+          (k, v.map({ case (a, (b, c), d) => (b, c, d)}))
       })
     info("distinguishing by group:\n" +distinguishedByGroup.mkString("\n")) 
     
+    // effectively, filter
     val results =
       for ((ex, setResults) <- distinguishedByGroup;
         _ = info(s"example is $ex");
@@ -626,17 +643,18 @@ class Synthesizer extends HasLogger {
       ) yield {
         
         val res =
-          for((chainedFragment, f) <- set.toList;
+          for((f, chainedFragment) <- set.toList;
             // note that the lowest fragment (out of two) might fail
 //              if (compositeFragmentsAndInputsMap.contains(f));
             // NOTE we assume evaluation error actually is one of those simple cases that already work 
             (inputs, _) = fragmentsAndInputsMap(f)) yield {
             evaluator.eval(modifiedEx, new Model(inputs.toMap)) match {
               case EvaluationResults.Successful(BooleanLiteral(v)) =>
-    //            print({if (v.asInstanceOf[BooleanLiteral].value) "t" else "f"})
                 info(s"$v for $modifiedEx, and inputs ${inputs}")
+                // check lower fragment rather than higher (already checked)
                 val resultForChainedFragment =
                   setResults.find(_._1.map(_._2) contains chainedFragment)
+                assert(!resultForChainedFragment.isEmpty)
                 info(s"resultForChainedFragment: ${resultForChainedFragment}")
                 if(resultForChainedFragment.isEmpty || v == resultForChainedFragment.get._2) {
                   true
@@ -644,7 +662,6 @@ class Synthesizer extends HasLogger {
                   false
                 }
               case e: EvaluationResults.EvaluatorError =>
-    //            print("_")
                 info("evaluation failure: " + e + s" for inputs ${inputs}")
                 true
             }

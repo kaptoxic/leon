@@ -941,8 +941,8 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
           example <- inputsPerPredicateMap(fragment).toList
         ) yield (example, fragment)).unzip
 
-      info("examples: " + examples)
-      info("fragments: " + fragments)
+      info("examples (trim 10): " + examples.take(10).mkString)
+      info("fragments (trim 10): " + fragments.take(10).mkString)
 
       val result =
         synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
@@ -989,7 +989,30 @@ class RBTreeBalanceTest extends FunSuite with Matchers with Inside with HasLogge
              |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
              |} else {
              |  ()
-             |}""".stripMargin :: Nil
+             |}""".stripMargin :: 
+          """|if (Red == t.left.color && Red == t.left.left.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left.left, t.left.left.value, t.left.left.right), t.left.value, Node(t.color, t.left.right, t.value, t.right))
+             |} else if (Red == t.left.color && Red != t.left.left.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left, t.left.value, t.left.right.left), t.left.right.value, Node(t.color, t.left.right.right, t.value, t.right))
+             |} else if (Red != t.left.color && Red == t.right.left.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left.left), t.right.left.value, Node(t.color, t.right.left.right, t.right.value, t.right.right))
+             |} else if (Red != t.left.color && Red != t.right.left.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
+             |} else {
+             |  ()
+             |}""".stripMargin :: 
+          """|if (Black == t.right.color && Black == t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left.left, t.left.left.value, t.left.left.right), t.left.value, Node(t.color, t.left.right, t.value, t.right))
+             |} else if (Black == t.right.color && Black != t.left.right.color) {
+             |  Node(t.left.color, Node(t.color, t.left.left, t.left.value, t.left.right.left), t.left.right.value, Node(t.color, t.left.right.right, t.value, t.right))
+             |} else if (Black != t.right.color && Red == t.right.left.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left.left), t.right.left.value, Node(t.color, t.right.left.right, t.right.value, t.right.right))
+             |} else if (Black != t.right.color && Red != t.right.left.color) {
+             |  Node(t.right.color, Node(t.color, t.left, t.value, t.right.left), t.right.value, Node(t.color, t.right.right.left, t.right.right.value, t.right.right.right))
+             |} else {
+             |  ()
+             |}""".stripMargin ::
+          Nil
 
       withClue("Expected:\n" + solutions.mkString("\n") + "Gotten:\n" + result.get._1.toString) {
         solutions should contain(result.get._1.toString)
