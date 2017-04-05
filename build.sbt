@@ -210,4 +210,6 @@ libraryDependencies ++= Seq(
   "org.apache.logging.log4j" % "log4j-core" %"2.8"
 )
 
+libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-jdk14")) }
+
 libraryDependencies += "jpl" % "jpl" % "7.0.1"
