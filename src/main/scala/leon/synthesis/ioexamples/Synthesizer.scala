@@ -111,10 +111,11 @@ class Synthesizer extends HasLogger {
       }
     fine("fragmentToInputMap: " + fragmentToInputMap)
     
+    val inputsToExamplesMap = transformedExamples.map(ex => (ex._1, ex)).toMap
+    
     // needed in the initial branches computation
     val transformedInputs = transformedExamples.map(_._1)
     var inputToFragmentMap = transformedInputs zip unorderedFragmentsAll toMap
-    
     
     def fromExampleConditionToBranches(predicates: List[(List[List[Expr]], List[Expr])]) =
       for ( (examples, conditions) <- predicates) yield {
@@ -133,6 +134,15 @@ class Synthesizer extends HasLogger {
       }
 //    info("inital branches:\n" + initialBranches.map({ case (a, b) => a + "=>" + b }).mkString("\n"))
     
+    def fromExampleConditionToBranches2(predicates: List[(List[Expr], List[Expr])]) =
+      for ( (example, conditions) <- predicates) yield {
+        
+        val fragments = inputToFragmentMap(example)
+        info("fragments: " + fragments)
+        
+        (and(conditions.toSeq: _*), Left(fragments))
+      }
+    
     // these predicates will tell us, for the given examples, this expression is *not* nil
     val (elseBranch, predicates) =
       // every input has different fragment 
@@ -140,7 +150,7 @@ class Synthesizer extends HasLogger {
         // find differences by observing the inputs as a chain
         
         // initialFragmentsFromGroupPairs -- used to calculate initial predicates
-        val (predicates, emptyDiffsFromCalculate, initialFragmentsFromGroup) =
+        val (predicates, emptyDiffsFromCalculate, emptyDiffsInputs, initialFragmentsFromGroup) =
           getChainedBranches(
             unorderedFragments: List[Expr],
             unorderedFragmentsAll: List[Expr],
@@ -156,7 +166,7 @@ class Synthesizer extends HasLogger {
         
         val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
 
-        val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head)
+        val unhandledExamples = emptyDiffs.map(fragmentToInputMap(_).head._1) ::: emptyDiffsInputs.map(_.map(_._2))
         info("unhandled examples: " + unhandledExamples)
         
 //        val (initialFragmentsFromGroup, initialFragmentsFromGroupTransformed) =
@@ -170,13 +180,20 @@ class Synthesizer extends HasLogger {
           initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)
         fine(initialFragmentsFromGroup.map(x => fragmentToInputMap(x)).toString)
         val unhandledInputs =
-          (unhandledExamples ::: inputsForInitialFragments).map(_._1)
+          (unhandledExamples ::: inputsForInitialFragments.map(_._1))//.map(_._1)
         info("unhandled inputs: " + unhandledInputs)
+        
+        val unhandledInputsTransformed =
+          Util.sortInputs(unhandledInputs.distinct)
+        info("unhandledInputsTransformed: " + unhandledInputsTransformed)
         
         val intialPredicatesIn =
           // drop last one since in includes one fragment from inputsForInitialFragments
-          calculatePredicatesStructure(unhandledInputs, inVars)//.init
-        fine("intialPredicatesIn:\n" + intialPredicatesIn)
+          if (inputsForInitialFragments.map(_._1).forall(unhandledInputsTransformed contains _))
+            calculatePredicatesStructure(unhandledInputsTransformed, inVars)
+          else
+            calculatePredicatesStructure(unhandledInputsTransformed, inVars).init
+        fine("intialPredicatesIn:\n" + intialPredicatesIn.mkString("\n"))
           
         // all variables are Nil
         val fullConditioned = inVars
@@ -192,23 +209,26 @@ class Synthesizer extends HasLogger {
 //        inputToFragmentMap =
 //          inputToFragmentMap ++ mapOfInputsToNewFragments
        
+        assert(unhandledInputsTransformed.size == intialPredicatesIn.size + 1)
         val initialPredicates =
-          for ( (examples, predicates) <- intialPredicatesIn) yield { 
-            val conditionsToRemove = 
-              for ((x, predicate) <- predicates) yield predicate(x)
-            val currentNils = fullConditioned.toSet -- conditionsToRemove
-            val conditions =
-              for (varToCheck <- currentNils) yield {
-                IsInstanceOf(varToCheck, nilClass)
-              }
-            
-            (examples, conditions.toList)
+          for ( (examples, predicates) <- unhandledInputsTransformed zip intialPredicatesIn) yield { 
+//            val conditionsToRemove = 
+//              for ((x, predicate) <- predicates) yield predicate(x)
+//            val currentNils = fullConditioned.toSet -- conditionsToRemove
+//            val conditions =
+//              for (varToCheck <- currentNils) yield {
+//                IsInstanceOf(varToCheck, nilClass)
+//              }
+//            
+//            (examples, conditions.toList)
+            (examples, predicates map { Expressions.IsInstanceOf(_, nilClass) })
           }
+        fine("initialPredicates:\n" + initialPredicates.mkString("\n"))
         
         val (restPredicates, (elseBranchExprFun, elseArgMap)) = predicates
         
         (Some(elseBranchExprFun, elseArgMap), 
-          fromExampleConditionToBranches(initialPredicates) ::: restPredicates)
+          fromExampleConditionToBranches2(initialPredicates) ::: restPredicates)
 
       } else {
         // find predicates by identifying "selectors" that differentiate between inputs
@@ -382,7 +402,9 @@ class Synthesizer extends HasLogger {
   }
   
   // currently just arbitrarily take one
-  def choosePredicate(predicates: Iterable[(Expr, Iterable[(Set[(Expr, Expr)], Boolean, List[Expr])])]) =
+  def choosePredicate(
+    predicates: Iterable[((Expr, Iterable[(Set[(Expr, Expr)], Boolean)]), List[InputExample])]
+  ) =
     predicates.head
   
   def getChainedBranches(
@@ -444,7 +466,7 @@ class Synthesizer extends HasLogger {
         fine("predicates: " + predicates.mkString("\n"))
           
         val chosenPredicate = choosePredicate(predicates)
-        val (condition, fragmentsWithResult) = chosenPredicate
+        val ((condition, fragmentsWithResult), uncoveredFragments) = chosenPredicate
         
         val (fragmentsThatAreTrue, fragmentsThatAreFalse) = {
           val (fragmentsThatAreTrue, fragmentsThatAreFalse) =
@@ -460,17 +482,17 @@ class Synthesizer extends HasLogger {
           (a, mapB)
         }
           
-        assert(fragmentsWithResult.map(_._3).forall(_.size <= 1), fragmentsWithResult.mkString("\n"))
+//        assert(fragmentsWithResult.map(_._3).forall(_.size <= 1), fragmentsWithResult.mkString("\n"))
         (
           (
             (condition, Right(getExprAndArgumentMap(fragmentsThatAreTrue))) :: Nil,
             getExprAndArgumentMap(fragmentsThatAreFalse)
           ),
-          fragmentsWithResult.map(_._3).flatten.toList
+          uncoveredFragments
         )
       }
     
-    (predicates, emptyDiffsFromCalculate ::: nonCovered,
+    (predicates, emptyDiffsFromCalculate, nonCovered,
       initialFragmentsFromGroup.head :: Nil)
   }
   
@@ -592,10 +614,11 @@ class Synthesizer extends HasLogger {
             evaluator.eval(conditionExpr, new Model(inputs.toMap)) match {
               case EvaluationResults.Successful(BooleanLiteral(v)) =>
                 info(s"evaluation success: $v for $conditionExpr, and inputs ${inputs}")
-                Left(v)
+                v
               case e: EvaluationResults.EvaluatorError =>
                 info("evaluation failure: " + e + s" for inputs ${inputs}")
-                Right(f)
+                ???
+//                Right(f)
             }
           }
           
@@ -604,10 +627,9 @@ class Synthesizer extends HasLogger {
         
         assert(allEqual.size > 0)
 
-        if(allEqual.filterNot(_.isRight).distinct.size == 1) {
-          val (booleanResults, undefinedExamples) = allEqual.partition(_.isLeft)
+        if(allEqual.distinct.size == 1) {
           Some(
-            (conditionExpr, (set, booleanResults.head.left.get), undefinedExamples.map(_.right.get))
+            (conditionExpr, (set, allEqual.head))
           )
         }
         else
@@ -628,7 +650,7 @@ class Synthesizer extends HasLogger {
           false
       }).map({
         case (k, v) =>
-          (k, v.map({ case (a, (b, c), d) => (b, c, d)}))
+          (k, v.map({ case (a, (b, c)) => (b, c)}))
       })
     info("distinguishing by group:\n" +distinguishedByGroup.mkString("\n")) 
     
@@ -656,24 +678,22 @@ class Synthesizer extends HasLogger {
                   setResults.find(_._1.map(_._2) contains chainedFragment)
                 assert(!resultForChainedFragment.isEmpty)
                 info(s"resultForChainedFragment: ${resultForChainedFragment}")
-                if(resultForChainedFragment.isEmpty || v == resultForChainedFragment.get._2) {
-                  true
-                } else {
-                  false
-                }
+
+                Left(v == resultForChainedFragment.get._2)
               case e: EvaluationResults.EvaluatorError =>
                 info("evaluation failure: " + e + s" for inputs ${inputs}")
-                true
+                // we consider everythig is fine in this case
+                Right(inputs)
             }
           }
           
-        val allEqual = res
-        info(s"results for $ex and $set: $allEqual")
         
-        assert(allEqual.size > 0)
+        assert(res.size > 0)
+        val (allEqual, failedFragments) = res.partition(_.isLeft)
+        info(s"results for $ex and $set: $allEqual")
 
-        if(allEqual.forall(identity))
-          Some((ex, setResults))
+        if(allEqual.forall(_.left.get))
+          Some((ex, setResults), failedFragments.map(_.right.get))
         else
           None
       }
@@ -706,56 +726,93 @@ class Synthesizer extends HasLogger {
         val atomExamples = inputExamples.map(substituteAllAtom)
         info("atomExamples: " + atomExamples)
       
+        // predicates for the chain
         val predicatesFuns = Predicates.calculatePredicates(atomExamples, x)
         val predicates = predicatesFuns.map(_(x))
         info("predicates: " + predicates)
 
+        
+        def makePredicates(previousPredicate: Expr, previousAtom: Expr, predicatesLeft: List[Expr],
+          atomExamples: List[Expr]): List[Expr] = {
+          entering("makePredicates", previousAtom, predicatesLeft, atomExamples)
+          (predicatesLeft, atomExamples) match {
+            case (_, `previousAtom` :: restExamples) =>
+              previousPredicate :: makePredicates(previousPredicate, previousAtom, predicatesLeft, restExamples)
+            case (predicate :: restPredicates, example :: restExamples) =>
+              predicate :: makePredicates(predicate, example, restPredicates, restExamples)
+            case (Nil, _ :: Nil) =>
+              Nil
+          }
+        }
+        
+        val resPredicates =
+          makePredicates(UnitLiteral(), UnitLiteral(), predicates, atomExamples)
+        assert(resPredicates.size == atomExamples.size - 1)
+        resPredicates
+
         // e.g. if we have Nil, Nil there will be no predicates
-        if (predicates.size >= 1) {
-          assert(predicates.size == 1) 
+//        if (predicates.size >= 1) {
+//          assert(predicates.size == 1) 
           
           // TODO sort in reverse order
-          val partition = ((atomExamples zip inputExamples groupBy (_._1)).toList.sortBy(
-            { p => -ExprOps.formulaSize(p._1) }).head)._2.map(_._2)
-          
-          Some((predicates.head, predicatesFuns.head, partition))
-        }
-        else None
+//          val partition = ((atomExamples zip inputExamples groupBy (_._1)).toList.sortBy(
+//            { p => -ExprOps.formulaSize(p._1) }).head)._2.map(_._2)
+//          
+//          Some((predicates.head, predicatesFuns.head, partition))
+//        }
+//        else None
       }
     )
     
-    val examplesWithComponents =
-      inputExamplesVerbatim.map({ e =>
-        for ((ex, x) <- e zip xs) yield {
-          ((e, x), ex) 
+    // map from an input (list of exprs) and variable, to it's value
+    val examplesWithComponentsMap = {
+      val examplesWithComponents =
+        inputExamplesVerbatim.map({ e =>
+          for ((ex, x) <- e zip xs) yield {
+            ((e, x), ex) 
+          }
+        }) flatten
+      val mapReturn = examplesWithComponents.toMap
+      assert(examplesWithComponents.size == mapReturn.size)
+      mapReturn
+    }
+    
+    (List.fill(xs.size)(List[Expr]()) /: predicateGroups) {
+      case (current, predicates) =>
+//        assert(current.size == predicates.size + 1)
+        for ( (curr, pred) <- current zip predicates ) yield {
+          pred :: curr
         }
-      }) flatten
-    val examplesWithComponentsMap = examplesWithComponents.toMap
-    assert(examplesWithComponents.size == examplesWithComponentsMap.size)
+    }
     
     // return examples with predicates which are true for them
     // partition examples not their projection
-    (((inputExamplesVerbatim, Map[Variable, Expr=>Expr]()) :: Nil) /: (predicateGroups zip xs)) {
-      case ( (examplesWithPredicates, (Some((predicate, predicateFun, partitioned)), x)) ) =>
-        val newResults =
-          for ((examples, predicates) <- examplesWithPredicates) yield {
-            def condition(ex: List[Expr]) =
-              partitioned contains examplesWithComponentsMap((ex, x))
-            fine("partitioned: " + partitioned)
-            fine("examplesWithComponentsMap: " + examplesWithComponentsMap)
-            
-            val (yesPredicate, noPredicate) = examples.partition(condition)
-            info(s"${(yesPredicate, noPredicate)} partition for $x")
-            (yesPredicate, predicates + (x -> predicateFun)) ::
-            (noPredicate, predicates) ::
-            Nil
-          }
-        
-        // FIXME SORT HERE Accordingly
-        newResults.flatten.sortBy(_._2.size)
-      case ( (examplesWithPredicates, (None, x)) ) =>
-        examplesWithPredicates
-    }
+//    (((inputExamplesVerbatim, Map[Variable, Expr=>Expr]()) :: Nil) /: (predicateGroups zip xs)) {
+//      case ( (examplesWithPredicates, ((predicate, predicateFun), x))) =>
+//        assign predicate to all examples, var at a time
+//        val newResults =
+//          // partition further existing partitions
+//          for ((examples, predicates) <- examplesWithPredicates) yield {
+//            def condition(ex: List[Expr]) = {
+//              val valueOfXinEx = examplesWithComponentsMap((ex, x))
+//              partitioned contains valueOfXinEx
+//            }
+//            fine("partitioned: " + partitioned)
+//            fine("examplesWithComponentsMap: " + examplesWithComponentsMap)
+//            
+//            // for the given example, the current partition contains or not value for variable x
+//            val (yesPredicate, noPredicate) = examples.partition(condition)
+//            info(s"${(yesPredicate, noPredicate)} partition for $x")
+//            (yesPredicate, predicates + (x -> predicateFun)) ::
+//            (noPredicate, predicates) ::
+//            Nil
+//          }
+//        
+//        // FIXME SORT HERE Accordingly
+//        newResults.flatten.sortBy(_._2.size)
+//      case ( (examplesWithPredicates, (None, x)) ) =>
+//        examplesWithPredicates
+//    }
     
 //    val (nums, diffSets, allDiffSets) = (
 //      for ((predicates, x) <- predicatesList zip xs) yield {

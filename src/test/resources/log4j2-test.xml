@@ -7,10 +7,10 @@
 		</Console>
 	</appenders>
 	<loggers>
-		<logger name="leon.synthesis.ioexamples.Synthesizer" level="debug" additivity="false">
+		<logger name="leon.synthesis.ioexamples.Synthesizer" level="all" additivity="false">
 			<appender-ref ref="Console" />
 		</logger>
-		<logger name="leon.test.ioexamples" level="all" additivity="false">
+		<logger name="leon.test.ioexamples" level="info" additivity="false">
 			<appender-ref ref="Console" />
 		</logger>
 		<logger name="leon.synthesis.ioexamples" level="off" additivity="false">
