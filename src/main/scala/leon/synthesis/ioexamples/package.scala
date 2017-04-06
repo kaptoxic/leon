@@ -9,8 +9,9 @@ import Common.Identifier
 
 package object ioexamples {
   
-  type InputOutputExample = (List[(Identifier, Expr)], (Identifier, Expr))
+  type InputExample = List[(Identifier, Expr)]
   
+  type InputOutputExample = (List[(Identifier, Expr)], (Identifier, Expr))
   
   type InputOutputExampleVal = (List[Expr], Expr)
   

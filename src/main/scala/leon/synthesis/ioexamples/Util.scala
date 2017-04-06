@@ -8,8 +8,9 @@ import purescala.{ Expressions => ot }
 import Expressions._
 import Types._
 import ExprOps._
-import Common.FreshIdentifier
+import Common._
 import Extractors._
+import Definitions._
 
 import leon.utils.logging._
 
@@ -39,6 +40,18 @@ object Util extends HasLogger {
   
   def substituteAllAtom(e: Expr) = postMap( substituteAtom(w) )(e)
   def substituteAllAtomWith(e: Expr)(w: Expr) = postMap( substituteAtom(w) )(e)
+
+  def substituteAllAtomsWrtProgram(e: Expr)(implicit p: Program) = {
+    
+    def substituteAtomInner(e: Expr) = e match {
+  	  case Atom(_) => Some(w)
+  	  case c: CaseClass if p.singleCaseClasses contains c.ct.classDef =>
+  	    Some(w)
+  	  case _ => None
+  	}
+
+    postMap( substituteAtomInner )(e)
+  }
 
 //  def substituteAtom(e: Expr) = e match {
 //	  case Atom(_) => w
@@ -216,6 +229,28 @@ object Util extends HasLogger {
     }
     
     inputExamples.sortWith((a, b) => compFun(convert(a), convert(b)))
+  }
+  
+  def sortInputs(inputExamplesFragments: List[List[Expr]]) = {
+    implicit var map = Map[(Expr, Expr), Int]()
+    
+    def compFun(as: List[Expr], bs: List[Expr]) = {
+      entering("compFun", as, bs)
+      val res =
+        ((0, map) /: (as zip bs)) {
+          case ((res, map), (a, b)) if res == 0 || res == -2 => 
+            compare(a, b)(map)
+          case (curr, _) =>
+            curr
+        }
+      map ++= res._2
+      if (res._1 == 0 || res._1 == -2)
+        throw new Exception(s"Input examples should form a total order (res._1=${res._1})")      	
+       
+      res._1 < 0
+    }
+    
+    inputExamplesFragments.sortWith(compFun(_, _))
   }
 
   def sortWrtInputs(inputExamplesFragments: List[(List[Expr], Expr)]) = {
