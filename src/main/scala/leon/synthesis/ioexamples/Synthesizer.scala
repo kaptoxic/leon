@@ -150,7 +150,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         // find differences by observing the inputs as a chain
         
         // initialFragmentsFromGroupPairs -- used to calculate initial predicates
-        val (predicates, emptyDiffsFromCalculate, emptyDiffsInputs, initialFragmentsFromGroup) =
+        val (predicates, emptyDiffsFromCalculate, emptyDiffsInputs, coveredLeastFragment) =
           getChainedBranches(
             unorderedFragments: List[Expr],
             unorderedFragmentsAll: List[Expr],
@@ -163,7 +163,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         fine("predicates : " + predicates)
         fine("emptyDiffsFromCalculate: " + emptyDiffsFromCalculate.mkString("\n"))
         fine("emptyDiffsInputs: " + emptyDiffsInputs.mkString("\n"))
-        fine("initialFragmentsFromGroup: " + initialFragmentsFromGroup.mkString("\n"))
+        fine("coveredLeastFragment: " + coveredLeastFragment)
         
         val emptyDiffs = ambigous ::: emptyDiffsFromCalculate
 
@@ -174,14 +174,11 @@ class Synthesizer(implicit program: Program) extends HasLogger {
 //          initialFragmentsFromGroupPairs.unzip
         
         // differentiate when to take initialfragmentsfromgorups
-        println(initialFragmentsFromGroup.forall(f => emptyDiffsFromCalculate contains f))
-        println(initialFragmentsFromGroup.toSet intersect emptyDiffsFromCalculate.toSet)
-
         val inputsForInitialFragments =
-          initialFragmentsFromGroup.map(x => fragmentToInputMap(x).head)
-        fine(initialFragmentsFromGroup.map(x => fragmentToInputMap(x)).toString)
+          fragmentToInputMap(coveredLeastFragment).head
+        fine(fragmentToInputMap(coveredLeastFragment).head.toString)
         val unhandledInputs =
-          (unhandledExamples ::: inputsForInitialFragments.map(_._1))//.map(_._1)
+          (unhandledExamples ::: (inputsForInitialFragments._1 :: Nil))//.map(_._1)
         info("unhandled inputs: " + unhandledInputs)
         
         val unhandledInputsTransformed =
@@ -191,9 +188,9 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         val intialPredicatesIn =
           // drop last one since in includes one fragment from inputsForInitialFragments
 //          if (inputsForInitialFragments.map(_._1).forall(unhandledInputsTransformed contains _))
-            calculatePredicatesStructure(unhandledInputsTransformed, inVars)
+//            calculatePredicatesStructure(unhandledInputsTransformed, inVars)
 //          else
-//            calculatePredicatesStructure(unhandledInputsTransformed, inVars).init
+            calculatePredicatesStructure(unhandledInputsTransformed, inVars)
         fine("intialPredicatesIn:\n" + intialPredicatesIn.mkString("\n"))
           
         // all variables are Nil
@@ -210,7 +207,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
 //        inputToFragmentMap =
 //          inputToFragmentMap ++ mapOfInputsToNewFragments
        
-        assert(unhandledInputsTransformed.size == intialPredicatesIn.size)
+        assert(unhandledInputsTransformed.size - 1 == intialPredicatesIn.size)
         val initialPredicates =
           for ( (examples, predicates) <- unhandledInputsTransformed zip intialPredicatesIn) yield { 
 //            val conditionsToRemove = 
@@ -403,9 +400,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
   }
   
   // currently just arbitrarily take one
-  def choosePredicate(
-    predicates: Iterable[((Expr, Iterable[(Set[(Expr, Expr)], Boolean)]), List[InputExample])]
-  ) =
+  def choosePredicate[T](predicates: Iterable[T]) =
     predicates.head
   
   def getChainedBranches(
@@ -425,23 +420,24 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     fine("filteredDiffGroups:\n" + filteredDiffGroups.mkString("\n"))
     
     // fragment that is the first within the group with common form  
-    val initialFragmentsFromGroup =
-      for ((startingFragments, finishingFragments) <- filteredDiffGroups.map(_._1.unzip)) yield {
-        finest("startingFragmentsfinishingFragments: " + startingFragments)
-        finest("finishingFragments: " + finishingFragments)
-        val initialFragment =
-          startingFragments.filterNot( finishingFragments contains _ )
-        finest("initialFragment: " + initialFragment)
-        val sorted = startingFragments.toList.sortBy(ExprOps.formulaSize(_))
-        assert(sorted.count(x => ExprOps.formulaSize(sorted.head) == ExprOps.formulaSize(x)) == 1)
-        sorted.head
-      }
-    fine("initialFragmentFromGroup: " + initialFragmentsFromGroup)
+//    make this to return smallest fragment covered by diff group but not
+//    val initialFragmentsFromGroup =
+//      for ((startingFragments, finishingFragments) <- filteredDiffGroups.map(_._1.unzip)) yield {
+//        finest("startingFragmentsfinishingFragments: " + startingFragments)
+//        finest("finishingFragments: " + finishingFragments)
+//        val initialFragment =
+//          startingFragments.filterNot( finishingFragments contains _ )
+//        finest("initialFragment: " + initialFragment)
+//        val sorted = startingFragments.toList.sortBy(ExprOps.formulaSize(_))
+//        assert(sorted.count(x => ExprOps.formulaSize(sorted.head) == ExprOps.formulaSize(x)) == 1)
+//        sorted.head
+//      }
+//    fine("initialFragmentFromGroup: " + initialFragmentsFromGroup)
 
-    val (predicates, nonCovered) =
+    val (predicates, nonCovered, coveredLeastFragment) =
       // if there is only one group of fragments with common form
       if (filteredDiffGroups.size == 1) {
-        val (_, subs) = filteredDiffGroups.head
+        val (fragmentPair, subs) = filteredDiffGroups.head
         
         // we don't know how to deal with this ambiguity though (should not happen?)
         assert(subs.size == 1)
@@ -450,7 +446,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
 //        val singleGeneralizedFragment =
 //          f(Hole(UnitType, xs.map(subMap)))
   
-        ((Nil, (f, subMap)), Nil)
+        ((Nil, (f, subMap)), Nil, fragmentPair.head._1)
       } else {
         // found groups
         // TODO check if this is generalized to size >2
@@ -467,7 +463,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         fine("predicates:\n" + predicates.mkString("\n"))
           
         val chosenPredicate = choosePredicate(predicates)
-        val ((condition, fragmentsWithResult), uncoveredFragments) = chosenPredicate
+        val ((condition, fragmentsWithResult), uncoveredFragments, coveredLeastFragment) = chosenPredicate
         fine("uncoveredFragments:\n" + uncoveredFragments.mkString("\n"))
         
         val (fragmentsThatAreTrue, fragmentsThatAreFalse) = {
@@ -490,12 +486,11 @@ class Synthesizer(implicit program: Program) extends HasLogger {
             (condition, Right(getExprAndArgumentMap(fragmentsThatAreTrue))) :: Nil,
             getExprAndArgumentMap(fragmentsThatAreFalse)
           ),
-          uncoveredFragments
+          uncoveredFragments, coveredLeastFragment
         )
       }
     
-    (predicates, emptyDiffsFromCalculate, nonCovered,
-      initialFragmentsFromGroup.head :: Nil)
+    (predicates, emptyDiffsFromCalculate, nonCovered, coveredLeastFragment)
   }
   
   /*
@@ -710,16 +705,14 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     val results =
       for (Some((ex, setResults)) <- resultsFiltered;
         _ = info(s"example is $ex");
-        (set, diffs) <- filteredDiffGroups;
-        // only one diff, so take head
-        _ = assert(diffs.size == 1);
-        (mapping, fun) = diffs.head
+        _ = info("setResults:\n" + setResults.mkString("\n"))
       ) yield {
         val higherFragments =
           setResults.map(_._1.map(_._2)).flatten.toSet
         
         val res =
-          for((f, _) <- set.toList;
+          for((f, _) <- setResults.map(_._1).flatten.toList;
+            _ = fine("f is: " + f);
             // note that the lowest fragment (out of two) might fail
             // NOTE we assume evaluation error actually is one of those simple cases that already work 
             (inputs, _) = fragmentsAndInputsMap(f)) yield {
@@ -732,12 +725,21 @@ class Synthesizer(implicit program: Program) extends HasLogger {
                 case e: EvaluationResults.EvaluatorError =>
                   fine("evaluation failure: " + e + s" for inputs ${inputs}")
                   // we consider everythig is fine in this case
-                  Some(inputs)
+                  Left(inputs)
               }
-            } else None
+            } else {
+              fine("adding right: " + Right((inputs.map(_._2), f)))
+              Right((inputs.map(_._2), f))
+            }
           }
         
-        Some((ex, setResults), res.flatten)
+        val (nonCovered, covered) = res.partition(_.isLeft)
+        
+        finest("sorted\n: " + Util.sortWrtInputs(covered.map(_.right.get)).mkString("\n"))
+        Some(((ex, setResults),
+          nonCovered.map(_.left.get),
+          Util.sortWrtInputs(covered.map(_.right.get)).head._2
+        ))
       }
     
     results
@@ -787,13 +789,10 @@ class Synthesizer(implicit program: Program) extends HasLogger {
               Nil
           }
         }
-        
+
         val resPredicates =
-          if (predicates == Nil)
-            makePredicates(UnitLiteral(), UnitLiteral(), x :: Nil, atomExamples)
-          else
-            makePredicates(UnitLiteral(), UnitLiteral(), predicates, atomExamples)
-        assert(resPredicates.size == atomExamples.size)
+          makePredicates(UnitLiteral(), atomExamples.head, predicates, atomExamples.tail)
+        assert(resPredicates.size == atomExamples.size - 1)
         resPredicates
 
         // e.g. if we have Nil, Nil there will be no predicates

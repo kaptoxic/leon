@@ -212,9 +212,9 @@ object Util extends HasLogger {
   }
   
   // sort in case multiple inputs
-  def sort[T](inputExamples: List[T], convert: T=>Seq[Expr]) = {
-    ???
-  }
+//  def sort[T](inputExamples: List[T], convert: T=>Seq[Expr]) = {
+//    ???
+//  }
   
   def sort[T](inputExamples: List[T], convert: T=>Expr) = {
     // this is just to speed things up?

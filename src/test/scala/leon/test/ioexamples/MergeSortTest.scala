@@ -133,7 +133,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with CancelAfterF
     info("(body, funDef) is: " + (body, funDef))
     val bodyStrings =
       (for (i <- 1 to 2; cond <-
-        "l1.head <= l2.head" :: "l2.head < l1.head" :: Nil) yield
+        "l1.head <= l2.head" :: "l1.head < l2.head" :: Nil) yield
         """|if ((l1 == Nil) && (l2 == Nil)) {
            |  l%d
            |} else if ((l2 == Nil)) {
@@ -151,6 +151,15 @@ class MergeSortTest extends FunSuite with Matchers with Inside with CancelAfterF
          |  Cons(l2.head, rec(l1, l2.tail))
          |} else {
          |  Cons(l1.head, rec(l1.tail, l2))
+         |}""" ::
+       """|if ((l2 == Nil) && (l1 == Nil)) {
+         |  l2
+         |} else if ((l2 == Nil)) {
+         |  l1
+         |} else if (l1.head <= l2.head) {
+         |  Cons(l1.head, rec(l1.tail, l2))
+         |} else {
+         |  Cons(l2.head, rec(l1, l2.tail))
          |}""" :: Nil) map (_.stripMargin)
      
     bodyStrings should contain (body.toString)
