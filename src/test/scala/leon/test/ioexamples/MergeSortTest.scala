@@ -134,7 +134,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with CancelAfterF
     val bodyStrings =
       (for (i <- 1 to 2; cond <-
         "l1.head <= l2.head" :: "l1.head < l2.head" :: Nil) yield
-        """|if ((l1 == Nil) && (l2 == Nil)) {
+        """|if ((l1 == Nil)) {
            |  l%d
            |} else if ((l2 == Nil)) {
            |  l1
@@ -143,7 +143,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with CancelAfterF
            |} else {
            |  Cons(l2.head, rec(l1, l2.tail))
            |}""".format(i, cond)) ++
-      ("""|if ((l1 == Nil) && (l2 == Nil)) {
+      ("""|if ((l1 == Nil)) {
          |  l2
          |} else if ((l2 == Nil)) {
          |  l1
@@ -152,7 +152,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with CancelAfterF
          |} else {
          |  Cons(l1.head, rec(l1.tail, l2))
          |}""" ::
-       """|if ((l2 == Nil) && (l1 == Nil)) {
+       """|if ((l2 == Nil)) {
          |  l2
          |} else if ((l2 == Nil)) {
          |  l1

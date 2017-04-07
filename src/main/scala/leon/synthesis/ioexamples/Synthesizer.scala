@@ -775,23 +775,23 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         val predicates = predicatesFuns.map(_(x))
         info("predicates: " + predicates)
 
-        def makePredicates(previousPredicate: Expr, previousAtom: Expr, predicatesLeft: List[Expr],
+        def makePredicates(previousAtom: Expr, predicatesLeft: List[Expr],
           atomExamples: List[Expr]): List[Expr] = {
           entering("makePredicates", previousAtom, predicatesLeft, atomExamples)
           (predicatesLeft, atomExamples) match {
             case (_, `previousAtom` :: restExamples) =>
-              previousPredicate :: makePredicates(previousPredicate, previousAtom, predicatesLeft, restExamples)
+              UnitLiteral() :: makePredicates(previousAtom, predicatesLeft, restExamples)
             case (predicate :: restPredicates, example :: restExamples) =>
-              predicate :: makePredicates(predicate, example, restPredicates, restExamples)
-            case (Nil, example :: restExamples) =>
-              UnitLiteral() :: makePredicates(previousPredicate, previousAtom, predicatesLeft, restExamples)
+              predicate :: makePredicates(example, restPredicates, restExamples)
+//            case (Nil, example :: restExamples) =>
+//              UnitLiteral() :: makePredicates(previousAtom, predicatesLeft, restExamples)
             case (Nil, Nil) =>
               Nil
           }
         }
 
         val resPredicates =
-          makePredicates(UnitLiteral(), atomExamples.head, predicates, atomExamples.tail)
+          makePredicates(atomExamples.head, predicates, atomExamples.tail)
         assert(resPredicates.size == atomExamples.size - 1)
         resPredicates
 
