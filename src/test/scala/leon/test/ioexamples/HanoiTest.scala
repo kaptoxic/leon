@@ -40,34 +40,76 @@ class HanoiTest extends FunSuite with Matchers with Inside with HasLogger {
 
   val problems = forFile(ioExamplesTestcaseDir + "Hanoi.scala").toList
 
-  test("check synthesis problem") {
-    problems.size should be (1)
+  test("check synthesis problems") {
+    problems.size should be(2)
   }
 
-  val (sctx, funDef, problem) = problems.head
+  {
+    val (sctx, funDef, problem) = problems.head
 
-  implicit val program = sctx.program
+    implicit val program = sctx.program
 
-  test("extract examples") {
-    
+    test("extract examples") {
+
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+      val examples = extraction.extract(problem)
+      withClue(examples) {
+        examples.size should be(3)
+      }
+
+    }
+
+    test("get fragments") {
+
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+      val examples = extraction.extract(problem)
+      withClue(examples) {
+        examples.size should be(3)
+      }
+
+      ///////////////////////
+
+      // get fragments
+      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+      info(s"inIds $inIds")
+      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+
+      info("transformed examples: " + transformedExamples.mkString("\n"))
+      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+      info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
+
+      val f1 :: f2 :: f3 :: Nil = unorderedFragments
+
+      val vars = problem.as.map(_.toVariable)
+      vars.size shouldBe 4
+
+      val elements1 :: elements2 :: elements3 :: Nil =
+        for (f <- unorderedFragments) yield ExprOps.collect[Expr]({
+          case cc @ CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
+          case _ => Set()
+        })(f)
+      info("elements2: " + elements2)
+
+      elements1 should have size 1
+      for (el2 <- elements2) {
+        val diffs = differences(elements1.head, el2, vars)
+        info(s"diffs between ${elements1.head} and $el2 are ${diffs.mkString("\n")}")
+      }
+
+    }
+  }
+
+  ignore("get fragments, solve array") {
+
+    val (sctx, funDef, problem) = problems.head
     val extraction = new ExamplesExtraction(sctx, sctx.program)
     val examples = extraction.extract(problem)
     withClue(examples) {
-      examples.size should be (3)
+      examples.size should be(3)
     }
 
-  }
-  
-  test("get fragments") {
-    
-    val extraction = new ExamplesExtraction(sctx, sctx.program)
-    val examples = extraction.extract(problem)
-    withClue(examples) {
-      examples.size should be (3)
-    }
-    
     ///////////////////////
-    
+
     // get fragments
     val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
     info(s"inIds $inIds")
@@ -76,25 +118,24 @@ class HanoiTest extends FunSuite with Matchers with Inside with HasLogger {
     info("transformed examples: " + transformedExamples.mkString("\n"))
     info("unordered fragments: " + unorderedFragments.mkString("\n"))
     info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
-    
+
     val f1 :: f2 :: f3 :: Nil = unorderedFragments
-    
+
     val in :: Nil = problem.as.map(_.toVariable)
-    
-    val elements1 :: elements2 :: elements3 :: Nil = 
-      for (f <- unorderedFragments) yield
-        ExprOps.collect[Expr]({
-          case cc@CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
-          case _ => Set()
-        })(f)
-    fine("elements2: " + elements2)
-    
+
+    val elements1 :: elements2 :: elements3 :: Nil =
+      for (f <- unorderedFragments) yield ExprOps.collect[Expr]({
+        case cc @ CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
+        case _ => Set()
+      })(f)
+    info("elements2: " + elements2)
+
     elements1 should have size 1
     for (el2 <- elements2) {
       val diffs = differences(elements1.head, el2, in :: Nil)
-      fine(s"diffs between ${elements1.head} and $el2 are ${diffs.mkString("\n")}")
+      info(s"diffs between ${elements1.head} and $el2 are ${diffs.mkString("\n")}")
     }
-    
+
   }
 
 }

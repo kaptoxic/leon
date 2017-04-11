@@ -19,6 +19,30 @@ object HanoiObject {
   def dec(value: Int) = value - 1
   
   def isZero(value: Int) = value == 0
+
+  def solve(disks: Int, src: Peg, aux: Peg, dst: Peg): List[Move] = choose {
+    (res: List[Move]) =>
+      ((disks, src, aux, dst), res) passes {
+        case (0, Src, Aux, Dst) =>
+          List(Move(0, Src, Dst))
+        case (1, Src, Aux, Dst) =>
+          List(
+  	        Move(0, Aux, Dst),
+    	    	  Move(1, Src, Dst),
+  		        Move(0, Src, Aux)
+  		    )
+        case (2, Src, Aux, Dst) => 
+          List(
+    			  Move(0, Src, Dst), 
+      				Move(1, Aux, Dst),
+      				  Move(0, Aux, Src),
+        					Move(2, Src, Dst), 
+        					  Move(0, Dst, Aux),
+          						Move(1, Src, Aux),
+          						  Move(0, Src, Dst)
+				  )
+	  }
+  }
 		  
   def solveArray(hanoi: Hanoi): List[Move] = choose {
     (res: List[Move]) =>
