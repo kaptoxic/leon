@@ -1387,6 +1387,10 @@ trait CodeExtraction extends ASTExtractors {
             rexs.pairs.toSeq.map {
               case (f: Expressions.Literal[_], t) =>
                 SimpleCase(LiteralPattern(None, f), t)
+              case (cce: Expressions.CaseClass, t) =>
+                val (pattern, guard) = ExprOps.expressionToPattern(cce) 
+                assert(guard == BooleanLiteral(true))
+                MatchCase(pattern, None, t)
             }
           passes(rin, rout, cases)
 

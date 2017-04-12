@@ -19,7 +19,7 @@ import org.scalatest.Matchers._
 
 import java.io.{ BufferedWriter, FileWriter, File }
 
-class ExamplesExtractionTest extends FunSpec with Inside {
+class ExamplesExtractionTest extends FunSpec with Matchers with Inside {
 
   import Scaffold._
 
@@ -34,7 +34,7 @@ class ExamplesExtractionTest extends FunSpec with Inside {
       describe("expected trees from passes should be returned") {
 
         it("should parse all problems") {
-          problems.size should be(3)
+          problems.size should be (4)
         }
       }
 
@@ -104,6 +104,28 @@ class ExamplesExtractionTest extends FunSpec with Inside {
           }
         }
       }
+      
+      
+      describe("should parse passes with map, nil problem, same as with cases") {
+        
+        val examples =
+          for (((sctx, funDef, problem)) <-
+            problems.filter(_._2.id.name contains "nil")) yield {
+            val extraction = new ExamplesExtraction(sctx, sctx.program)
+            val example = extraction.extract(problem)
+            example
+          }
+        
+        examples should have size 2
+        
+        withClue("WTF" + examples.mkString("\n")) {
+          val ex0 = examples(0).toString
+          val ex1 = examples(1).toString
+          ex0 shouldBe ex1
+        }
+
+      }
+      
     }
 
     describe("editor testcase") {

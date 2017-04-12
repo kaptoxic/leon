@@ -25,4 +25,13 @@ object ExamplesAsSpecification {
       case Cons(0, Nil()) => Nil()
     }
   }
+  
+  def nilWithMap(in: List) = choose {
+    (out : List) => (in, out) passes Map (
+      Nil() -> Nil(),
+      Cons(0, Nil()) -> Nil()
+    )
+  }
+
+
 }
