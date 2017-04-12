@@ -35,10 +35,10 @@ object GraphStrategy {
       "[" + info + "]"
     }
   }
-//  sealed abstract class Edge
+  sealed abstract class EdgeAbs
 //  case class EdgeItem(toVertex : Vertex, weight : Int) extends Edge
 //  case class EdgeEnd() extends Edge
-  case class Edge(toVertex : Vertex, weight : Int)
+  case class Edge(toVertex : Vertex, weight : Int) extends EdgeAbs
   
   def preorder(v: Vertex): List[(Vertex, List[Edge])] = {
     def rec(innerV: Vertex, currPath: List[Edge], visited: Set[Vertex]):
