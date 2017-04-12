@@ -2,7 +2,7 @@ import leon.lang.{ Map => _, _ }
 import leon.lang.synthesis._
 import leon.annotation._
 import leon.collection._
-import leon.io._
+//import leon.io._
 
 object GraphStrategy {
  
@@ -17,28 +17,51 @@ object GraphStrategy {
   case object F extends TargetInfo
 
   sealed abstract class Vertex
-  case class VertexInner(edges : List[Edge]) extends Vertex
-  case class VertexEnd(info: SourceInfo) extends Vertex
-  case class Transformed(info: TargetInfo) extends Vertex
+  case class VertexInner(edges : List[Edge]) extends Vertex {
+    @ignore
+    override def toString: String = {
+      " " + List.mkString[Vertex](edges.map(_.toVertex), ",", _.toString)
+    }
+  }
+  case class VertexEnd(info: SourceInfo) extends Vertex {
+    @ignore
+    override def toString: String = {
+      "{" + info + "}"
+    }
+  }
+  case class Transformed(info: TargetInfo) extends Vertex {
+    @ignore
+    override def toString: String = {
+      "[" + info + "]"
+    }
+  }
 //  sealed abstract class Edge
 //  case class EdgeItem(toVertex : Vertex, weight : Int) extends Edge
 //  case class EdgeEnd() extends Edge
   case class Edge(toVertex : Vertex, weight : Int)
   
   def preorder(v: Vertex): List[(Vertex, List[Edge])] = {
-    def rec(innerV: Vertex, currPath: List[Edge]): List[(Vertex, List[Edge])] = {
+    def rec(innerV: Vertex, currPath: List[Edge], visited: Set[Vertex]):
+      (List[(Vertex, List[Edge])], Set[Vertex]) = {
       innerV match {
+        case _ if visited.contains(innerV) =>
+          (Nil(), visited)
         case VertexEnd(_) =>
-          (innerV, currPath) :: Nil()
+          ((innerV, currPath) :: Nil(), visited + innerV)
         case VertexInner(edges) =>
           val res =
-            for (edge <- edges)
-              yield rec(edge.toVertex, currPath :+ edge)
-          ListOps.flatten(res)
+            edges.foldLeft((List[(Vertex, List[Edge])](), visited)) {
+              case ((resList, resVisited), edge) =>
+                val (newEl, newVisited) = rec(edge.toVertex, currPath :+ edge, resVisited + innerV)
+                (resList ++ newEl, newVisited)
+            }
+//          ListOps.flatten(res)
+          res
       }
     }
     
-    rec(v, Nil())
+    val (res, _) = rec(v, Nil(), Set())
+    res
   }
   
   def solve(v: Vertex): Vertex = {
@@ -57,6 +80,45 @@ object GraphStrategy {
     
     rec(v)
   }
+
+  def solve(v: Vertex, fin: Vertex): Vertex = {
+    def rec(innerV: Vertex): Vertex = {
+      innerV match {
+        case VertexEnd(A) if innerV == fin =>
+          Transformed(D)
+        case VertexEnd(B) if innerV == fin =>
+          Transformed(E)
+        case VertexEnd(C) if innerV == fin =>
+          Transformed(F)
+        case VertexInner(edges) =>
+          VertexInner(edges map { e => Edge(rec(e.toVertex), e.weight) })
+        case _ => innerV
+      }
+    }
+    
+    rec(v)
+  }
+  
+//  def solveContinue(v: Vertex, path: List[Vertex]): Vertex = {
+//    def rec(innerV: Vertex, innerPath: List[Vertex]): Vertex = {
+//      (innerPath, innerV) match {
+//        case (Nil(), VertexEnd(A)) =>
+//          Transformed(D)
+//        case (Nil(), VertexEnd(B)) =>
+//          Transformed(E)
+//        case (Nil(), VertexEnd(C)) =>
+//          Transformed(F)
+//        case (next :: rest, VertexInner(edges)) =>
+//          VertexInner(edges map { e =>
+//            if (e.toVertex == next)
+//              Edge(rec(e.toVertex, rest), e.weight)
+//            else e
+//          })
+//      }
+//    }
+//    
+//    rec(v, path)
+//  }
   
   val v1 = VertexEnd(A)
   val e21 = Edge(v1, 1)
@@ -98,7 +160,7 @@ object GraphStrategy {
     )
   }
   
-  def test {
+  def test = {
   
     assert( preorder(v1) == (v1, Nil[Edge]()) :: Nil[(Vertex, List[Edge])]() )
     assert( preorder(v1) == List[(Vertex, List[Edge])]((v1, Nil[Edge]())) )
@@ -110,6 +172,14 @@ object GraphStrategy {
     assert( solve(v2) == v2t )
 
     assert( solve(v5) == v5t )
+    
+    val preorderList = preorder(v5) 
+
+    assert( solve(v5, preorderList.head._1) == v5t1 )
+    assert( solve(v5t1, preorderList(1)._1) == v5t )
+
+//    solve(v5t1, preorderList(1)._1)
+//    preorderList(1)._1
     
   }
 
