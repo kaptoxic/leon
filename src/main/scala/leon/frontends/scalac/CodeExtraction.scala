@@ -1391,6 +1391,13 @@ trait CodeExtraction extends ASTExtractors {
                 val (pattern, guard) = ExprOps.expressionToPattern(cce) 
                 assert(guard == BooleanLiteral(true))
                 MatchCase(pattern, None, t)
+              case (v1: Variable, t) =>
+                val newId = FreshIdentifier("place", v1.getType)
+                MatchCase(WildcardPattern(Some(newId)), Some(Equals(v1, newId.toVariable)), t)
+              case (FunctionInvocation(fd1, Nil), FunctionInvocation(fd2, Nil)) =>
+                val (pattern, guard) = ExprOps.expressionToPattern(fd1.fullBody) 
+                assert(guard == BooleanLiteral(true))
+                MatchCase(pattern, None, fd2.fullBody)
             }
           passes(rin, rout, cases)
 

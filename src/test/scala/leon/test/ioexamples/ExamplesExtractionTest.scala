@@ -34,7 +34,7 @@ class ExamplesExtractionTest extends FunSpec with Matchers with Inside {
       describe("expected trees from passes should be returned") {
 
         it("should parse all problems") {
-          problems.size should be (4)
+          problems.size should be (5)
         }
       }
 
@@ -116,12 +116,11 @@ class ExamplesExtractionTest extends FunSpec with Matchers with Inside {
             example
           }
         
-        examples should have size 2
+        examples should have size 3
         
-        withClue("WTF" + examples.mkString("\n")) {
-          val ex0 = examples(0).toString
-          val ex1 = examples(1).toString
-          ex0 shouldBe ex1
+        withClue(examples.mkString("\n")) {
+          val first = examples.head
+          examples.tail.map(_.toString == first.toString).forall(identity) shouldBe true
         }
 
       }

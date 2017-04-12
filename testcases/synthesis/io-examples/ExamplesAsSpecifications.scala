@@ -32,6 +32,16 @@ object ExamplesAsSpecification {
       Cons(0, Nil()) -> Nil()
     )
   }
+  
+  val nilVal = Nil()
+  val consVal = Cons(0, Nil())
+  
+  def nilWithMapVar(in: List) = choose {
+    (out : List) => (in, out) passes Map (
+      nilVal -> nilVal,
+      consVal -> nilVal
+    )
+  }
 
 
 }
