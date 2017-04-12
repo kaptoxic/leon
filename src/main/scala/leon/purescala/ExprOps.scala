@@ -910,6 +910,9 @@ object ExprOps extends GenTreeOps[Expr] {
       case Tuple(subs) => TuplePattern(None, subs map rec)
       case l : Literal[_] => LiteralPattern(None, l)
       case Variable(i) => WildcardPattern(Some(i))
+      // in some cases, variables are sugared into function invocations
+      case FunctionInvocation(fd, Nil) if fd.hasBody =>
+        rec(fd.fullBody)
       case other =>
         val id = FreshIdentifier("other", other.getType, true)
         guard = and(guard, Equals(Variable(id), other))
