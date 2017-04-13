@@ -522,13 +522,40 @@ object Expressions {
     val getType = tpe
   }
 
+  // Ivan's hack
   /** $encodingof `value.selector` where value is of a case class type
     *
     * If you are not sure about the requirement you should use
     * [[purescala.Constructors#caseClassSelector purescala's constructor caseClassSelector]]
     */
+//  case class CaseClassSelector(classType: CaseClassType, caseClass: Expr, selector: Identifier) extends Expr {
+//    val selectorIndex = classType.classDef.selectorID2Index(selector)
+//    val getType = {
+//      // We don't demand equality because we may construct a mistyped field retrieval
+//      // (retrieving from a supertype before) passing it to the solver.
+//      // E.g. l.head where l:List[A] or even l: Nil[A]. This is ok for the solvers.
+//      if (typesCompatible(classType, caseClass.getType)) {
+//        classType.fieldsTypes(selectorIndex)
+//      } else {
+//        Untyped
+//      }
+//    }
+//  }
+  
   case class CaseClassSelector(classType: CaseClassType, caseClass: Expr, selector: Identifier) extends Expr {
-    val selectorIndex = classType.classDef.selectorID2Index(selector)
+    
+    def selectorID2Index(id: Identifier) : Int = {
+      val index = classType.classDef.fields.indexWhere(_.id.name == id.name)
+
+      if (index < 0) {
+        scala.sys.error(
+          "Could not find '"+id+"' ("+id.uniqueName+") within "+
+          classType.classDef.fields.map(_.id.uniqueName).mkString(", ")
+        )
+      } else index
+    }
+    
+    val selectorIndex = selectorID2Index(selector)
     val getType = {
       // We don't demand equality because we may construct a mistyped field retrieval
       // (retrieving from a supertype before) passing it to the solver.
