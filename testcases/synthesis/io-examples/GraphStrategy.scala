@@ -15,7 +15,7 @@ object GraphStrategy {
   case object D extends TargetInfo
   case object E extends TargetInfo
   case object F extends TargetInfo
-
+  
   sealed abstract class Vertex
   case class VertexInner(edges : List[Edge]) extends Vertex {
     @ignore

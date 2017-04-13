@@ -70,7 +70,7 @@ class GraphStrategyTest extends FunSuite with Matchers with Inside with HasLogge
 
     }
 
-    ignore("get fragments") {
+    test("get fragments") {
 
       // get fragments
       val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get

@@ -77,37 +77,44 @@ object Util extends HasLogger {
         map(e) = f
     }
     
-    def transform(tree: Expr, ctx: Expr => Expr): Unit = tree match {
-      // Scala Case classes
-      case nl@CaseClass(nilClass, args) if args.size == 0 =>
-        addToMap(nl -> ctx)
+    def transform(tree: Expr, ctx: Expr => Expr): Unit = {
+      entering("transform", tree)
+      tree match {
+        // Scala Case classes
+        case nl@CaseClass(nilClass, args) if args.size == 0 =>
+          addToMap(nl -> ctx)
+            
+        case cons@CaseClass(consClass, args) =>
+          addToMap(cons -> ctx)
+          assert(args.size == consClass.fields.size)
+          for ((arg, f) <- args zip consClass.fields) {
+            transform(arg, se => {
+                entering("inner transform", cons, consClass, ctx(se), f.id)
+                CaseClassSelector(consClass, ctx(se), f.id)
+              }
+            )
+          }
           
-      case cons@CaseClass(consClass, args) =>
-        addToMap(cons -> ctx)
-        assert(args.size == consClass.fields.size)
-        for ((arg, f) <- args zip consClass.fields) {
-          transform(arg, se => CaseClassSelector(consClass, ctx(se), f.id))
-        }
+  //      case _: CaseClassSelector =>
+  //        throw new RuntimeException(s"Subtree $tree should not be in example")
         
-//      case _: CaseClassSelector =>
-//        throw new RuntimeException(s"Subtree $tree should not be in example")
-      
-      // S-expressions and hardcoded lists
-      case nl: NilList =>
-        addToMap(nl -> ctx)
-      case cons@Cons(h, t) =>
-        addToMap(cons -> ctx)
-        transform(h, se => Car(ctx(se)))
-        transform(t, se => Cdr(ctx(se)))
-      // variable supported as atoms
-      case v: Variable =>
-        addToMap(v -> ctx)
-//      case _: Car | _: Cdr =>
-//        throw new RuntimeException(s"Subtree $tree should not be in example")
-      case e =>
-        addToMap(e -> ctx)
-//      case _ =>
-//        throw new RuntimeException("Not supported")
+        // S-expressions and hardcoded lists
+        case nl: NilList =>
+          addToMap(nl -> ctx)
+        case cons@Cons(h, t) =>
+          addToMap(cons -> ctx)
+          transform(h, se => Car(ctx(se)))
+          transform(t, se => Cdr(ctx(se)))
+        // variable supported as atoms
+        case v: Variable =>
+          addToMap(v -> ctx)
+  //      case _: Car | _: Cdr =>
+  //        throw new RuntimeException(s"Subtree $tree should not be in example")
+        case e =>
+          addToMap(e -> ctx)
+  //      case _ =>
+  //        throw new RuntimeException("Not supported")
+      }
     }
     
     transform(ex, identity)

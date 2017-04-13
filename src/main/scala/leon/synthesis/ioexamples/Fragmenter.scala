@@ -36,6 +36,7 @@ object Fragmenter extends HasLogger {
     // for each example
     for ((ie, oe) <- examples) yield {
       // all subexpressions of input
+      fine("map subexpressions of: " + ie)
       val subexprMaps = u.mapOfSubexpressionsToPathFunctions(ie)
 
       // if we have an integer input var, do -1, -2, ...
