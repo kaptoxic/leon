@@ -206,10 +206,11 @@ lazy val root = (project in file(".")).
 
 // logging facilities
 libraryDependencies ++= Seq(
-  "org.apache.logging.log4j" % "log4j-api" % "2.8",
-  "org.apache.logging.log4j" % "log4j-core" %"2.8"
+  "org.apache.logging.log4j" % "log4j-api" % "2.8" exclude("org.apache.logging.log4j", "log4j-slf4j-impl"),
+  "org.apache.logging.log4j" % "log4j-core" %"2.8" exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
 )
 
-libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-jdk14")) }
+//libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-jdk14")) }
+libraryDependencies ~= { _.map(_.exclude("org.apache.logging.log4j", "log4j-slf4j-impl")) }
 
 libraryDependencies += "jpl" % "jpl" % "7.0.1"
