@@ -51,66 +51,53 @@ class GraphStrategyTest extends FunSuite with Matchers with Inside with HasLogge
 
     implicit val program = sctx.program
 
-    test("extract examples") {
+    val extraction = new ExamplesExtraction(sctx, sctx.program)
+    val examples = extraction.extract(problem)
 
-      val extraction = new ExamplesExtraction(sctx, sctx.program)
-      val examples = extraction.extract(problem)
+    test("extract examples") {
       withClue(examples) {
         examples.size should be(2)
       }
+      
+      examples(1).toString should be (
+        "(List(" +
+          "(in,VertexInner(Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(Transformed(D), 1), Nil[Edge]())), 13), Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(Transformed(D), 3), Cons[Edge](Edge(VertexEnd(B), 6), Nil[Edge]()))), 7), Nil[Edge]()))))" +
+        ")," +
+          "(out,VertexInner(Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(Transformed(D), 1), Nil[Edge]())), 13), Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(Transformed(D), 3), Cons[Edge](Edge(Transformed(E), 6), Nil[Edge]()))), 7), Nil[Edge]())))))"
+      )
+      
+      program.definedFunctions.map(_.id.name) should contain ("v5t1")
 
     }
 
     ignore("get fragments") {
-
-      val extraction = new ExamplesExtraction(sctx, sctx.program)
-      val examples = extraction.extract(problem)
-      withClue(examples) {
-        examples.size should be(3)
-      }
-      
-      examples.map(_.toString) should contain (
-        "InputOutputExample(List(" +
-          "(in, VertexInner(Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(VertexEnd(A), 1), Nil[Edge]())), 13), Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(VertexEnd(A), 3), Cons[Edge](Edge(VertexEnd(B), 6), Nil[Edge]()))), 7), Nil[Edge]()))))" +
-        ")," +
-        "(out, VertexInner(Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(Transformed(D), 1), Nil[Edge]())), 13), Cons[Edge](Edge(VertexInner(Cons[Edge](Edge(Transformed(D), 3), Cons[Edge](Edge(VertexEnd(B), 6), Nil[Edge]()))), 7), Nil[Edge]()))))))"
-      )
-
-      // get value of variables here
-      examples.map(_.toString) should contain (
-        "InputOutputExample(List(" +
-          s"(in, ${program.lookup("v5t1").get.asInstanceOf[FunDef].fullBody}" +
-        s"(out, ${program.lookup("v5t").get.asInstanceOf[FunDef].fullBody}))))"
-      )
-
-      ///////////////////////
 
       // get fragments
       val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
       info(s"inIds $inIds")
       val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
 
-      info("transformed examples: " + transformedExamples.mkString("\n"))
-      info("unordered fragments: " + unorderedFragments.mkString("\n"))
-      info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
-
-      val f1 :: f2 :: f3 :: Nil = unorderedFragments
-
-      val vars = problem.as.map(_.toVariable)
-      vars.size shouldBe 4
-
-      val elements1 :: elements2 :: elements3 :: Nil =
-        for (f <- unorderedFragments) yield ExprOps.collect[Expr]({
-          case cc @ CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
-          case _ => Set()
-        })(f)
-      info("elements2: " + elements2)
-
-      elements1 should have size 1
-      for (el2 <- elements2) {
-        val diffs = differences(elements1.head, el2, vars)
-        info(s"diffs between ${elements1.head} and $el2 are ${diffs.mkString("\n")}")
-      }
+//      info("transformed examples: " + transformedExamples.mkString("\n"))
+//      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+//      info("unordered fragments: " + unorderedFragments.map(CustomPrinter(_)).mkString("\n"))
+//
+//      val f1 :: f2 :: f3 :: Nil = unorderedFragments
+//
+//      val vars = problem.as.map(_.toVariable)
+//      vars.size shouldBe 4
+//
+//      val elements1 :: elements2 :: elements3 :: Nil =
+//        for (f <- unorderedFragments) yield ExprOps.collect[Expr]({
+//          case cc @ CaseClass(ct, h :: t :: Nil) if ct.id.name == "Cons" => Set(h)
+//          case _ => Set()
+//        })(f)
+//      info("elements2: " + elements2)
+//
+//      elements1 should have size 1
+//      for (el2 <- elements2) {
+//        val diffs = differences(elements1.head, el2, vars)
+//        info(s"diffs between ${elements1.head} and $el2 are ${diffs.mkString("\n")}")
+//      }
 
     }
   }
