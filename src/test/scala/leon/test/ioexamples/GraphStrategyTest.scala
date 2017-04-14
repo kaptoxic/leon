@@ -109,6 +109,8 @@ class GraphStrategyTest extends FunSuite with Matchers with Inside with HasLogge
 
     val extraction = new ExamplesExtraction(sctx, sctx.program)
     val examples = extraction.extract(problem)
+    
+    val graphClass = program.definedClasses.find(_.id.name == "Vertex").get
 
     test("extract examples") {
       withClue(examples) {
@@ -135,22 +137,28 @@ class GraphStrategyTest extends FunSuite with Matchers with Inside with HasLogge
         transformedExamples.map(_._1.head)
 
       val f1 :: f2 :: Nil = unorderedFragments
-
       val inVar :: Nil = problem.as.map(_.toVariable)
 
-    {
-      val diffs = Differencer.differenceConstraintsRelaxed(in1, in2)
-      diffs.size should be(1)
+      {
+        val diffs = Differencer.differenceConstraintsRelaxed(in1, in2)
+        diffs.size should be(1)
+        
+        val (a, b) = diffs.head
+        
+        val path1 = Util.mapOfSubexpressionsToPathFunctions(in1)(a)
+        val path2 = Util.mapOfSubexpressionsToPathFunctions(in2)(b)
+        
+        // typing problem again, just compare strings
+        path1(w).toString shouldBe path2(w).toString
+      }
       
-      val (a, b) = diffs.head
-      
-      val path1 = Util.mapOfSubexpressionsToPathFunctions(in1)(a)
-      val path2 = Util.mapOfSubexpressionsToPathFunctions(in2)(b)
-      
-      // typing problem again, just compare strings
-      path1(w).toString shouldBe path2(w).toString
+      {
+        val graphFragmenter = new FragmenterGraph(program, graphClass)
+        val fragments = graphFragmenter.constructFragments(transformedExamples, inVar :: Nil)
+        
+        fragments should not be empty
+      }
 
-    }
 
     }
   }
