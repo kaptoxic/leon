@@ -111,6 +111,10 @@ class GraphStrategyTest extends FunSuite with Matchers with Inside with HasLogge
     val examples = extraction.extract(problem)
     
     val graphClass = program.definedClasses.find(_.id.name == "Vertex").get
+    
+    val listClass = program.definedClasses.find(_.id.name == "List").get
+    val consClass = program.caseClassDef("Cons")
+    val nilClass = program.caseClassDef("Nil")
 
     test("extract examples") {
       withClue(examples) {
@@ -152,14 +156,23 @@ class GraphStrategyTest extends FunSuite with Matchers with Inside with HasLogge
         path1(w).toString shouldBe path2(w).toString
       }
       
-      {
+//      test("get graph fragments") {
         val graphFragmenter = new FragmenterGraph(program, graphClass)
-        val fragments = graphFragmenter.constructFragments(transformedExamples, inVar :: Nil)
+        val graphFragments = graphFragmenter.constructFragments(transformedExamples, inVar :: Nil)
         
-        fragments should not be empty
-      }
+        graphFragments should not be empty
 
-
+        all (graphFragments) should not be empty
+        
+//        test("decompose problem") {
+          val decomposer = new Decomposer((listClass, consClass, nilClass))
+          val fragments = decomposer.decompose(examples, graphFragments map (_.get))
+          
+          fragments should not be empty
+          fragments.get.size shouldBe 2
+//        }
+//      }
+     
     }
   }
 
