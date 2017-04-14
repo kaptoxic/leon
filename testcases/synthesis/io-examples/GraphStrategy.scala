@@ -152,6 +152,13 @@ object GraphStrategy {
  
   val e53t1 = Edge(v3t1, 7)
   val v5t1 = VertexInner(List(e52t, e53t1)) 
+  
+  def problemSimple(in: Vertex) = choose {
+    (out : Vertex) => (in, out) passes Map (
+      v3 -> v3t1,
+      v3t1 -> v3t
+    )
+  }
 
   def problem(in: Vertex) = choose {
     (out : Vertex) => (in, out) passes Map (
