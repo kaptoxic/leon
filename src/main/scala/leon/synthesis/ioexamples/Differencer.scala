@@ -153,6 +153,63 @@ object Differencer extends HasLogger {
     
   }
   
+  def differenceConstraintsRelaxed(expr1: Expr, expr2: Expr): List[(Expr, Expr)] = {
+    entering("differenceConstraints", expr1, expr2)
+    
+    def rec(e1: Expr, e2: Expr): List[(Expr, Expr)] = {
+      entering("rec", e1, e2)
+
+      (e1, e2) match {
+        case (v1: Variable, v2: Variable) if v1 == v2 =>
+          Nil
+        case (v: Variable, _) =>
+          (v -> e2) :: Nil
+        case (_: NilList, _: NilList) =>
+          Nil
+        case (Cons(h1, t1), Cons(h2, t2)) =>
+          rec(h1, h2) ++ rec(t1, t2)
+        case (Car(a), Car(b)) => rec(a, b)
+        case (Cdr(a), Cdr(b)) => rec(a, b)
+        case (nl1@CaseClass(ct1, args1), nl2@CaseClass(ct2, args2)) if ct1 == ct2 =>
+          (List[(Expr, Expr)]() /: (args1 zip args2)) {
+            case (curr, (arg1, arg2)) =>
+              curr ++ rec(arg1, arg2)
+          }
+        case (nl1@CaseClass(ct1, args1), nl2@CaseClass(ct2, args2)) =>
+          (nl1 -> nl2) :: Nil
+          
+        // add operator here and check equality of literal operands
+        case (Operator(args1, _), Operator(args2, fn2)) if fn2(args1) == e1 =>
+          (List[(Expr, Expr)]() /: (args1 zip args2)) {
+            case (curr, (arg1, arg2)) =>
+              curr ++ rec(arg1, arg2)
+          }
+          
+        case (ccs1@CaseClassSelector(ct1, e1, f1), ccs2@CaseClassSelector(ct2, e2, f2)) if
+          ct1 == ct2 && f1 == f2 =>
+          rec(e1, e2)
+  //      case (nl1@CaseClass(ct1, args1), nl2@CaseClass(ct2, args2)) =>
+  //        println("WTF" + ct1 == ct2)
+  //        (List[Expr]() /: (args1 zip args2)) {
+  //          case (curr, (arg1, arg2)) =>
+  //            curr ++ rec(arg1, arg2)
+  //        }
+            
+        case (_, _) =>
+          info("Throwing exception at matching " + e1 + " and " + e2)
+          throw new Exception("Cannot satisfy constraint")
+      }
+    }
+    
+    try { rec(expr1, expr2) } 
+    catch {
+      case _: Throwable =>
+        info("Cannot satisfy constraint - thrown, for " + expr1 + " and " + expr2)
+        Nil
+    }    
+  }
+  
+  
 //  def areCompatible(differences: (Map[Variable, Expr], Expr => Expr)):
 //    Option[(Map[Variable, Expr], Expr => Expr)] = {
 //    
