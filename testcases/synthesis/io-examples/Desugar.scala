@@ -18,6 +18,18 @@ object Types {
   case object BoolType extends Type
 }
 
+//object Trees2 {
+//  import Types._
+//  
+//  abstract class Expr
+//  case class Plus(lhs: Expr, rhs: Expr, tpe: Type) extends Expr
+//  case class And(lhs: Expr, rhs: Expr, tpe: Type) extends Expr
+//  case class Ite(cond: Expr, thn: Expr, els: Expr, tpe: Type) extends Expr
+//  case class IntLiteral(v: Int) extends Expr
+//  case class BoolLiteral(b : Boolean) extends Expr
+//  case class IsType(e: Expr, tpe: Type) extends Expr
+//}
+
 
 object TypeChecker {
   import Trees._
@@ -93,13 +105,26 @@ object Desugar {
   import TypeChecker._
   import Semantics.b2i
 
-  abstract class SimpleE 
-  case class Plus(lhs : SimpleE, rhs : SimpleE) extends SimpleE
-  case class Neg(arg : SimpleE) extends SimpleE
-  case class Ite(cond : SimpleE, thn : SimpleE, els : SimpleE) extends SimpleE
-  case class Eq(lhs : SimpleE, rhs : SimpleE) extends SimpleE
-  case class LessThan(lhs : SimpleE, rhs : SimpleE) extends SimpleE
-  case class Literal(i : Int) extends SimpleE
+  abstract class StaticE 
+  case class Plus(lhs: StaticE, rhs: StaticE) extends StaticE
+  case class And(lhs: StaticE, rhs: StaticE) extends StaticE
+  case class Ite(cond: StaticE, thn: StaticE, els: StaticE) extends StaticE
+  case class Literal(i: Int) extends StaticE
+  case class IsType(e: StaticE, tpe: Type) extends StaticE
+  case object Error extends StaticE
+  
+  def sem(t: StaticE) : Int = t match {
+    case Plus (lhs, rhs) => sem(lhs) + sem(rhs)
+    case Ite(
+      and@And(IsType(lhs, IntType), IsType(rhs, IntType)),
+      Plus(a, b),
+      Error) =>
+      if (sem(and) == 1 && lhs == a && rhs == b)
+        sem(lhs) + sem(rhs)
+      else
+        5
+    case Literal(i) => i
+  }
 
 //  @induct
 //  def desugar(e : Trees.Expr) : SimpleE = { e match {
