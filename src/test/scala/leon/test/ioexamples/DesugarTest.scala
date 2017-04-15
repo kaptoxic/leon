@@ -68,89 +68,89 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   //  val evaluator = new DefaultEvaluator(sctx, program)
   val evaluator = new CodeGenEvaluator(sctx, program)
 
-//  import scife._
-//  import enumeration.{ Map => _, _ }
-//  import dependent._
-//  import memoization._
-//  import scife.{ enumeration => e }
-//  import scife.util._
-//  
-//  def gc(name: String) =
-//    program.definedClasses.find(_.id.name == name).get.asInstanceOf[CaseClassDef]
-//  
-//  def constructEnumerator_new(implicit ms: MemoizationScope) = {
-//    import enumeration.dependent._
-//
-//    val literals: List[Expr] =
-//      (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("IntLiteral").typed, IntLiteral(x) :: Nil)) :::
-//      (true :: false :: Nil).map(x => CaseClass(gc("BoolLiteral").typed, BooleanLiteral(x) :: Nil)) :::
-//      Nil
-//      
-//    val ops = Map(("int" -> ("Plus" :: Nil)), ("boolean" -> List[String]()))
-//
-//    val treesOfSize: Depend[(Int, List[String]), Expr] = Depend.memoized(
-//      (self: Depend[(Int, List[String]), Expr], pair: (Int, List[String])) => {
-//        val (size, types) = pair
-//
-////        else e.Empty
-//        if (size == 1) {
-//          e.WrapArray(literals.toArray): Enum[Expr]
-//        } else {
-//          val roots: Finite[String] = e.Enum(types.map(ops).flatten)
-//          val leftSizes: Finite[Int] = e.WrapArray(1 until size)
-//
-//          val rootLeftSizePairs = e.Product(leftSizes, roots)
-//
-//          val leftTrees: Depend[(Int, String), Expr] = InMap(self, { par: ((Int, String)) =>
-//            val (leftSize, rootColor) = par
-//            rootColor match {
-//              case "Plus" =>
-//                (leftSize, "int" :: Nil)
-//            }
-//          })
-//
-//          val rightTrees: Depend[(Int, String), Expr] = InMap(self, { par: ((Int, String)) =>
-//            val (leftSize, rootColor) = par
-//            rootColor match {
-//              case "Plus" =>
-//                (size - leftSize, "int" :: Nil)
-//            }
-//          })
-//
-//          val leftRightPairs: Depend[(Int, String), (Expr, Expr)] =
-//            Product(leftTrees, rightTrees)
-//
-//          val allNodes =
-//            memoization.Chain[(Int, String), (Expr, Expr), Expr](rootLeftSizePairs, leftRightPairs,
-//              (p1: (Int, String), p2: (Expr, Expr)) => {
-//                val ((leftSize, rootColor), (leftTree, rightTree)) = (p1, p2)
-//
-//                CaseClass(gc(rootColor).typed, leftTree :: rightTree :: Nil)
-//              })
-//
-//          allNodes
-//        }
-//      })
-//
-//    treesOfSize
-//  }
-//  
-//   test("datastructure generation") {
-//     
-//  
-//     val ms = new scope.AccumulatingScope
-//     val enum = constructEnumerator_new(ms)
-//  
-//     def getElements(size: Int) = (
-//       for (size <- 1 to 1;
-//         e = enum.getEnum(size, "int" :: "boolean" :: Nil);
-//         ind <- 0 until e.size
-//         ) yield e(ind)
-//       )
-//  
-//     getElements(5) should have size 5
-//  
-//   }
+  import scife._
+  import enumeration.{ Map => _, _ }
+  import dependent._
+  import memoization._
+  import scife.{ enumeration => e }
+  import scife.util._
+  
+  def gc(name: String) =
+    program.definedClasses.find(_.id.name == name).get.asInstanceOf[CaseClassDef]
+  
+  def constructEnumerator_new(implicit ms: MemoizationScope) = {
+    import enumeration.dependent._
+
+    val literals: List[Expr] =
+      (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("IntLiteral").typed, IntLiteral(x) :: Nil)) :::
+      (true :: false :: Nil).map(x => CaseClass(gc("BoolLiteral").typed, BooleanLiteral(x) :: Nil)) :::
+      Nil
+      
+    val ops = Map(("int" -> ("Plus" :: Nil)), ("boolean" -> List[String]()))
+
+    val treesOfSize: Depend[(Int, List[String]), Expr] = Depend.memoized(
+      (self: Depend[(Int, List[String]), Expr], pair: (Int, List[String])) => {
+        val (size, types) = pair
+
+//        else e.Empty
+        if (size == 1) {
+          e.WrapArray(literals.toArray): Enum[Expr]
+        } else {
+          val roots: Finite[String] = e.Enum(types.map(ops).flatten)
+          val leftSizes: Finite[Int] = e.WrapArray(1 until size)
+
+          val rootLeftSizePairs = e.Product(leftSizes, roots)
+
+          val leftTrees: Depend[(Int, String), Expr] = InMap(self, { par: ((Int, String)) =>
+            val (leftSize, rootColor) = par
+            rootColor match {
+              case "Plus" =>
+                (leftSize, "int" :: Nil)
+            }
+          })
+
+          val rightTrees: Depend[(Int, String), Expr] = InMap(self, { par: ((Int, String)) =>
+            val (leftSize, rootColor) = par
+            rootColor match {
+              case "Plus" =>
+                (size - leftSize, "int" :: Nil)
+            }
+          })
+
+          val leftRightPairs: Depend[(Int, String), (Expr, Expr)] =
+            Product(leftTrees, rightTrees)
+
+          val allNodes =
+            memoization.Chain[(Int, String), (Expr, Expr), Expr](rootLeftSizePairs, leftRightPairs,
+              (p1: (Int, String), p2: (Expr, Expr)) => {
+                val ((leftSize, rootColor), (leftTree, rightTree)) = (p1, p2)
+
+                CaseClass(gc(rootColor).typed, leftTree :: rightTree :: Nil)
+              })
+
+          allNodes
+        }
+      })
+
+    treesOfSize
+  }
+  
+   test("datastructure generation") {
+     
+  
+     val ms = new scope.AccumulatingScope
+     val enum = constructEnumerator_new(ms)
+  
+     def getElements(size: Int) = (
+       for (size <- 1 to 1;
+         e = enum.getEnum(size, "int" :: "boolean" :: Nil);
+         ind <- 0 until e.size
+         ) yield e(ind)
+       )
+  
+     getElements(5) should have size 5
+  
+   }
 //
 //  ignore("predicates") {
 //    val eb = problem.eb
