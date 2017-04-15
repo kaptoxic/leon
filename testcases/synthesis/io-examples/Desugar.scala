@@ -112,16 +112,16 @@ object Desugar {
   abstract class StaticE 
   case class Plus(lhs: StaticE, rhs: StaticE) extends StaticE
   case class And(lhs: StaticE, rhs: StaticE) extends StaticE
-  case class Ite(cond: StaticE, thn: StaticE, els: StaticE) extends StaticE
+  case class Ite(cond: StaticE, thn: StaticE) extends StaticE
   case class Literal(i: Int) extends StaticE
-  case class IsType(e: StaticE, tpe: Type) extends StaticE
+  case class CheckType(e1: StaticE, e2: StaticE) extends StaticE
   case object Error extends StaticE
   
   def sem(t: StaticE) : Int = t match {
     case Ite(
-      and@And(IsType(lhs, lhsType), IsType(rhs, rhsType)),
-      Plus(a, b),
-      Error) =>
+        and@CheckType(lhs, rhs),
+        Plus(a, b)
+      ) =>
       if (sem(and) == 1 && lhs == a && rhs == b)
         sem(lhs) + sem(rhs)
       else
@@ -129,9 +129,9 @@ object Desugar {
     case And(a, b) =>
       if (sem(a) == 1) sem(b)
       else 0
-    case IsType(e, tpe) =>
+    case CheckType(e1, e2) =>
       1
-    case Ite(cond, thn, els) => if (sem(cond) != 0) sem(thn) else sem(els)
+    case Ite(cond, thn) => if (sem(cond) != 0) sem(thn) else 5
     case Literal(i) => i
   }
   
@@ -140,31 +140,31 @@ object Desugar {
       sem(out) == Semantics.semUntyped(e)
   }
 
-  @induct
-  def desugar(e : Trees.Expr) : StaticE = { e match {
-    case Trees.Plus (lhs, rhs) =>
-      Ite(
-        And(IsType(desugar(lhs), IntType), IsType(desugar(rhs), IntType)),
-        Plus(desugar(lhs), desugar(rhs)),
-        Error)
-    case Trees.And  (lhs, rhs) =>
-      Ite(desugar(lhs), desugar(rhs), Literal(0)) 
-    case Trees.Ite(cond, thn, els) =>
-      Ite(desugar(cond), desugar(thn), desugar(els))
-    case Trees.IntLiteral(v)  =>
-      Literal(v)
-    case Trees.BoolLiteral(b) =>
-      Literal(b2i(b))
-  }}
+//  @induct
+//  def desugar(e : Trees.Expr) : StaticE = { e match {
+//    case Trees.Plus (lhs, rhs) =>
+//      Ite(
+//        And(IsType(desugar(lhs), IntType), IsType(desugar(rhs), IntType)),
+//        Plus(desugar(lhs), desugar(rhs)),
+//        Error)
+//    case Trees.And  (lhs, rhs) =>
+//      Ite(desugar(lhs), desugar(rhs), Literal(0)) 
+//    case Trees.Ite(cond, thn, els) =>
+//      Ite(desugar(cond), desugar(thn), desugar(els))
+//    case Trees.IntLiteral(v)  =>
+//      Literal(v)
+//    case Trees.BoolLiteral(b) =>
+//      Literal(b2i(b))
+//  }}
 //  ensuring { res => 
 //    sem(res) == Semantics.semUntyped(e)
 //  }
   
   val plus1 =
     Ite(
-      And(IsType(Literal(1), IntType), IsType(Literal(2), IntType)),
-      Plus(Literal(1), Literal(2)),
-      Error)
+      CheckType(Literal(1), Literal(2)),
+      Plus(Literal(1), Literal(2))
+    )
   
   def test = {
   
