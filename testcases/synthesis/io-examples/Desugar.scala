@@ -2,6 +2,7 @@ import leon.lang._
 import leon.annotation._
 import leon.collection._
 import leon._
+import leon.lang.synthesis._
 
 object Trees {
   abstract class Expr
@@ -132,6 +133,11 @@ object Desugar {
       1
     case Ite(cond, thn, els) => if (sem(cond) != 0) sem(thn) else sem(els)
     case Literal(i) => i
+  }
+  
+  def problem(e: Trees.Expr) = choose {
+    (out: StaticE) =>
+      sem(out) == Semantics.semUntyped(e)
   }
 
   @induct
