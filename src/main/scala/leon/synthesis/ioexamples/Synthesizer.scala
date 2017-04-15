@@ -145,8 +145,13 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     
     // these predicates will tell us, for the given examples, this expression is *not* nil
     val (elseBranch, predicates) =
-      // every input has different fragment 
-      if (fragmentToInputMap.forall(_._2.size == 1) && unorderedFragments.size > 1) {
+      if (
+        // every input has different fragment 
+        fragmentToInputMap.forall(_._2.size == 1) &&
+        unorderedFragments.size > 1 &&
+        // we want fragments that can formulate total order
+        unorderedFragments.map(ExprOps.formulaSize(_)).distinct.size == unorderedFragments.size
+      ) {
         // find differences by observing the inputs as a chain
         
         // initialFragmentsFromGroupPairs -- used to calculate initial predicates
@@ -232,7 +237,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         // find predicates by identifying "selectors" that differentiate between inputs
         
         assert(inVars.size == 1)
-        assert(fragmentToInputMap.size == 4, fragmentToInputMap.size)
+//        assert(fragmentToInputMap.size == 4, fragmentToInputMap.size)
         val predicates =
           calculatePredicatesStructureMapDifference(fragmentToInputMap.toSeq, inVars)
           
@@ -505,6 +510,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
   def calculateFragments(unorderedFragments: List[Expr], xs: List[Variable]) = {
     entering("calculateFragments", unorderedFragments, xs)
     
+    try {
     val fragments = Util.sort(unorderedFragments)
     info("fragments: " + fragments)
     
@@ -572,6 +578,10 @@ class Synthesizer(implicit program: Program) extends HasLogger {
 //      (emptyDiffs.map(_._1) ::: filteredDiffGroups, Nil)
 //    else
       (emptyDiffs.map(_._1), filteredDiffGroups)
+    } catch {
+      case _: Exception =>
+        ???
+    }
   }
   
   /***
