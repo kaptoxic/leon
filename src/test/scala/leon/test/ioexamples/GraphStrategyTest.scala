@@ -223,4 +223,79 @@ class GraphStrategyTest extends FunSuite with Matchers with Inside with HasLogge
     }
   }
 
+  {
+    val name = ", 3 examples"
+    val problems = forFile(ioExamplesTestcaseDir + "GraphStrategy3Problems.scala").toList
+
+    test("extract examples" + name) {
+      val (sctx, funDef, problem) = problems.find(_._2.id.name == "problem").get
+
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+      val examples = extraction.extract(problem)
+
+      withClue(examples) {
+        examples.size should be(3)
+      }
+
+      examples(1).toString should be(
+        "(List(" +
+          "(in,VertexInner(Cons[Edge](Edge(Transformed(D), 3), Cons[Edge](Edge(VertexEnd(B), 6), Cons[Edge](Edge(VertexEnd(C), 11), Nil[Edge]())))))" +
+          ")," +
+          "(out,VertexInner(Cons[Edge](Edge(Transformed(D), 3), Cons[Edge](Edge(Transformed(E), 6), Cons[Edge](Edge(VertexEnd(C), 11), Nil[Edge]()))))))")
+    }
+
+    test("mock synthesis procedure" + name) {
+      val (sctx, funDef, problem) = problems.find(_._2.id.name == "problem").get
+
+      implicit val program = sctx.program
+
+      val graphClass = program.definedClasses.find(_.id.name == "Vertex").get
+
+      val listClass = program.definedClasses.find(_.id.name == "List").get
+      val consClass = program.caseClassDef("Cons")
+      val nilClass = program.caseClassDef("Nil")
+
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+      val examples = extraction.extract(problem)
+      
+      examples.size shouldBe 3
+      
+//      // get fragments
+//      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
+//      info(s"inIds $inIds")
+//      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+//
+//      info("transformed examples:\n" + transformedExamples.mkString("\n"))
+//      info("unordered fragments:\n" + unorderedFragments.mkString("\n"))
+//
+//      val pathVar = FreshIdentifier("PATH", Untyped)
+//
+//      val in1 :: in2 :: Nil =
+//        //        for (name <- "v5" :: "v5t1" :: "v5t" :: Nil) yield
+//        //          program.definedFunctions.find(_.id.name == name).get.body.get
+//        transformedExamples.map(_._1.head)
+//
+//      val f1 :: f2 :: Nil = unorderedFragments
+//      val inVar :: Nil = problem.as.map(_.toVariable)
+//
+//      val graphFragmenter = new FragmenterGraph(program, graphClass)
+//      val graphFragments = graphFragmenter.constructFragments(transformedExamples, inVar :: Nil)
+//
+//      graphFragments should not be empty
+//
+//      all(graphFragments) should not be empty
+//
+//      val decomposer = new Decomposer((listClass, consClass, nilClass))
+//      val subs = decomposer.decompose(examples, graphFragments map (_.get))
+//
+//      val Some((ioExamples1, Nil) :: (ioExamples2, Nil) :: Nil) = subs
+//
+//      val synthesizer = new Synthesizer
+//
+//      val res = synthesizer.synthesize(ioExamples1, null, null, nilClass.typed, None)
+//
+//      res should not be empty
+    }
+  }
+
 }
