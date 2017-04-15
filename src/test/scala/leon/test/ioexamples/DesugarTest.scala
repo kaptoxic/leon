@@ -90,9 +90,9 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
     val literals =
       Map(
         "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("IntLiteral").typed, IntLiteral(x) :: Nil)),
-        "boolean" -> (true :: false :: Nil).map(x => CaseClass(gc("BoolLiteral").typed, BooleanLiteral(x) :: Nil)))
+        "bool" -> (true :: false :: Nil).map(x => CaseClass(gc("BoolLiteral").typed, BooleanLiteral(x) :: Nil)))
 
-    val ops = Map(("int" -> ("Plus" :: Nil)), ("boolean" -> List[String]()))
+    val ops = Map(("int" -> ("Plus" :: Nil)), ("bool" -> List[String]()))
 
     val treesOfSize: Depend[(Int, List[String]), Expr] = Depend.memoized(
       (self: Depend[(Int, List[String]), Expr], pair: (Int, List[String])) => {
@@ -149,17 +149,22 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
     val literals =
       Map(
-        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("IntLiteral").typed, IntLiteral(x) :: Nil)),
-        "boolean" -> (true :: false :: Nil).map(x => CaseClass(gc("BoolLiteral").typed, BooleanLiteral(x) :: Nil)))
+        "int" -> (1 :: 3 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
+//        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
+        "bool" -> (0 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
+//        "bool" -> (0 :: 1 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
 
-    val ops = Map(("int" -> ("Plus" :: Nil)), ("boolean" -> List[String]()))
+    val ops = Map(
+      ("int" -> ("Plus" :: "Ite" :: Nil)),
+      ("bool" -> ("And" :: "CheckType" :: "Ite" :: Nil))
+    )
 
     val treesOfSize: Depend[(Int, List[String]), Expr] = Depend.memoized(
       (self: Depend[(Int, List[String]), Expr], pair: (Int, List[String])) => {
         val (size, types) = pair
 
-        //        else e.Empty
-        if (size == 1) {
+        if (size == 0) e.Empty
+        else if (size == 1) {
           e.WrapArray(types.map(literals).flatten.toArray): Finite[Expr]
         } else {
           val roots: Finite[String] = e.Enum(types.map(ops).flatten)
@@ -172,6 +177,12 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
             rootColor match {
               case "Plus" =>
                 (leftSize, "int" :: Nil)
+              case "Ite" =>
+                (leftSize, "bool" :: "int" :: Nil)
+              case "And" =>
+                (leftSize, "int" :: Nil)
+              case "CheckType" =>
+                (leftSize, "bool" :: "int" :: Nil)
             }
           })
 
@@ -179,7 +190,13 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
             val (leftSize, rootColor) = par
             rootColor match {
               case "Plus" =>
-                (size - leftSize, "int" :: Nil)
+                (size - leftSize - 1, "int" :: Nil)
+              case "Ite" =>
+                (size - leftSize - 1, "bool" :: "int" :: Nil)
+              case "And" =>
+                (size - leftSize - 1, "int" :: Nil)
+              case "CheckType" =>
+                (size - leftSize - 1, "bool" :: "int" :: Nil)
             }
           })
 
@@ -200,23 +217,42 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
     treesOfSize
   }
-
-  val ms = new scope.AccumulatingScope
-  val enum = constructEnumerator_new(ms)
-
-  def getElements(size: Int) = (
-    for (
-      _ <- 1 to 1;
-      e = enum.getEnum(size, "int" :: "boolean" :: Nil);
-      ind <- 0 until e.size
-    ) yield e(ind))
-
   test("datastructure generation") {
+
+    val ms = new scope.AccumulatingScope
+    val enum = constructEnumerator_new(ms)
+  
+    def getElements(size: Int) = (
+      for (
+        _ <- 1 to 1;
+        e = enum.getEnum(size, "int" :: "bool" :: Nil);
+        ind <- 0 until e.size
+      ) yield e(ind))
 
     getElements(1) should have size 5
     getElements(2) should have size 9
 
   }
+
+  test("datastructure generation, static typed") {
+
+    val ms = new scope.AccumulatingScope
+    val enum = constructEnumerator_new2(ms)
+  
+    def getElements(size: Int) = (
+      for (
+        _ <- 1 to 1;
+        e = enum.getEnum(size, "int" :: "bool" :: Nil);
+        ind <- 0 until e.size
+      ) yield e(ind))
+
+//    getElements(1) should have size 5
+//    getElements(2) should have size 0
+    getElements(7).map(_.toString) should
+      contain ("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
+
+  }
+
 
 //  test("inputs") {
 //    problem.xs should have size 1
