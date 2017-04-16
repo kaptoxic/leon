@@ -253,7 +253,6 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-
 //  test("inputs") {
 //    problem.xs should have size 1
 //

@@ -88,18 +88,28 @@ object Semantics {
   def b2i(b : Boolean) = if (b) 1 else 0
 
   @induct
-  def semUntyped( t : Expr) : Int = { t match {
-    case Plus (lhs, rhs) => semUntyped(lhs) + semUntyped(rhs)
-    case And  (lhs, rhs) => if (semUntyped(lhs)!=0) semUntyped(rhs) else 0
-    case Ite(cond, thn, els) => 
-      if (semUntyped(cond) == 0) semUntyped(els) else semUntyped(thn)
-    case IntLiteral(v)  => v 
-    case BoolLiteral(b) => b2i(b)
-  }} ensuring { res => typeOf(t) match {
-    case Some(IntType)  => res == semI(t)
-    case Some(BoolType) => res == b2i(semB(t))
-    case None() => true
-  }}
+  def semUntyped(t: Expr) : Int = {
+    val res =
+      t match {
+      case Plus (lhs, rhs) =>
+        semUntyped(lhs) + semUntyped(rhs)
+      case And  (lhs, rhs) => if (semUntyped(lhs)!=0) semUntyped(rhs) else 0
+      case Ite(cond, thn, els) => 
+        if (semUntyped(cond) == 0) semUntyped(els) else semUntyped(thn)
+      case IntLiteral(v)  => v 
+      case BoolLiteral(b) => b2i(b)
+    }
+
+    typeOf(t) match {
+      case None() => 175
+      case _ => res
+    }
+  }
+//  ensuring { res => typeOf(t) match {
+//    case Some(IntType)  => res == semI(t)
+//    case Some(BoolType) => res == b2i(semB(t))
+//    case None() => true
+//  }}
 
 }
 
@@ -116,6 +126,23 @@ object Desugar {
   case class Literal(i: Int) extends StaticE
   case class CheckType(e1: StaticE, e2: StaticE) extends StaticE
   case object Error extends StaticE
+  
+//  def typeOf(e: Expr): Option[Type] = e match {
+//    case Plus(l,r) => (typeOf(l), typeOf(r)) match {
+//      case (Some(IntType), Some(IntType)) => Some(IntType)
+//      case _ => None()
+//    }
+//    case And(l,r) => ( typeOf(l), typeOf(r)) match {
+//      case (Some(BoolType), Some(BoolType)) => Some(BoolType)
+//      case _ => None()
+//    }
+//    case Ite(c, th, el) => (typeOf(c), typeOf(th), typeOf(el)) match {
+//      case (Some(BoolType), Some(t1), Some(t2)) if t1 == t2 => Some(t1)
+//      case _ => None()
+//    }
+//    case IntLiteral(_) => Some(IntType)
+//    case BoolLiteral(_) => Some(BoolType)
+//  }
   
   def sem(t: StaticE) : Int = t match {
     case Ite(
@@ -135,9 +162,12 @@ object Desugar {
     case Literal(i) => i
   }
   
-  def problem(e: Trees.Expr) = choose {
-    (out: StaticE) =>
-      sem(out) == Semantics.semUntyped(e)
+  def problem(e: Trees.Expr) = {
+//    require(typeChecks(e))
+    choose {
+      (out: StaticE) =>
+        sem(out) == Semantics.semUntyped(e)
+    }
   }
 
 //  @induct
