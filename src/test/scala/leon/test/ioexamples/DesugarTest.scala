@@ -178,7 +178,9 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
               case "Plus" =>
                 (leftSize, "int" :: Nil)
               case "Ite" =>
-                (leftSize, "bool" :: "int" :: Nil)
+//                (leftSize, "bool" :: "int" :: Nil)
+                // restrict to all ints
+                (leftSize, "bool" :: Nil)
               case "And" =>
                 (leftSize, "int" :: Nil)
               case "CheckType" =>
@@ -192,7 +194,9 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
               case "Plus" =>
                 (size - leftSize - 1, "int" :: Nil)
               case "Ite" =>
-                (size - leftSize - 1, "bool" :: "int" :: Nil)
+//                (size - leftSize - 1, "bool" :: "int" :: Nil)
+                // restrict to all ints
+                (size - leftSize - 1, "int" :: Nil)
               case "And" =>
                 (size - leftSize - 1, "int" :: Nil)
               case "CheckType" =>
@@ -247,7 +251,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       ) yield e(ind))
 
 //    getElements(1) should have size 5
-//    getElements(2) should have size 0
+    getElements(7) should have size 3513
     getElements(7).map(_.toString) should
       contain ("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
 
