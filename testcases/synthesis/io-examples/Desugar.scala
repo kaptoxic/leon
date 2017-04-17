@@ -8,7 +8,7 @@ object Trees {
   abstract class Expr
   case class Plus(lhs: Expr, rhs: Expr) extends Expr
   case class And(lhs: Expr, rhs: Expr) extends Expr
-  case class Ite(cond: Expr, thn: Expr, els: Expr) extends Expr
+  case class Ite(cond: Expr, thn: Expr) extends Expr
   case class IntLiteral(v: Int) extends Expr
   case class BoolLiteral(b : Boolean) extends Expr
   
@@ -48,8 +48,8 @@ object TypeChecker {
       case (Some(BoolType), Some(BoolType)) => Some(BoolType)
       case _ => None()
     }
-    case Ite(c, th, el) => (typeOf(c), typeOf(th), typeOf(el)) match {
-      case (Some(BoolType), Some(t1), Some(t2)) if t1 == t2 => Some(t1)
+    case Ite(c, th) => (typeOf(c), typeOf(th)) match {
+      case (Some(BoolType), Some(t1)) => Some(t1)
       case _ => None()
     }
     case IntLiteral(_) => Some(IntType)
@@ -69,8 +69,8 @@ object Semantics {
     require( typeOf(t) == ( Some(IntType) : Option[Type] ))
     t match {
       case Plus(lhs , rhs) => semI(lhs) + semI(rhs)
-      case Ite(cond, thn, els) => 
-        if (semB(cond)) semI(thn) else semI(els)
+      case Ite(cond, thn) => 
+        if (semB(cond)) semI(thn) else 175
       case IntLiteral(v)   => v 
     }
   }
@@ -79,8 +79,6 @@ object Semantics {
     require( (Some(BoolType): Option[Type]) == typeOf(t))
     t match {
       case And(lhs, rhs ) => semB(lhs) && semB(rhs)
-      case Ite(cond, thn, els) => 
-        if (semB(cond)) semB(thn) else semB(els)
       case BoolLiteral(b) => b
     }
   }
@@ -94,8 +92,8 @@ object Semantics {
       case Plus (lhs, rhs) =>
         semUntyped(lhs) + semUntyped(rhs)
       case And  (lhs, rhs) => if (semUntyped(lhs)!=0) semUntyped(rhs) else 0
-      case Ite(cond, thn, els) => 
-        if (semUntyped(cond) == 0) semUntyped(els) else semUntyped(thn)
+      case Ite(cond, thn) => 
+        if (semUntyped(cond) == 0) 175 else semUntyped(thn)
       case IntLiteral(v)  => v 
       case BoolLiteral(b) => b2i(b)
     }
