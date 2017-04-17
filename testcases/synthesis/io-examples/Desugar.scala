@@ -163,7 +163,7 @@ object Desugar {
   }
   
   def problem(e: Trees.Expr) = {
-//    require(typeChecks(e))
+    require(typeChecks(e))
     choose {
       (out: StaticE) =>
         sem(out) == Semantics.semUntyped(e)
