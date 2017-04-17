@@ -71,8 +71,8 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   val treesModule = program.modules.find(_.id.name == "Trees").get
   val desugarModule = program.modules.find(_.id.name == "Desugar").get
 
-  //  val evaluator = new DefaultEvaluator(sctx, program)
-  val evaluator = new CodeGenEvaluator(sctx, program)
+  val evaluator = new DefaultEvaluator(sctx, program)
+//  val evaluator = new CodeGenEvaluator(sctx, program)
 
   import scife._
   import enumeration.{ Map => _, _ }
@@ -80,10 +80,30 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   import memoization._
   import scife.{ enumeration => e }
   import scife.util._
+  
+  val firstLiterals =
+    Map(
+//        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
+      "int" -> (1 :: 3 :: 5 :: Nil).map(
+        x => CaseClass(treesModule.definedClasses.find(_.id.name == "IntLiteral").get.asInstanceOf[CaseClassDef].typed, IntLiteral(x) :: Nil))
+      ,
+      "bool" -> (true :: Nil).map(
+        x => CaseClass(treesModule.definedClasses.find(_.id.name == "BoolLiteral").get.asInstanceOf[CaseClassDef].typed, BooleanLiteral(x) :: Nil))
+    )
+
+  val secondLiterals =
+    Map(
+//        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
+      "int" -> (1 :: 3 :: 5 :: Nil).map(
+        x => CaseClass(desugarModule.definedClasses.find(_.id.name == "Literal").get.asInstanceOf[CaseClassDef].typed, IntLiteral(x) :: Nil))
+      ,
+      "bool" -> (0 :: Nil).map(
+        x => CaseClass(desugarModule.definedClasses.find(_.id.name == "Literal").get.asInstanceOf[CaseClassDef].typed, IntLiteral(x) :: Nil))
+    )
 
   val firstASTops = Map(
     ("int" -> ("Plus" :: "Ite" :: Nil)),
-    ("bool" -> ("Ite" :: Nil))
+    ("bool" -> Nil)
   )
 
   val secondsASTops = Map(
@@ -105,19 +125,13 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
         ("int", "int")
     }
   
-  def constructEnumerator(ops: String => List[String], opToParams: String => (String, String))(implicit ms: MemoizationScope) = {
+  def constructEnumerator(ops: String => List[String], opToParams: String => (String, String),
+    moduleDef: ModuleDef, literals: Map[String, List[CaseClass]])(implicit ms: MemoizationScope) = {
     import enumeration.dependent._
     
-    def gc(name: String) =
-      desugarModule.definedClasses.find(_.id.name == name).get.asInstanceOf[CaseClassDef]
-
-    val literals =
-      Map(
-        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
-//        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
-        "bool" -> (0 :: 1 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
-//        "bool" -> (0 :: 1 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
-
+    def gc(name: String) = {
+      moduleDef.definedClasses.find(_.id.name == name).get.asInstanceOf[CaseClassDef]
+    }
 
     val treesOfSize: Depend[(Int, List[String]), Expr] = Depend.memoized(
       (self: Depend[(Int, List[String]), Expr], pair: (Int, List[String])) => {
@@ -162,7 +176,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   def getFirstASTs(size: Int) = {
     val ms = new scope.AccumulatingScope
-    val enum = constructEnumerator(firstASTops, fromOpToOperandParam _)(ms)
+    val enum = constructEnumerator(firstASTops, fromOpToOperandParam _, treesModule, firstLiterals)(ms)
   
     def getElements(size: Int) = (
       for (
@@ -176,7 +190,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   def getSecondASTs(size: Int) = {
     val ms = new scope.AccumulatingScope
-      val enum = constructEnumerator(secondsASTops, fromOpToOperandParam _)(ms)
+      val enum = constructEnumerator(secondsASTops, fromOpToOperandParam _, desugarModule, secondLiterals)(ms)
   
     def getElements(size: Int) = (
       for (
@@ -190,28 +204,28 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   
   test("datastructure generation") {
 
-    getFirstASTs(1) should have size 5
-    getFirstASTs(5) should have size 186
+//    getFirstASTs(1) should have size 5
+//    getFirstASTs(5) should have size 186
 
   }
 
   test("datastructure generation, static typed") {
 
 //    getElements(1) should have size 5
-    getSecondASTs(7) should have size 2913
+//    getSecondASTs(7) should have size 2913
     getSecondASTs(7).map(_.toString) should
       contain ("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
 
   }
 
-  ignore("inputs") {
+  test("inputs") {
     problem.xs should have size 1
 
     val resType = problem.xs.head.getType
 
     info("going into enumeration")
     
-    val examples = getFirstASTs(5)
+    val examples = getFirstASTs(7)
 
     //    "output finding" -
     {
@@ -223,14 +237,9 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       problem.xs should have size 1
       val out = problem.xs.head
 
+      examples.size shouldBe 732
+
       val results = new collection.mutable.MutableList[(Expr, Expr)]()
-
-      val pc = problem.pc
-      val toEvaluate = And(pc.toClause, phi)
-      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
-
-      examples.size shouldBe 3402
-      
       val filteredExamples =
         {
           val phi = problem.phi
@@ -259,7 +268,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   
         }
       
-      filteredExamples.size should be < examples.size
+      filteredExamples.size should be === examples.size
 
 //      for (ex1 <- examples) {
 //        //        _ = info("*******");
