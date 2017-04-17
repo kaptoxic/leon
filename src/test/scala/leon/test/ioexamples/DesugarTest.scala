@@ -149,14 +149,14 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
     val literals =
       Map(
-        "int" -> (1 :: 3 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
+        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
 //        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
         "bool" -> (0 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
 //        "bool" -> (0 :: 1 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
 
     val ops = Map(
       ("int" -> ("Plus" :: "Ite" :: Nil)),
-      ("bool" -> ("And" :: "CheckType" :: "Ite" :: Nil))
+      ("bool" -> ("CheckType" :: "Ite" :: Nil))
     )
 
     val treesOfSize: Depend[(Int, List[String]), Expr] = Depend.memoized(
@@ -184,7 +184,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
               case "And" =>
                 (leftSize, "int" :: Nil)
               case "CheckType" =>
-                (leftSize, "bool" :: "int" :: Nil)
+                (leftSize, "int" :: Nil)
             }
           })
 
@@ -200,7 +200,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
               case "And" =>
                 (size - leftSize - 1, "int" :: Nil)
               case "CheckType" =>
-                (size - leftSize - 1, "bool" :: "int" :: Nil)
+                (size - leftSize - 1, "int" :: Nil)
             }
           })
 
@@ -235,6 +235,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
     getElements(1) should have size 5
     getElements(2) should have size 9
+    getElements(5) should have size 3402
 
   }
 
@@ -251,7 +252,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       ) yield e(ind))
 
 //    getElements(1) should have size 5
-    getElements(7) should have size 3513
+    getElements(7) should have size 2976
     getElements(7).map(_.toString) should
       contain ("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
 
