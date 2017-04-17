@@ -192,15 +192,15 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   test("datastructure generation") {
 
-//    getFirstASTs(1) should have size 5
-//    getFirstASTs(3) should have size 5
+    //    getFirstASTs(1) should have size 5
+    //    getFirstASTs(3) should have size 5
     //    getFirstASTs(5) should have size 186
 
   }
 
   test("datastructure generation, static typed") {
 
-//    getSecondASTs(3) should have size 5
+    //    getSecondASTs(3) should have size 5
     //    getSecondASTs(7) should have size 2913
     getSecondASTs(7).map(_.toString) should
       contain("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
@@ -299,96 +299,93 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       results should have size (26)
       results.map(_.toString).distinct should have size (26)
 
-      //      info(s"result with more than 6 results: " + {
-      //        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
-      //        val v2 = v.map({ case (k, v) => v })
-      //        k + "\n" + v2
-      //      })
-      //
-      //      val extraction = new ExamplesExtraction(sctx, sctx.program)
-      //
-      //      //      val resultsSmallest = results map {
-      //      //        case (k, v) =>
-      //      //          (k, v.toList.sortBy(ExprOps.formulaSize _).head)
-      //      //      }
-      //
-      //      val examples = results.map({
-      //        case (inEx, outEx) =>
-      //          ((in, inEx) :: Nil, (out, outEx))
-      //      }).toList
-      //
-      //      //      info("examples\n" + examples.mkString("\n"))
-      //      //      examples should have size (56)
-      //
-      //      //      test: attempt synthesis
-      //      // get fragments
-      //      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examples).get
-      //      info(s"inIds $inIds")
-      //      info("transformed examples: " + transformedExamples.mkString("\n"))
-      //      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-      //      info("unordered fragments: " + unorderedFragments.mkString("\n"))
-      //
-      //      val unorederdFragmentsSet = unorderedFragments.toSet
-      //      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
-      //
-      //      transformedExamples should have size unorderedFragments.size
-      //      val zipped = (transformedExamples zip unorderedFragments)
-      //
-      //      val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
-      //
-      //      info("" + ioexamples.Util.mapOfSubexpressionsToPathFunctions(zippedSorted.last._1._1.head).map(
-      //        { case (k, v) => "" + k + "\n" + v(w) }))
-      //      info("" + zippedSorted.last)
-      //
-      //      val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
-      //      var covering = transformedExamples.map(_._1).toSet
-      //
-      //      val coveringPairs =
-      //        zippedSorted.takeWhile({
-      //          case _ if covering.isEmpty =>
-      //            false
-      //          case p @ (exPair, fragment) =>
-      //            covering = covering - exPair._1
-      //            taken += p
-      //            true
-      //        })
-      //
-      //      info(s"zipped size ${zipped.size}; coveringPairs size: " + coveringPairs.size)
-      //      info("covering pairs\n: " + coveringPairs.mkString("\n"))
-      //
-      //      val groupped = zipped.groupBy(_._1._1)
-      //      val sorted =
-      //        for ((input, list) <- groupped) yield {
-      //          val fragments = list.map(_._2)
-      //          (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
-      //        }
-      //
-      //      info("")
-      //      info("")
-      //      info("")
-      //      info("sorted:\n" + sorted.
-      //        map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
-      //
-      //      info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
-      //
-      //      //      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
-      //      //        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
-      //      //      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
-      //
-      //      val inputsPerPredicate =
-      //        for ((examplePair, fragment) <- zipped) yield {
-      //          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
-      //
-      //          (fragmentHead, examplePair)
-      //        }
-      //
-      //      val inputsPerPredicateMap =
-      //        (Map[Expr, Set[InputOutputExampleVal]]() /: inputsPerPredicate) {
-      //          case (current, (fragment, pair)) =>
-      //            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + pair))
-      //        }
-      //
-      //      inputsPerPredicateMap.size shouldBe 4
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+
+      val examplesIn = results.map({
+        case (inEx, outEx) =>
+          ((in, inEx) :: Nil, (out, outEx))
+      }).toList
+
+      // get fragments
+      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examplesIn).get
+      info(s"inIds $inIds")
+      info("transformed examples: " + transformedExamples.mkString("\n"))
+      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+
+      val unorederdFragmentsSet = unorderedFragments.toSet
+      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
+
+      transformedExamples should have size unorderedFragments.size
+      val zipped = (transformedExamples zip unorderedFragments)
+
+      val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
+
+      info("" + ioexamples.Util.mapOfSubexpressionsToPathFunctions(zippedSorted.last._1._1.head).map(
+        { case (k, v) => "" + k + "\n" + v(w) }))
+      info("" + zippedSorted.last)
+
+      val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
+      var covering = transformedExamples.map(_._1).toSet
+
+      val coveringPairs =
+        zippedSorted.takeWhile({
+          case _ if covering.isEmpty =>
+            false
+          case p @ (exPair, fragment) =>
+            covering = covering - exPair._1
+            taken += p
+            true
+        })
+
+      info(s"zipped size ${zipped.size}; coveringPairs size: " + coveringPairs.size)
+      info("covering pairs\n: " + coveringPairs.mkString("\n"))
+
+      val groupped = zipped.groupBy(_._1._1)
+      val sorted =
+        for ((input, list) <- groupped) yield {
+          val fragments = list.map(_._2)
+          (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
+        }
+
+      info("")
+      info("")
+      info("")
+      info("sorted:\n" + sorted.
+        map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
+
+      info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
+
+      //      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
+      //        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
+      //      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
+
+      val inputsPerPredicate =
+        for ((examplePair, fragment) <- zipped) yield {
+          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
+
+          (fragmentHead, examplePair)
+        }
+
+      val inputsPerPredicateMap =
+        (Map[Expr, Set[InputOutputExampleVal]]() /: inputsPerPredicate) {
+          case (current, (fragment, pair)) =>
+            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + pair))
+        }
+
+      inputsPerPredicateMap.size shouldBe 7
+
+      val (examplesNew, fragments) =
+        (for (
+          fragment <- inputsPerPredicateMap.keys.toList;
+          example <- inputsPerPredicateMap(fragment).toList
+        ) yield (example, fragment)).unzip
+
+      info("examples (trim 10): " + examplesNew.take(10).mkString("\n"))
+      info("fragments (trim 10): " + fragments.take(10).mkString("\n"))
+      
+//      val result =
+//        synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
 
     }
 
