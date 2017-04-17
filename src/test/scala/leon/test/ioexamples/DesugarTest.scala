@@ -172,40 +172,35 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
     val ms = new scope.AccumulatingScope
     val enum = constructEnumerator(firstASTops, fromOpToOperandParam _, treesModule, firstLiterals)(ms)
 
-    def getElements(size: Int) = (
-      for (
-        _ <- 1 to 1;
-        e = enum.getEnum(size, "int" :: "bool" :: Nil);
-        ind <- 0 until e.size
-      ) yield e(ind))
-
-    getElements(size)
+    for (
+      currSize <- 1 to size;
+      e = enum.getEnum(currSize, "int" :: "bool" :: Nil);
+      ind <- 0 until e.size
+    ) yield e(ind)
   }
 
   def getSecondASTs(size: Int) = {
     val ms = new scope.AccumulatingScope
     val enum = constructEnumerator(secondsASTops, fromOpToOperandParam _, desugarModule, secondLiterals)(ms)
 
-    def getElements(size: Int) = (
-      for (
-        _ <- 1 to 1;
-        e = enum.getEnum(size, "int" :: "bool" :: Nil);
-        ind <- 0 until e.size
-      ) yield e(ind))
-
-    getElements(size)
+    for (
+      currSize <- 1 to size;
+      e = enum.getEnum(currSize, "int" :: "bool" :: Nil);
+      ind <- 0 until e.size
+    ) yield e(ind)
   }
 
   test("datastructure generation") {
 
-    //    getFirstASTs(1) should have size 5
+//    getFirstASTs(1) should have size 5
+//    getFirstASTs(3) should have size 5
     //    getFirstASTs(5) should have size 186
 
   }
 
   test("datastructure generation, static typed") {
 
-    //    getElements(1) should have size 5
+//    getSecondASTs(3) should have size 5
     //    getSecondASTs(7) should have size 2913
     getSecondASTs(7).map(_.toString) should
       contain("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
@@ -301,8 +296,8 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
       results.size shouldBe >(0)
       info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
-      results should have size (1255)
-      results.map(_.toString).distinct should have size (1255)
+      results should have size (26)
+      results.map(_.toString).distinct should have size (26)
 
       //      info(s"result with more than 6 results: " + {
       //        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get

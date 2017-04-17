@@ -147,16 +147,16 @@ object Desugar {
         and@CheckType(lhs, rhs),
         Plus(a, b)
       ) =>
-      if (sem(and) == 1 && lhs == a && rhs == b)
+      if (sem(and) == 66 && lhs == a && rhs == b)
         sem(lhs) + sem(rhs)
       else
-        5
+        177
     case And(a, b) =>
-      if (sem(a) == 1) sem(b)
-      else 0
+      if (sem(a) == 66) sem(b)
+      else 77
     case CheckType(e1, e2) =>
-      1
-    case Ite(cond, thn) => if (sem(cond) != 0) sem(thn) else 5
+      66
+//    case Ite(cond, thn) => if (sem(cond) != 0) sem(thn) else 177
     case Literal(i) => i
   }
   
@@ -193,10 +193,15 @@ object Desugar {
       CheckType(Literal(1), Literal(2)),
       Plus(Literal(1), Literal(2))
     )
+    
+  val weirdPlus =
+    Ite(CheckType(Plus(Literal(3), Literal(3)), Literal(3)), Literal(5))
   
   def test = {
   
     assert( sem(plus1) == Semantics.semUntyped(Trees.plus1) )
+//    assert( sem(weirdPlus) == 177 )
+    sem(weirdPlus)
   
   }
 
