@@ -80,11 +80,13 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   import memoization._
   import scife.{ enumeration => e }
   import scife.util._
+  
+  val integerConstants = 2 :: 5 :: 9 :: Nil
 
   val firstLiterals =
     Map(
       //        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
-      "int" -> (1 :: 3 :: 5 :: Nil).map(
+      "int" -> integerConstants.map(
         x => CaseClass(treesModule.definedClasses.find(_.id.name == "IntLiteral").get.asInstanceOf[CaseClassDef].typed, IntLiteral(x) :: Nil)),
       "bool" -> (true :: Nil).map(
         x => CaseClass(treesModule.definedClasses.find(_.id.name == "BoolLiteral").get.asInstanceOf[CaseClassDef].typed, BooleanLiteral(x) :: Nil)))
@@ -92,7 +94,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   val secondLiterals =
     Map(
       //        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
-      "int" -> (1 :: 3 :: 5 :: Nil).map(
+      "int" -> integerConstants.map(
         x => CaseClass(desugarModule.definedClasses.find(_.id.name == "Literal").get.asInstanceOf[CaseClassDef].typed, IntLiteral(x) :: Nil)),
       "bool" -> (0 :: Nil).map(
         x => CaseClass(desugarModule.definedClasses.find(_.id.name == "Literal").get.asInstanceOf[CaseClassDef].typed, IntLiteral(x) :: Nil)))
@@ -203,7 +205,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
     //    getSecondASTs(3) should have size 5
     //    getSecondASTs(7) should have size 2913
     getSecondASTs(7).map(_.toString) should
-      contain("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
+      contain("Ite(CheckType(Literal(1), Literal(4)), Plus(Literal(1), Literal(4)))")
 
   }
 
@@ -296,8 +298,8 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
       results.size shouldBe >(0)
       info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
-      results should have size (26)
-      results.map(_.toString).distinct should have size (26)
+      results should have size (21)
+      results.map(_.toString).distinct should have size (21)
 
       val extraction = new ExamplesExtraction(sctx, sctx.program)
 
@@ -317,29 +319,11 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
 
       transformedExamples should have size unorderedFragments.size
-      val zipped = (transformedExamples zip unorderedFragments)
+      val zipped = (examplesIn zip unorderedFragments)
 
       val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
 
-      info("" + ioexamples.Util.mapOfSubexpressionsToPathFunctions(zippedSorted.last._1._1.head).map(
-        { case (k, v) => "" + k + "\n" + v(w) }))
-      info("" + zippedSorted.last)
-
       val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
-      var covering = transformedExamples.map(_._1).toSet
-
-      val coveringPairs =
-        zippedSorted.takeWhile({
-          case _ if covering.isEmpty =>
-            false
-          case p @ (exPair, fragment) =>
-            covering = covering - exPair._1
-            taken += p
-            true
-        })
-
-      info(s"zipped size ${zipped.size}; coveringPairs size: " + coveringPairs.size)
-      info("covering pairs\n: " + coveringPairs.mkString("\n"))
 
       val groupped = zipped.groupBy(_._1._1)
       val sorted =
@@ -363,17 +347,17 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       val inputsPerPredicate =
         for ((examplePair, fragment) <- zipped) yield {
           val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
-
+  
           (fragmentHead, examplePair)
         }
-
+  
       val inputsPerPredicateMap =
-        (Map[Expr, Set[InputOutputExampleVal]]() /: inputsPerPredicate) {
+        (Map[Expr, Set[InputOutputExample]]() /: inputsPerPredicate) {
           case (current, (fragment, pair)) =>
-            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + pair))
+            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExample]()) + pair))
         }
 
-      inputsPerPredicateMap.size shouldBe 7
+      inputsPerPredicateMap.size shouldBe 4
 
       val (examplesNew, fragments) =
         (for (
@@ -381,11 +365,17 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
           example <- inputsPerPredicateMap(fragment).toList
         ) yield (example, fragment)).unzip
 
-      info("examples (trim 10): " + examplesNew.take(10).mkString("\n"))
-      info("fragments (trim 10): " + fragments.take(10).mkString("\n"))
+      info(examplesNew.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+      info("fragments (trim 20): " + fragments.take(20).mkString("\n"))
+     
+      val synthesizer = new Synthesizer 
+      val result =
+        synthesizer.synthesize(examplesNew.toList, null, evaluator,
+          null, Some(fragments.toList))
+          
+      result should not be empty
       
-//      val result =
-//        synthesizer.synthesize(examples.toList, getEnum, evaluator, program.caseClassDef("Empty").typed, Some(fragments.toList))
+      result.get._1 shouldBe ""
 
     }
 
