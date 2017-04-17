@@ -71,8 +71,8 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   val treesModule = program.modules.find(_.id.name == "Trees").get
   val desugarModule = program.modules.find(_.id.name == "Desugar").get
 
-  val evaluator = new DefaultEvaluator(sctx, program)
-//  val evaluator = new CodeGenEvaluator(sctx, program)
+//  val evaluator = new DefaultEvaluator(sctx, program)
+  val evaluator = new CodeGenEvaluator(sctx, program)
 
   import scife._
   import enumeration.{ Map => _, _ }
@@ -266,54 +266,57 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
             }
           }
   
-        }
+        } flatten
       
-      filteredExamples.size should be === examples.size
+      filteredExamples.size should be < examples.size
 
-//      for (ex1 <- examples) {
-//        //        _ = info("*******");
-//        var flag = true
-//        val ex2it = firstN.iterator;
-//        while (flag && ex2it.nonEmpty) {
-//          val ex2 = ex2it.next
-//          //        info("toEvaluate " + toEvaluate)
-//
-//          //        info(s"for in $ex1, out $ex2")
-//          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
-//          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
-//          //          info(s"for in $ex1, out $ex2, got $res")
-//
-//          res match {
-//            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//              //            info(s"for in $ex1, out $ex2")
-//              //            info("***")
-//              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-//              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-//              //                results.getOrElse(ex1, ex2) shouldBe ex2
-//              //              results should not contain key (ex1)
-//              //              }
-//
-//              //              assert(!(results contains ex1))
-//              //              assert(results.getOrElse(ex1, ex2))
-//              //              results(ex1) += ex2
-//              results += ((ex1, ex2))
-//            //          info(s"$v for $ex, ${v1}, $v2")
-//            case e: EvaluationResults.EvaluatorError =>
-//            //          info("evaluation failure: " + e + s" for $v1 and $v2")
-//            case _                                   =>
-//          }
-//        }
-//      }
-//
-//      results.size shouldBe >(0)
-//      //      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
-//      //      results should have size (56)
-//
-//      //      info(s"result with more than 6 results: " + {
-//      //        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
-//      //        val v2 = v.map({ case (k, v) => v })
-//      //        k + "\n" + v2
-//      //      })
+      val pc = problem.pc
+      val toEvaluate = And(pc.toClause, phi)
+      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+      for (ex1 <- filteredExamples) {
+        //        _ = info("*******");
+        var flag = true
+        val ex2it = filteredExamples.iterator;
+        while (flag && ex2it.nonEmpty) {
+          val ex2 = ex2it.next
+          //        info("toEvaluate " + toEvaluate)
+
+          //        info(s"for in $ex1, out $ex2")
+          //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+          val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+          //          info(s"for in $ex1, out $ex2, got $res")
+
+          res match {
+            case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+              //            info(s"for in $ex1, out $ex2")
+              //            info("***")
+              //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+              //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+              //                results.getOrElse(ex1, ex2) shouldBe ex2
+              //              results should not contain key (ex1)
+              //              }
+
+              //              assert(!(results contains ex1))
+              //              assert(results.getOrElse(ex1, ex2))
+              //              results(ex1) += ex2
+              results += ((ex1, ex2))
+            //          info(s"$v for $ex, ${v1}, $v2")
+            case e: EvaluationResults.EvaluatorError =>
+            //          info("evaluation failure: " + e + s" for $v1 and $v2")
+            case _                                   =>
+          }
+        }
+      }
+
+      results.size shouldBe >(0)
+      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+      results should have size (56)
+
+//      info(s"result with more than 6 results: " + {
+//        val (k, v) = results.groupBy(_._1).find(_._2.size > 1).get
+//        val v2 = v.map({ case (k, v) => v })
+//        k + "\n" + v2
+//      })
 //
 //      val extraction = new ExamplesExtraction(sctx, sctx.program)
 //
