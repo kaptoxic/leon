@@ -81,66 +81,6 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   import scife.{ enumeration => e }
   import scife.util._
 
-  def constructEnumerator_new(implicit ms: MemoizationScope) = {
-    import enumeration.dependent._
-    
-    def gc(name: String) =
-      treesModule.definedClasses.find(_.id.name == name).get.asInstanceOf[CaseClassDef]
-
-    val literals =
-      Map(
-        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("IntLiteral").typed, IntLiteral(x) :: Nil)),
-        "bool" -> (true :: false :: Nil).map(x => CaseClass(gc("BoolLiteral").typed, BooleanLiteral(x) :: Nil)))
-
-    val ops = Map(("int" -> ("Plus" :: Nil)), ("bool" -> List[String]()))
-
-    val treesOfSize: Depend[(Int, List[String]), Expr] = Depend.memoized(
-      (self: Depend[(Int, List[String]), Expr], pair: (Int, List[String])) => {
-        val (size, types) = pair
-
-        //        else e.Empty
-        if (size == 1) {
-          e.WrapArray(types.map(literals).flatten.toArray): Finite[Expr]
-        } else {
-          val roots: Finite[String] = e.Enum(types.map(ops).flatten)
-          val leftSizes: Finite[Int] = e.WrapArray(1 until size)
-
-          val rootLeftSizePairs = e.Product(leftSizes, roots)
-
-          val leftTrees: Depend[(Int, String), Expr] = InMap(self, { par: ((Int, String)) =>
-            val (leftSize, rootColor) = par
-            rootColor match {
-              case "Plus" =>
-                (leftSize, "int" :: Nil)
-            }
-          })
-
-          val rightTrees: Depend[(Int, String), Expr] = InMap(self, { par: ((Int, String)) =>
-            val (leftSize, rootColor) = par
-            rootColor match {
-              case "Plus" =>
-                (size - leftSize, "int" :: Nil)
-            }
-          })
-
-          val leftRightPairs: Depend[(Int, String), (Expr, Expr)] =
-            Product(leftTrees, rightTrees)
-
-          val allNodes =
-            memoization.Chain[(Int, String), (Expr, Expr), Expr](rootLeftSizePairs, leftRightPairs,
-              (p1: (Int, String), p2: (Expr, Expr)) => {
-                val ((leftSize, rootColor), (leftTree, rightTree)) = (p1, p2)
-
-                CaseClass(gc(rootColor).typed, leftTree :: rightTree :: Nil)
-              })
-
-          allNodes
-        }
-      })
-
-    treesOfSize
-  }
-  
   val firstASTops = Map(
     ("int" -> ("Plus" :: "Ite" :: Nil)),
     ("bool" -> ("Ite" :: Nil))
@@ -165,7 +105,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
         ("int", "int")
     }
   
-  def constructEnumerator_new2(ops: String => List[String], opToParams: String => (String, String))(implicit ms: MemoizationScope) = {
+  def constructEnumerator(ops: String => List[String], opToParams: String => (String, String))(implicit ms: MemoizationScope) = {
     import enumeration.dependent._
     
     def gc(name: String) =
@@ -175,7 +115,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       Map(
         "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
 //        "int" -> (1 :: 3 :: 5 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)),
-        "bool" -> (0 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
+        "bool" -> (0 :: 1 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
 //        "bool" -> (0 :: 1 :: Nil).map(x => CaseClass(gc("Literal").typed, IntLiteral(x) :: Nil)))
 
 
@@ -222,7 +162,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   def getFirstASTs(size: Int) = {
     val ms = new scope.AccumulatingScope
-    val enum = constructEnumerator_new(ms)
+    val enum = constructEnumerator(firstASTops, fromOpToOperandParam _)(ms)
   
     def getElements(size: Int) = (
       for (
@@ -236,7 +176,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   def getSecondASTs(size: Int) = {
     val ms = new scope.AccumulatingScope
-    val enum = constructEnumerator_new2(ms)
+      val enum = constructEnumerator(secondsASTops, fromOpToOperandParam _)(ms)
   
     def getElements(size: Int) = (
       for (
@@ -251,14 +191,14 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
   test("datastructure generation") {
 
     getFirstASTs(1) should have size 5
-    getFirstASTs(2) should have size 9
+    getFirstASTs(5) should have size 186
 
   }
 
   test("datastructure generation, static typed") {
 
 //    getElements(1) should have size 5
-    getSecondASTs(7) should have size 3513
+    getSecondASTs(7) should have size 2913
     getSecondASTs(7).map(_.toString) should
       contain ("Ite(CheckType(Literal(1), Literal(3)), Plus(Literal(1), Literal(3)))")
 
@@ -268,9 +208,6 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
     problem.xs should have size 1
 
     val resType = problem.xs.head.getType
-
-    val ms = new scope.AccumulatingScope
-    val enum = constructEnumerator_new(ms)
 
     info("going into enumeration")
     
