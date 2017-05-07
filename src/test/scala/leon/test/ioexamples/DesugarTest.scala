@@ -28,6 +28,8 @@ import java.io.{ BufferedWriter, FileWriter, File }
 import java.io._
 import java.nio.file._
 
+import scala.language.postfixOps
+
 class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   import Scaffold._
@@ -210,176 +212,281 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-//  test("inputs") {
-//    problem.xs should have size 1
-//
-//    val resType = problem.xs.head.getType
-//
-//    info("going into enumeration")
-//
-//    val examples = getFirstASTs(3)
-//
-//    //    "output finding" -
-//    {
-//      val phi = problem.phi
-//
-//      problem.as should have size 1
-//      val in = problem.as.head
-//
-//      problem.xs should have size 1
-//      val out = problem.xs.head
-//
-//      val results = new collection.mutable.MutableList[(Expr, Expr)]()
-//      val filteredExamples =
-//        {
-//          val phi = problem.phi
-//
-//          problem.as should have size 1
-//          val in = problem.as.head
-//          problem.xs should have size 1
-//          val out = problem.xs.head
-//          val pc = problem.pc
-//          val toEvaluate = pc.toClause
-//          val compiled = evaluator.compile(toEvaluate, in :: Nil).get
-//
-//          for (ex1 <- examples) yield {
-//            val res = compiled(new Model(Map(in -> ex1)))
-//
-//            res match {
-//              case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//                info("pass precondition for: " + ex1)
-//                Some(ex1)
-//              case e: EvaluationResults.EvaluatorError =>
-//                None
-//              case _ =>
-//                None
-//            }
-//          }
-//
-//        } flatten
-//
-//      filteredExamples.size should be === examples.size
-//
-//      val secondAstExamples = getSecondASTs(7)
-//
-//      val pc = problem.pc
-//      val toEvaluate = And(pc.toClause, phi)
-//      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
-//      for (
-//        ex1 <- filteredExamples;
-//        ex2 <- secondAstExamples
-//      ) {
-//        //        info("toEvaluate " + toEvaluate)
-//
-//        //        info(s"for in $ex1, out $ex2")
-//        //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
-//        val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
-//        //          info(s"for in $ex1, out $ex2, got $res")
-//
-//        res match {
-//          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
-//            //            info(s"for in $ex1, out $ex2")
-//            //            info("***")
-//            //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
-//            //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
-//            //                results.getOrElse(ex1, ex2) shouldBe ex2
-//            //              results should not contain key (ex1)
-//            //              }
-//
-//            //              assert(!(results contains ex1))
-//            //              assert(results.getOrElse(ex1, ex2))
-//            //              results(ex1) += ex2
-//            results += ((ex1, ex2))
-//          //          info(s"$v for $ex, ${v1}, $v2")
-//          case e: EvaluationResults.EvaluatorError =>
-//          //          info("evaluation failure: " + e + s" for $v1 and $v2")
-//          case _                                   =>
-//        }
-//      }
-//
-//      results.size shouldBe >(0)
-//      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
-//      results should have size (21)
-//      results.map(_.toString).distinct should have size (21)
-//
-//      val extraction = new ExamplesExtraction(sctx, sctx.program)
-//
-//      val examplesIn = results.map({
-//        case (inEx, outEx) =>
-//          ((in, inEx) :: Nil, (out, outEx))
-//      }).toList
-//
-//      // get fragments
-//      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examplesIn).get
-//      info(s"inIds $inIds")
-//      info("transformed examples: " + transformedExamples.mkString("\n"))
-//      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
-//      info("unordered fragments: " + unorderedFragments.mkString("\n"))
-//
-//      val unorederdFragmentsSet = unorderedFragments.toSet
-//      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
-//
-//      transformedExamples should have size unorderedFragments.size
-//      val zipped = (examplesIn zip unorderedFragments)
-//
-//      val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
-//
-//      val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
-//
-//      val groupped = zipped.groupBy(_._1._1)
-//      val sorted =
-//        for ((input, list) <- groupped) yield {
-//          val fragments = list.map(_._2)
-//          (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
-//        }
-//
-//      info("")
-//      info("")
-//      info("")
-//      info("sorted:\n" + sorted.
-//        map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
-//
-//      info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
-//
-//      //      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
-//      //        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
-//      //      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
-//
-//      val inputsPerPredicate =
-//        for ((examplePair, fragment) <- zipped) yield {
-//          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
-//  
-//          (fragmentHead, examplePair)
-//        }
-//  
-//      val inputsPerPredicateMap =
-//        (Map[Expr, Set[InputOutputExample]]() /: inputsPerPredicate) {
-//          case (current, (fragment, pair)) =>
-//            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExample]()) + pair))
-//        }
-//
-//      inputsPerPredicateMap.size shouldBe 4
-//
-//      val (examplesNew, fragments) =
-//        (for (
-//          fragment <- inputsPerPredicateMap.keys.toList;
-//          example <- inputsPerPredicateMap(fragment).toList
-//        ) yield (example, fragment)).unzip
-//
-//      info(examplesNew.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
-//      info("fragments (trim 20): " + fragments.take(20).mkString("\n"))
-//     
-//      val synthesizer = new Synthesizer 
-//      val result =
-//        synthesizer.synthesize(examplesNew.toList, null, evaluator,
-//          null, Some(fragments.toList))
-//          
-//      result should not be empty
-//      
-//      result.get._1 shouldBe ""
-//
-//    }
-//
-//  }
+  test("derived io examples") {
+    problem.xs should have size 1
+
+    val resType = problem.xs.head.getType
+
+    info("going into enumeration")
+
+    val examples = getFirstASTs(3)
+
+    //    "output finding" -
+    {
+      val phi = problem.phi
+
+      problem.as should have size 1
+      val in = problem.as.head
+
+      problem.xs should have size 1
+      val out = problem.xs.head
+
+      val results = new collection.mutable.MutableList[(Expr, Expr)]()
+      val filteredExamples =
+        {
+          val phi = problem.phi
+
+          problem.as should have size 1
+          val in = problem.as.head
+          problem.xs should have size 1
+          val out = problem.xs.head
+          val pc = problem.pc
+          val toEvaluate = pc.toClause
+          val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+
+          for (ex1 <- examples) yield {
+            val res = compiled(new Model(Map(in -> ex1)))
+
+            res match {
+              case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+                info("pass precondition for: " + ex1)
+                Some(ex1)
+              case e: EvaluationResults.EvaluatorError =>
+                None
+              case _ =>
+                None
+            }
+          }
+
+        } flatten
+
+      filteredExamples.size should be === examples.size
+
+      val secondAstExamples = getSecondASTs(7)
+
+      val pc = problem.pc
+      val toEvaluate = And(pc.toClause, phi)
+      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+      for (
+        ex1 <- filteredExamples;
+        ex2 <- secondAstExamples
+      ) {
+        //        info("toEvaluate " + toEvaluate)
+
+        //        info(s"for in $ex1, out $ex2")
+        //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+        val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+        //          info(s"for in $ex1, out $ex2, got $res")
+
+        res match {
+          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+            //            info(s"for in $ex1, out $ex2")
+            //            info("***")
+            //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+            //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+            //                results.getOrElse(ex1, ex2) shouldBe ex2
+            //              results should not contain key (ex1)
+            //              }
+
+            //              assert(!(results contains ex1))
+            //              assert(results.getOrElse(ex1, ex2))
+            //              results(ex1) += ex2
+            results += ((ex1, ex2))
+          //          info(s"$v for $ex, ${v1}, $v2")
+          case e: EvaluationResults.EvaluatorError =>
+          //          info("evaluation failure: " + e + s" for $v1 and $v2")
+          case _                                   =>
+        }
+      }
+
+      results.size shouldBe >(0)
+      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+      results should have size (21)
+      results.map(_.toString).distinct should have size (21)
+
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+
+      val examplesIn = results.map({
+        case (inEx, outEx) =>
+          ((in, inEx) :: Nil, (out, outEx))
+      }).toList
+      
+      examplesIn should have size 21
+    }
+
+  }
+  
+  ignore("synthesis") {
+    problem.xs should have size 1
+
+    val resType = problem.xs.head.getType
+
+    info("going into enumeration")
+
+    val examples = getFirstASTs(3)
+
+    //    "output finding" -
+    {
+      val phi = problem.phi
+
+      problem.as should have size 1
+      val in = problem.as.head
+
+      problem.xs should have size 1
+      val out = problem.xs.head
+
+      val results = new collection.mutable.MutableList[(Expr, Expr)]()
+      val filteredExamples =
+        {
+          val phi = problem.phi
+
+          problem.as should have size 1
+          val in = problem.as.head
+          problem.xs should have size 1
+          val out = problem.xs.head
+          val pc = problem.pc
+          val toEvaluate = pc.toClause
+          val compiled = evaluator.compile(toEvaluate, in :: Nil).get
+
+          for (ex1 <- examples) yield {
+            val res = compiled(new Model(Map(in -> ex1)))
+
+            res match {
+              case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+                info("pass precondition for: " + ex1)
+                Some(ex1)
+              case e: EvaluationResults.EvaluatorError =>
+                None
+              case _ =>
+                None
+            }
+          }
+
+        } flatten
+
+      filteredExamples.size should be === examples.size
+
+      val secondAstExamples = getSecondASTs(7)
+
+      val pc = problem.pc
+      val toEvaluate = And(pc.toClause, phi)
+      val compiled = evaluator.compile(toEvaluate, in :: out :: Nil).get
+      for (
+        ex1 <- filteredExamples;
+        ex2 <- secondAstExamples
+      ) {
+        //        info("toEvaluate " + toEvaluate)
+
+        //        info(s"for in $ex1, out $ex2")
+        //          val res = evaluator.eval(toEvaluate, new Model(Map(in -> ex1, out -> ex2)))
+        val res = compiled(new Model(Map(in -> ex1, out -> ex2)))
+        //          info(s"for in $ex1, out $ex2, got $res")
+
+        res match {
+          case EvaluationResults.Successful(BooleanLiteral(v)) if v =>
+            //            info(s"for in $ex1, out $ex2")
+            //            info("***")
+            //              info(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") 
+            //              withClue(s"for input $ex1\n, output $ex2\n existing result is ${results.getOrElse(ex1, w)}\n") {
+            //                results.getOrElse(ex1, ex2) shouldBe ex2
+            //              results should not contain key (ex1)
+            //              }
+
+            //              assert(!(results contains ex1))
+            //              assert(results.getOrElse(ex1, ex2))
+            //              results(ex1) += ex2
+            results += ((ex1, ex2))
+          //          info(s"$v for $ex, ${v1}, $v2")
+          case e: EvaluationResults.EvaluatorError =>
+          //          info("evaluation failure: " + e + s" for $v1 and $v2")
+          case _                                   =>
+        }
+      }
+
+      results.size shouldBe >(0)
+      info(results.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+      results should have size (21)
+      results.map(_.toString).distinct should have size (21)
+
+      val extraction = new ExamplesExtraction(sctx, sctx.program)
+
+      val examplesIn = results.map({
+        case (inEx, outEx) =>
+          ((in, inEx) :: Nil, (out, outEx))
+      }).toList
+
+      // get fragments
+      val ((inIds, outId), transformedExamples) = ExamplesExtraction.transformMappings(examplesIn).get
+      info(s"inIds $inIds")
+      info("transformed examples: " + transformedExamples.mkString("\n"))
+      val unorderedFragments = Fragmenter.constructFragments(transformedExamples, inIds)
+      info("unordered fragments: " + unorderedFragments.mkString("\n"))
+
+      val unorederdFragmentsSet = unorderedFragments.toSet
+      info("unorederdFragmentsSet:\n" + unorederdFragmentsSet.mkString("\n"))
+
+      transformedExamples should have size unorderedFragments.size
+      val zipped = (examplesIn zip unorderedFragments)
+
+      val zippedSorted = zipped.sortBy(p => ExprOps.formulaSize(p._2))
+
+      val taken = new collection.mutable.ListBuffer[((List[Expressions.Expr], Expressions.Expr), Expressions.Expr)]()
+
+      val groupped = zipped.groupBy(_._1._1)
+      val sorted =
+        for ((input, list) <- groupped) yield {
+          val fragments = list.map(_._2)
+          (input, fragments.sortBy(ExprOps.formulaSize _).head, fragments.toSet)
+        }
+
+      info("")
+      info("")
+      info("")
+      info("sorted:\n" + sorted.
+        map({ case (k, v, _) => k.head + "\n" + v }).mkString("\n******\n"))
+
+      info("fragments set from sorted:\n" + sorted.map(_._2).toSet.mkString("\n"))
+
+      //      info("unordered fragments set:\n" + (transformedExamples zip unorderedFragments).
+      //        map({ case (k, v) => k._1.head + "\n" + k._2 + "\n" + v }).mkString("\n******\n"))
+      //      info("unordered fragments set:\n" + unorderedFragments.toSet.mkString("\n\n\n"))
+
+      val inputsPerPredicate =
+        for ((examplePair, fragment) <- zipped) yield {
+          val (_, fragmentHead, _) = sorted.find(_._3 contains fragment).get
+  
+          (fragmentHead, examplePair)
+        }
+  
+      val inputsPerPredicateMap =
+        (Map[Expr, Set[InputOutputExample]]() /: inputsPerPredicate) {
+          case (current, (fragment, pair)) =>
+            current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExample]()) + pair))
+        }
+
+      inputsPerPredicateMap.size shouldBe 4
+
+      val (examplesNew, fragments) =
+        (for (
+          fragment <- inputsPerPredicateMap.keys.toList;
+          example <- inputsPerPredicateMap(fragment).toList
+        ) yield (example, fragment)).unzip
+
+      info(examplesNew.map(p => "in : " + p._1 + "\nout: " + p._2).mkString("\n"))
+      info("fragments (trim 20): " + fragments.take(20).mkString("\n"))
+     
+      val synthesizer = new Synthesizer 
+      val result =
+        synthesizer.synthesize(examplesNew.toList, null, evaluator,
+          null, Some(fragments.toList))
+          
+      result should not be empty
+      
+      result.get._1 shouldBe ""
+
+    }
+
+  }
+
 
 }

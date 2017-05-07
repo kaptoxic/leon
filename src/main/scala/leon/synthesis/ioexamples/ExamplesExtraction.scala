@@ -17,9 +17,7 @@ import leon.utils.logging.HasLogger
 class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
 
   def extract(problem: Problem): Seq[InputOutputExample] = {
-
-    //    require(problem.as.size == 1)
-    require(problem.xs.size == 1)
+    require(problem.xs.size == 1, "restrict to only one output")
     info("extracting examples from problem: " + problem)
 
     val eFinder = new ExamplesFinder(ctx, program)
