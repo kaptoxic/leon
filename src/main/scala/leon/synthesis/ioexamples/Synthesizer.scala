@@ -95,14 +95,14 @@ class Synthesizer(implicit program: Program) extends HasLogger {
             partition( _._2._2 )
           val ambigous = ambigousPairs.map(_._1)
           val unorderedFragments = unorderedFragmentsPairs.map(_._1)
-          info("unordered fragments: " + unorderedFragments.mkString("\n"))
-          info("ambigous fragments: " + ambigous.mkString("\n"))
+          fine("unordered fragments: " + unorderedFragments.mkString("\n"))
+          fine("ambigous fragments: " + ambigous.mkString("\n"))
           
           assert((ambigous.toSet union unorderedFragments.toSet) == unorderedFragmentsAll.toSet)
           (ambigous, unorderedFragments, unorderedFragmentsAll)
       }
-    fine("ambigous fragments: " + ambigous.mkString("\n"))
-    fine("unordered fragments: " + unorderedFragments.mkString("\n"))
+    info("ambigous fragments: " + ambigous.mkString("\n"))
+    info("unordered fragments: " + unorderedFragments.mkString("\n"))
     
     val fragmentToInputMap =
       (Map[Expr, Set[InputOutputExampleVal]]() /: (unorderedFragmentsAll zip transformedExamples)) {
@@ -110,6 +110,11 @@ class Synthesizer(implicit program: Program) extends HasLogger {
           current + (fragment -> (current.getOrElse(fragment, Set[InputOutputExampleVal]()) + example))
       }
     fine("fragmentToInputMap: " + fragmentToInputMap)
+    info("unorderedFragmentsAll -> inputs:\n" +
+      unorderedFragmentsAll.distinct.
+      map(f => (f, fragmentToInputMap(f).map(_._1.head))).
+      map({ case (f, i) => f + "\t->\n" + i.map("\t\t" + _ + "\n").mkString("\n") }).
+      mkString("\n"))
     
     val inputsToExamplesMap = transformedExamples.map(ex => (ex._1, ex)).toMap
     
@@ -238,25 +243,53 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         
         assert(inVars.size == 1)
 //        assert(fragmentToInputMap.size == 4, fragmentToInputMap.size)
-        val predicates =
+        val calculatedPredicates =
           calculatePredicatesStructureMapDifference(fragmentToInputMap.toSeq, inVars)
+        fine("predicate differences: " + calculatedPredicates.mkString("\n"))
           
-        val res =
-          predicates map {
-            case (k, v) =>
-              val equalities = v.map {
-                case (value, Not(expression)) =>
-                  Not(Equals(value, expression))
-                case (value, expression) =>
-                  Equals(value, expression)
-              }
-              
-              // FIXME change this not to be a function
-//              (k.toList.map(_._1), Map((xs.head: Expr) -> ((_: Expr) => and(equalities.toSeq: _*))))
-              (k.toList.map(_._1), equalities.toList)
-          }
-        
-        (None, fromExampleConditionToBranches(res))
+        if (!calculatedPredicates.isEmpty) {
+          val res =
+            calculatedPredicates map {
+              case (k, v) =>
+                val equalities = v.map {
+                  case (value, Not(expression)) =>
+                    Not(Equals(value, expression))
+                  case (value, expression) =>
+                    Equals(value, expression)
+                }
+                
+                // FIXME change this not to be a function
+  //              (k.toList.map(_._1), Map((xs.head: Expr) -> ((_: Expr) => and(equalities.toSeq: _*))))
+                (k.toList.map(_._1), equalities.toList)
+            }
+          
+          (None, fromExampleConditionToBranches(res))
+        } else {
+          
+          // need to distinguish Literal(5) from literal Literal(9)
+          
+          // get paths from fragment that uses decomposition on input
+          // replace only those paths with variables a, b
+          // generalize the rest as much as possible
+          
+          assert(
+            fragmentToInputMap.forall(_._2.size == 1) ||
+              fragmentToInputMap.forall(
+                x => x._2.forall(_.isInstanceOf[CaseClass]) &&
+                x._2.map(_.asInstanceOf[CaseClass].ct.classDef.id.name).size == 1
+              ),
+            fragmentToInputMap.mkString("\n")
+            )
+          ???
+          (None,
+            fragmentToInputMap.toList map { x =>
+              val condition =
+                x._2.head._1 zip inVars map {
+                  case (inVal, inVar) => Expressions.Equals(inVar, inVal): Expr
+                }
+              (Expressions.And(condition), Left(x._1: Expr))
+            })
+        }
       }
     info("initialPredicates: " + predicates)//.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
 
@@ -936,12 +969,12 @@ class Synthesizer(implicit program: Program) extends HasLogger {
             Util.subexpressionToPathFunctionsPairs(inputs.head).map({
               case (k, v) => (k, v(inputVar)) }).toSet
             
-        info("subexpressionsSets:\n" + subexpressionsSets.mkString("\n"))
+        fine("subexpressionsSets:\n" + subexpressionsSets.mkString("\n"))
         
         val intersection =
           subexpressionsSets.reduce(_ intersect _)
           
-        info("intersection:\n" + intersection.mkString("\n"))
+        fine("intersection:\n" + intersection.mkString("\n"))
         
         (intersection, pairs)
       }).unzip
@@ -954,7 +987,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     val newPartitions =
       (partitions /: sortedBySize) {
         case (current, expr) if current.size < intersections.size =>
-          info("expression is: " + expr)
+          finest("expression is: " + expr)
           val newPartitions =
             for ((partition, partitionSet) <- current) yield {
               val (have, dontHave) =
@@ -967,14 +1000,14 @@ class Synthesizer(implicit program: Program) extends HasLogger {
                   (dontHave, partitionSet + ((expr._1, (Not(expr._2): Expr)))) :: Nil
             }
           
-          info("newPartitions:\n" + newPartitions.flatten.mkString("\n"))
-          info("*********")
+          fine("newPartitions:\n" + newPartitions.flatten.mkString("\n"))
+          fine("*********")
           newPartitions.flatten
         case r =>
           r._1
       }
     
-    info("newPartitions: " + newPartitions.map(_._2).mkString("\n"))
+    fine("newPartitions: " + newPartitions.map(_._2).mkString("\n"))
     
     // if properly partitioned
     if (newPartitions.forall(_._1.size == 1)) {
