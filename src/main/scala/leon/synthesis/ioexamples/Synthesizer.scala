@@ -276,6 +276,8 @@ class Synthesizer(implicit program: Program) extends HasLogger {
           assert(predicates.count(_._2.size == 2) == 1)
           assert(predicates.count(_._2.size == 1) == 2)
           
+          val typesAndInputs = predicates.find(_._2.size == 2).get._2
+          
           // need to distinguish Literal(5) from literal Literal(9)
           // get paths from fragment that uses decomposition on input
           // replace only those paths with variables a, b
@@ -642,66 +644,34 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     evaluator: Evaluator,
     numberOfExpressions: Int = 30
   ) = {
-    val enum = getEnum(BooleanType)
-    val testedExpressions = enum.take(numberOfExpressions)
-    assert(testedExpressions.toList.distinct.size == testedExpressions.size)
+    // information to restore mapping to chains from 2nd fragments
+    val fromSecondChainToChain = {
+      val flattened =
+        filteredDiffGroups.map(_._1.toList.map({ case (a,b) => (b,a) })).flatten
+      assert(flattened.distinct.size == flattened.map(_._1).distinct.size)
+      flattened.toMap
+    }
     
-    // for all test conditions, pair condition and chain, if both expr in chain return same boolean
-    val distinguishing =
-      for (conditionExpr <- testedExpressions;
-        _ = info(s"example is $conditionExpr");
-        (set, diffs) <- filteredDiffGroups;
-        _ = assert(diffs.size == 1);
-        (mapping, fun) = diffs.head
-      ) yield {
-        val res =
-          for((_, f) <- set.toList;
-            // note that the lowest fragment (out of two) might fail
-            // NOTE we assume evaluation error actually is one of those simple cases that already work 
-            (inputs, _) = fragmentsAndInputsMap(f)
-          ) yield {
-            evaluator.eval(conditionExpr, new Model(inputs.toMap)) match {
-              case EvaluationResults.Successful(BooleanLiteral(v)) =>
-                info(s"evaluation success: $v for $conditionExpr, and inputs ${inputs}")
-                v
-              case e: EvaluationResults.EvaluatorError =>
-                info("evaluation failure: " + e + s" for inputs ${inputs}")
-                ???
-//                Right(f)
-            }
-          }
-          
-        val allEqual = res
-        info(s"results for $conditionExpr and $set: $allEqual")
-        
-        assert(allEqual.size > 0)
-
-        if(allEqual.distinct.size == 1) {
-          Some(
-            (conditionExpr, (set, allEqual.head))
-          )
-        }
-        else
-          None
-      }
-    
-    // for each condition, get only those that have associated two groups with both false and true
-    info("distinguishing:\n" + distinguishing.flatten.mkString("\n")) 
-    val distinguishedByGroup =
-      distinguishing.flatten.groupBy(_._1).filter({
-        case (k, res) if res.size == 2 =>
-          val results = res.map(_._2._2)
-
-          fine(s"for $k we have:\n${results.mkString("\n")}")
-          fine(s"${results.toList.distinct}")
-          results.toList.distinct.size == 2
-        case _ =>
-          false
-      }).map({
-        case (k, v) =>
-          (k, v.map({ case (a, (b, c)) => (b, c)}))
+    val filteredDiffGroups_ = 
+      filteredDiffGroups.map({
+        case (set, iter) =>
+          (set.map(_._2), iter.map(_._1))
       })
-    info("distinguishing by group:\n" +distinguishedByGroup.mkString("\n")) 
+    
+    val distinguishedByGroup_ =
+      getGroupsDistinguishedByPredicates(
+        filteredDiffGroups_,
+        getEnum: TypeTree => Iterable[Expr],
+        fragmentsAndInputsMap: Map[Expressions.Expr, InputOutputExample],
+        evaluator: Evaluator,
+        numberOfExpressions: Int
+      ) 
+    val distinguishedByGroup =
+      distinguishedByGroup_.map({ case (cond, iter) =>
+        (cond, iter.map({ case (a,b) =>
+          (a.map(x => (fromSecondChainToChain(x), x)), b)
+        }))
+      })
     
     // filtered results
     // consider only fragment groups (a,b) for which, when a recursive call is made for b
@@ -795,6 +765,81 @@ class Synthesizer(implicit program: Program) extends HasLogger {
       }
     
     results
+  }
+  
+  def getGroupsDistinguishedByPredicates(
+    filteredDiffGroups: List[(Set[Expr], Iterable[Map[Variable, Expr]])],
+    getEnum: TypeTree => Iterable[Expr],
+    fragmentsAndInputsMap: Map[Expressions.Expr, InputOutputExample],
+    evaluator: Evaluator,
+    numberOfExpressions: Int
+  ) = {
+    
+    val enum = getEnum(BooleanType)
+    val testedExpressions = enum.take(numberOfExpressions)
+    assert(testedExpressions.toList.distinct.size == testedExpressions.size)
+    
+    // for all test conditions, pair condition and chain, return conditions
+    //   for which both expressions in chain return same boolean
+    // [cond, ([fragments], boolean result)]
+    val distinguishing: Iterable[Option[(Expr, (Set[Expr], Boolean))]] =
+      for (conditionExpr <- testedExpressions;
+        _ = info(s"example is $conditionExpr");
+        (set, diffs) <- filteredDiffGroups;
+        _ = assert(diffs.size == 1);
+        mapping = diffs.head
+      ) yield {
+        val res =
+          for(f <- set.toList;
+            // note that the lowest fragment (out of two) might fail
+            // NOTE we assume evaluation error actually is one of those simple cases that already work 
+            (inputs, _) = fragmentsAndInputsMap(f)
+          ) yield {
+            evaluator.eval(conditionExpr, new Model(inputs.toMap)) match {
+              case EvaluationResults.Successful(BooleanLiteral(v)) =>
+                info(s"evaluation success: $v for $conditionExpr, and inputs ${inputs}")
+                v
+              case e: EvaluationResults.EvaluatorError =>
+                info("evaluation failure: " + e + s" for inputs ${inputs}")
+                ???
+              case _ =>
+                ???
+            }
+          }
+          
+        val allEqual = res
+        info(s"results for $conditionExpr and $set: $allEqual")
+        
+        assert(allEqual.size > 0)
+
+        if(allEqual.distinct.size == 1) {
+          Some(
+            (conditionExpr, (set, allEqual.head))
+          )
+        }
+        else
+          None
+      }
+    
+    // for each condition, get only those that have associated two groups with both false and true
+    info("distinguishing:\n" + distinguishing.flatten.mkString("\n")) 
+    val distinguishedByGroup =
+      distinguishing.flatten.groupBy(_._1).filter({
+        case (k, res) if res.size == 2 =>
+          val results = res.map(_._2._2)
+
+          fine(s"for $k we have:\n${results.mkString("\n")}")
+          fine(s"${results.toList.distinct}")
+          results.toList.distinct.size == 2
+        case _ =>
+          false
+      }).map({
+        case (k, v) =>
+          (k, v.map({ case (a, (b, c)) => (b, c)}))
+      })
+    info("distinguishing by group:\n" +distinguishedByGroup.mkString("\n")) 
+    
+    distinguishedByGroup
   }
    
   /*
