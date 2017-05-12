@@ -246,6 +246,10 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         val calculatedPredicates =
           calculatePredicatesStructureMapDifference(fragmentToInputMap.toSeq, inVars)
         fine("predicate differences: " + calculatedPredicates.mkString("\n"))
+        fine("predicate diffs\n: " +
+          calculatedPredicates.map({ case (ioExamples, expPair) =>
+            expPair + "\t->\n" + ioExamples.map("\t\t" + _ + "\n").take(2).mkString("\n") }).
+          mkString("\n"))
           
         if (!calculatedPredicates.isEmpty) {
           val res =
@@ -266,20 +270,25 @@ class Synthesizer(implicit program: Program) extends HasLogger {
           (None, fromExampleConditionToBranches(res))
         } else {
           
-          // need to distinguish Literal(5) from literal Literal(9)
+          val predicates = 
+            calculatePredicatesTypeDifference(fragmentToInputMap.toSeq, inVars)
+            
+          assert(predicates.count(_._2.size == 2) == 1)
+          assert(predicates.count(_._2.size == 1) == 2)
           
+          // need to distinguish Literal(5) from literal Literal(9)
           // get paths from fragment that uses decomposition on input
           // replace only those paths with variables a, b
           // generalize the rest as much as possible
           
-          assert(
-            fragmentToInputMap.forall(_._2.size == 1) ||
-              fragmentToInputMap.forall(
-                x => x._2.forall(_.isInstanceOf[CaseClass]) &&
-                x._2.map(_.asInstanceOf[CaseClass].ct.classDef.id.name).size == 1
-              ),
-            fragmentToInputMap.mkString("\n")
-            )
+//          assert(
+//            fragmentToInputMap.forall(_._2.size == 1) ||
+//              fragmentToInputMap.forall(
+//                x => x._2.forall(_.isInstanceOf[CaseClass]) &&
+//                x._2.map(_.asInstanceOf[CaseClass].ct.classDef.id.name).size == 1
+//              ),
+//            fragmentToInputMap.mkString("\n")
+//            )
           ???
           (None,
             fragmentToInputMap.toList map { x =>
@@ -952,6 +961,10 @@ class Synthesizer(implicit program: Program) extends HasLogger {
 //    else None
   }
   
+  // list of:
+  //   IO example
+  //   a pair of: subexpresion value s, evaluating expression to get that value ee
+  // such that ee distinguishes between IO examples
   def calculatePredicatesStructureMapDifference(
     inputsPerPredicateMap: Seq[(Expr, Set[InputOutputExampleVal])],
     inputsVariables: List[Expr]
@@ -961,6 +974,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     require(inputsVariables.size == 1)
     val inputVar = inputsVariables.head
     
+    // get common subexpressions of inputs for this explaining fragment
     val (intersections, pairs) =
       (for ((fragment, pairs) <- inputsPerPredicateMap) yield {
         
@@ -984,6 +998,9 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         
     val partitions = (intersections, Set[(Expr, Expr)]()) :: Nil
     
+    // going according to the evaluating expression size
+    // find evaluation expression which distinguishes at least two partitions
+    // list of [list of fragments, set of distinguishing conditions]
     val newPartitions =
       (partitions /: sortedBySize) {
         case (current, expr) if current.size < intersections.size =>
@@ -1008,8 +1025,11 @@ class Synthesizer(implicit program: Program) extends HasLogger {
       }
     
     fine("newPartitions: " + newPartitions.map(_._2).mkString("\n"))
-    
-    // if properly partitioned
+
+    val partitionToPairsMap = (intersections zip pairs).toMap
+
+    // TODO this might be too strong
+    // if properly (completely) partitioned
     if (newPartitions.forall(_._1.size == 1)) {
       val partitionToPairsMap = (intersections zip pairs).toMap
       
@@ -1018,6 +1038,32 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     } else {
       Nil
     }
+  }
+  
+  // list of:
+  //   IO example
+  //   a pair of: subexpresion value s, evaluating expression to get that value ee
+  // such that ee distinguishes between IO examples
+  def calculatePredicatesTypeDifference(
+    inputsPerPredicateMap: Seq[(Expr, Set[InputOutputExampleVal])],
+    inputsVariables: List[Expr]
+  ) = {
+    // TODO at this point
+    require(inputsVariables.size == 1)
+    val inputVar = inputsVariables.head
+    
+    // get common subexpressions of inputs for this explaining fragment
+    val intersectionsAndPairs =
+      for ((fragment, pairs) <- inputsPerPredicateMap) yield {
+        val inputTypes = 
+          pairs.map({ _._1.head.getType })
+            
+        fine("inputTypes:\n" + inputTypes.mkString("\n"))
+        
+        (inputTypes, pairs)
+      }
+  
+    intersectionsAndPairs.groupBy(_._1)
   }
 
 }
