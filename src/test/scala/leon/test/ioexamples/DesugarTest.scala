@@ -51,7 +51,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   val problems = forFile(ioExamplesTestcaseDir + "Desugar.scala").toList
 
-  test("check synthesis problem") {
+  ignore("check synthesis problem") {
     problems.size should be(1)
   }
 
@@ -59,7 +59,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   implicit val program = sctx.program
 
-  test("check environment") {
+  ignore("check environment") {
     withClue(program.definedClasses) {
       program.definedClasses.map(_.id.name) should contain("BoolLiteral")
       program.definedClasses.filter(_.id.name == "BoolLiteral").size shouldBe 1
@@ -195,7 +195,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
     ) yield e(ind)
   }
 
-  test("datastructure generation") {
+  ignore("datastructure generation") {
 
     getFirstASTs(1) should have size 4
     getFirstASTs(3) should have size 16
@@ -203,7 +203,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  test("datastructure generation, static typed") {
+  ignore("datastructure generation, static typed") {
 
     getSecondASTs(3) should have size 25
     getSecondASTs(7) should have size 2263
@@ -212,7 +212,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
 
-  test("derived io examples") {
+  ignore("derived io examples") {
     problem.xs should have size 1
 
     val resType = problem.xs.head.getType
@@ -316,7 +316,7 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
   
-  ignore("synthesis") {
+  test("synthesis") {
     problem.xs should have size 1
 
     val resType = problem.xs.head.getType
@@ -477,7 +477,8 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
      
       val synthesizer = new Synthesizer 
       val result =
-        synthesizer.synthesize(examplesNew.toList, null, evaluator,
+        synthesizer.synthesize(
+          examplesNew.toList, (exprs: List[Expr]) => _ => getEnum(exprs), evaluator,
           null, Some(fragments.toList))
           
       result should not be empty
@@ -487,6 +488,41 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
     }
 
   }
+  
+  def getEnum(exprs: List[Expr]) = {
+    import synthesis.ioexamples.backwards.TermSynthesizer
 
+    val myGrammar = {
+      import leon.grammars._
+      import purescala.ExprOps._
+      import purescala.Expressions.Expr
+      import purescala.Extractors.TopLevelAnds
+      import purescala.Types.{ BooleanType, Int32Type, IntegerType }
+      import Witnesses.Hint
+
+      val TopLevelAnds(ws) = problem.ws
+      val hints = ws.collect { case Hint(e) if formulaSize(e) >= 4 => e }
+      val inputs = /*problem.allAs.map(_.toVariable) ++ hints ++*/ exprs
+      val exclude = sctx.settings.functionsToIgnore
+      val recCalls = {
+        if (sctx.findOptionOrDefault(SynthesisPhase.optIntroduceRecCalls)) Empty()
+        else SafeRecursiveCalls(sctx.program, problem.ws, problem.pc)
+      }
+
+      BaseGrammar ||
+        Closures ||
+        EqualityGrammar(Set(IntegerType, Int32Type, BooleanType) ++ inputs.map { _.getType }) ||
+        OneOf(inputs) ||
+        Constants(sctx.functionContext.fullBody) ||
+        FunctionCalls(sctx.program, sctx.functionContext, inputs.map(_.getType), exclude) ||
+        recCalls
+    }
+
+    val termSynthesizer = new TermSynthesizer(sctx, problem, inGrammar = Some(myGrammar))
+
+    val enum = termSynthesizer.apply(BooleanType :: Nil)
+
+    enum
+  }
 
 }

@@ -27,7 +27,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
   
   def synthesize(
     examples: List[InputOutputExample],
-    getEnum: TypeTree => Iterable[Expr],
+    getEnum: List[Expr] => TypeTree => Iterable[Expr],
     evaluator: Evaluator,
     nilClass: ClassType,
     precalculatedFragmentsOpt: Option[List[Expr]] = None
@@ -166,7 +166,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
             unorderedFragmentsAll: List[Expr],
             inVars: List[Variable],
             examples: List[InputOutputExample],
-            getEnum: TypeTree => Iterable[Expr],
+            getEnum(Nil),
             evaluator: Evaluator,
             nilClass: ClassType
           )
@@ -276,7 +276,25 @@ class Synthesizer(implicit program: Program) extends HasLogger {
           assert(predicates.count(_._2.size == 2) == 1)
           assert(predicates.count(_._2.size == 1) == 2)
           
-          val typesAndInputs = predicates.find(_._2.size == 2).get._2
+          val typesAndInputs = {
+            val ambigous =
+              predicates.find(_._2.size == 2).get._2
+            assert(ambigous.forall(_._1.size == 1))
+            ambigous.toList.map(x => (x._1.head, x._2.map( ex =>
+              inVars.zip(ex._1).toMap: Map[Variable,Expr])))
+          }
+          
+          assert(inVars.size == 1)
+          val distinguishingPredicates =
+            getGroupsDistinguishedByPredicates(
+              typesAndInputs.map({ case (tpe, inputs) =>
+                (
+                  Set[Expr](IsInstanceOf(inVars.head, tpe.asInstanceOf[ClassType])),
+                  inputs
+                )
+              }),
+              getEnum(Nil), unorderedFragmentsAll zip examples toMap, evaluator, 30
+            )
           
           // need to distinguish Literal(5) from literal Literal(9)
           // get paths from fragment that uses decomposition on input
@@ -785,9 +803,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     val distinguishing: Iterable[Option[(Expr, (Set[Expr], Boolean))]] =
       for (conditionExpr <- testedExpressions;
         _ = info(s"example is $conditionExpr");
-        (set, diffs) <- filteredDiffGroups;
-        _ = assert(diffs.size == 1);
-        mapping = diffs.head
+        (set, _) <- filteredDiffGroups
       ) yield {
         val res =
           for(f <- set.toList;

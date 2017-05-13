@@ -128,7 +128,7 @@ class MergeSortTest extends FunSuite with Matchers with Inside with CancelAfterF
 
     val synthesizer = new Synthesizer
 
-    val Some((body, funDef)) = synthesizer.synthesize(examples.toList, _ => getEnum, evaluator, nilClass)
+    val Some((body, funDef)) = synthesizer.synthesize(examples.toList, _ => _ => getEnum, evaluator, nilClass)
 
     info("(body, funDef) is: " + (body, funDef))
     val bodyStrings =
