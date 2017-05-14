@@ -21,6 +21,7 @@ import scala.language.postfixOps
 class Synthesizer(implicit program: Program) extends HasLogger {
 
   type IO = (List[Expr], Expr)
+  type InputMapping = List[(Common.Identifier, Expressions.Expr)]
   import Util._
   
   implicit var sortMap = MMap[IO, Int]()
@@ -284,17 +285,18 @@ class Synthesizer(implicit program: Program) extends HasLogger {
               inVars.zip(ex._1).toMap: Map[Variable,Expr])))
           }
           
-          assert(inVars.size == 1)
-          val distinguishingPredicates =
-            getGroupsDistinguishedByPredicates(
-              typesAndInputs.map({ case (tpe, inputs) =>
-                (
-                  Set[Expr](IsInstanceOf(inVars.head, tpe.asInstanceOf[ClassType])),
-                  inputs
-                )
-              }),
-              getEnum(Nil), unorderedFragmentsAll zip examples toMap, evaluator, 30
-            )
+          ???
+//          assert(inVars.size == 1)
+//          val distinguishingPredicates =
+//            getGroupsDistinguishedByPredicates(
+//              typesAndInputs.map({ case (tpe, inputs) =>
+//                (
+//                  Set[Expr](IsInstanceOf(inVars.head, tpe.asInstanceOf[ClassType])),
+//                  inputs
+//                )
+//              }),
+//              getEnum(Nil), unorderedFragmentsAll zip examples toMap, evaluator, 30
+//            )
           
           // need to distinguish Literal(5) from literal Literal(9)
           // get paths from fragment that uses decomposition on input
@@ -665,29 +667,32 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     // information to restore mapping to chains from 2nd fragments
     val fromSecondChainToChain = {
       val flattened =
-        filteredDiffGroups.map(_._1.toList.map({ case (a,b) => (b,a) })).flatten
+        filteredDiffGroups.map(_._1.toList.map({ case (a,b) =>
+          (fragmentsAndInputsMap(b), (a, b))
+        })).flatten
       assert(flattened.distinct.size == flattened.map(_._1).distinct.size)
       flattened.toMap
     }
     
-    val filteredDiffGroups_ = 
+    val filteredPartitions = 
       filteredDiffGroups.map({
-        case (set, iter) =>
-          (set.map(_._2), iter.map(_._1))
+        case (set, _) =>
+          // note that the lowest fragment (out of two) might fail
+          // NOTE we assume evaluation error actually is one of those simple cases that already work 
+          set.map(f => fragmentsAndInputsMap(f._2))
       })
     
     val distinguishedByGroup_ =
       getGroupsDistinguishedByPredicates(
-        filteredDiffGroups_,
+        filteredPartitions,
         getEnum: TypeTree => Iterable[Expr],
-        fragmentsAndInputsMap: Map[Expressions.Expr, InputOutputExample],
         evaluator: Evaluator,
         numberOfExpressions: Int
       ) 
-    val distinguishedByGroup =
+    val distinguishedByGroup: Map[Expr, Iterable[(Set[(Expr, Expr)], Boolean)]] =
       distinguishedByGroup_.map({ case (cond, iter) =>
         (cond, iter.map({ case (a,b) =>
-          (a.map(x => (fromSecondChainToChain(x), x)), b)
+          (a.map(x => fromSecondChainToChain(x)), b)
         }))
       })
     
@@ -786,9 +791,8 @@ class Synthesizer(implicit program: Program) extends HasLogger {
   }
   
   def getGroupsDistinguishedByPredicates(
-    filteredDiffGroups: List[(Set[Expr], Iterable[Map[Variable, Expr]])],
+    filteredDiffGroups: List[Set[InputOutputExample]],
     getEnum: TypeTree => Iterable[Expr],
-    fragmentsAndInputsMap: Map[Expressions.Expr, InputOutputExample],
     evaluator: Evaluator,
     numberOfExpressions: Int
   ) = {
@@ -800,17 +804,13 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     // for all test conditions, pair condition and chain, return conditions
     //   for which both expressions in chain return same boolean
     // [cond, ([fragments], boolean result)]
-    val distinguishing: Iterable[Option[(Expr, (Set[Expr], Boolean))]] =
+    val distinguishing =
       for (conditionExpr <- testedExpressions;
         _ = info(s"example is $conditionExpr");
-        (set, _) <- filteredDiffGroups
+        partition <- filteredDiffGroups
       ) yield {
         val res =
-          for(f <- set.toList;
-            // note that the lowest fragment (out of two) might fail
-            // NOTE we assume evaluation error actually is one of those simple cases that already work 
-            (inputs, _) = fragmentsAndInputsMap(f)
-          ) yield {
+          for( (inputs, _) <- partition ) yield {
             evaluator.eval(conditionExpr, new Model(inputs.toMap)) match {
               case EvaluationResults.Successful(BooleanLiteral(v)) =>
                 info(s"evaluation success: $v for $conditionExpr, and inputs ${inputs}")
@@ -824,13 +824,13 @@ class Synthesizer(implicit program: Program) extends HasLogger {
           }
           
         val allEqual = res
-        info(s"results for $conditionExpr and $set: $allEqual")
+        info(s"results for $conditionExpr and $partition: $allEqual")
         
         assert(allEqual.size > 0)
 
-        if(allEqual.distinct.size == 1) {
+        if(allEqual.size == 1) {
           Some(
-            (conditionExpr, (set, allEqual.head))
+            (conditionExpr, (partition, allEqual.head))
           )
         }
         else
