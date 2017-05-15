@@ -273,17 +273,22 @@ class Synthesizer(implicit program: Program) extends HasLogger {
           
           val predicates = 
             calculatePredicatesTypeDifference(fragmentToInputMap.toSeq, inVars)
+          fine("predicates: " + predicates.mkString("\n"))
             
           assert(predicates.count(_._2.size == 2) == 1)
           assert(predicates.count(_._2.size == 1) == 2)
           
-          val typesAndInputs = {
+          val (ambigous, typesAndInputs) = {
             val ambigous =
               predicates.find(_._2.size == 2).get._2
             assert(ambigous.forall(_._1.size == 1))
-            ambigous.toList.map(x => (x._1.head, x._2.map( ex =>
-              inIds.zip(ex._1).toMap)))
+            (  
+              ambigous,
+              ambigous.toList.map(x => (x._1.head, x._2.map( ex =>
+                inIds.zip(ex._1).toMap)))
+            )
           }
+          fine("typesAndInputs: " + typesAndInputs.mkString("\n"))
           
           val commonSubexpressions = {
             val subexpressions =
@@ -291,10 +296,12 @@ class Synthesizer(implicit program: Program) extends HasLogger {
                 input <- inputs;
                 _ = assert(input.size == 1);
                 (_, expr) = input.head) yield {
-                Util.mapOfSubexpressionsToPathFunctions(expr).map(p => p._2(inVars.head)).toSet
+                Util.subexpressionToPathFunctionsPairs(expr).map(p => p._2(inVars.head)).toSet
               }
+            fine("subexpressions: " + subexpressions.mkString("\n"))
             subexpressions reduce (_ intersect _)
           }
+          fine("commonSubexpressions: " + commonSubexpressions.mkString("\n"))
           
           assert(inVars.size == 1)
           val distinguishingPredicates =
@@ -302,7 +309,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
               typesAndInputs.map({ case (_, inputs) => inputs }),
               getEnum(commonSubexpressions.toList), evaluator, 30
             )
-          fine("distinguishingPredicates: " + distinguishingPredicates)
+          fine("distinguishingPredicates: " + distinguishingPredicates.mkString("\n"))
           
           // need to distinguish Literal(5) from literal Literal(9)
           // get paths from fragment that uses decomposition on input
@@ -316,16 +323,46 @@ class Synthesizer(implicit program: Program) extends HasLogger {
 //                x._2.map(_.asInstanceOf[CaseClass].ct.classDef.id.name).size == 1
 //              ),
 //            fragmentToInputMap.mkString("\n")
-//            )
-          ???
-          (None,
-            fragmentToInputMap.toList map { x =>
-              val condition =
-                x._2.head._1 zip inVars map {
-                  case (inVal, inVar) => Expressions.Equals(inVar, inVal): Expr
+//          )
+          if (distinguishingPredicates.size >= 1) {
+            
+            val nonAmbigous =
+              predicates.filterNot(_._2.size == 2)
+            val nonAmbigousBranches = 
+              nonAmbigous.toList map { case (distinguishingTypes, typesAndExamples) =>
+                val conditions =
+                  distinguishingTypes zip inVars map {
+                    case (inTpe: ClassType, inVar) =>
+                      Expressions.IsInstanceOf(inVar, inTpe): Expr
+                  }
+                (
+                  Constructors.and(conditions.toSeq: _*),
+                  Left(inputToFragmentMap(typesAndExamples.head._2.head._1): Expr)
+                )
+              }
+              
+            // solutions for ambigous fragments
+            val ambigousBranches = {
+              val (cond, partitions) =
+                distinguishingPredicates.head
+              assert(partitions.size == 2)
+              assert(ambigous.size == 2)
+              val tpeCheck =
+                ambigous.head._1 zip inVars map {
+                  case (inTpe: ClassType, inVar) =>
+                    Expressions.IsInstanceOf(inVar, inTpe): Expr
                 }
-              (Expressions.And(condition), Left(x._1: Expr))
-            })
+              partitions map({
+                case (a, b) =>
+                  val fragment = inputToFragmentMap(a.head.toList.map(_._2))
+                  (And(Constructors.and(tpeCheck.toSeq: _*), Equals(cond, BooleanLiteral(b))), Left(fragment))
+              })
+            }
+            
+            (None, nonAmbigousBranches ::: ambigousBranches.toList)
+          } else {
+            (None, Nil)
+          }
         }
       }
     info("initialPredicates: " + predicates)//.map({ case (k,v) => (k, v.map(x => x._2(Util.w))) } ))
@@ -818,7 +855,8 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     
     val enum = getEnum(BooleanType)
     val testedExpressions = enum.take(numberOfExpressions)
-    assert(testedExpressions.toList.distinct.size == testedExpressions.size)
+//    assert(testedExpressions.toList.distinct.size == testedExpressions.size,
+//      testedExpressions.mkString("\n"))
     
     // for all test conditions, pair condition and chain, return conditions
     //   for which both expressions in chain return same boolean

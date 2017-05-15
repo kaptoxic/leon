@@ -483,7 +483,17 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
           
       result should not be empty
       
-      result.get._1 shouldBe ""
+      result.get._1.toString shouldBe """if (e.isInstanceOf[Ite]) {
+        |  Literal(e.thn.v)
+        |} else if (e.isInstanceOf[IntLiteral]) {
+        |  Literal(e.v)
+        |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == true) {
+        |  Ite(CheckType(Literal(e.lhs.v), Literal(e.lhs.v)), Plus(Literal(e.lhs.v), Literal(e.lhs.v)))
+        |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == false) {
+        |  Ite(CheckType(Literal(e.rhs.v), Literal(e.lhs.v)), Plus(Literal(e.rhs.v), Literal(e.lhs.v)))
+        |} else {
+        |  ()
+        |}""".stripMargin
 
     }
 
