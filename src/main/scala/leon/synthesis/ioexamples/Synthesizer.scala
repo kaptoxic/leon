@@ -21,7 +21,7 @@ import scala.language.postfixOps
 class Synthesizer(implicit program: Program) extends HasLogger {
 
   type IO = (List[Expr], Expr)
-  type InputMapping = List[(Common.Identifier, Expressions.Expr)]
+  type InputMapping = Map[Common.Identifier, Expressions.Expr]
   import Util._
   
   implicit var sortMap = MMap[IO, Int]()
@@ -35,7 +35,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
   ): Option[(Expr, TypedFunDef)] = {
     require(examples.size > 0)
 
-    val inIds =
+    val inIds: List[Identifier] =
       examples.head._1.map(_._1)
     val outId =
       examples.head._2._1
@@ -282,21 +282,27 @@ class Synthesizer(implicit program: Program) extends HasLogger {
               predicates.find(_._2.size == 2).get._2
             assert(ambigous.forall(_._1.size == 1))
             ambigous.toList.map(x => (x._1.head, x._2.map( ex =>
-              inVars.zip(ex._1).toMap: Map[Variable,Expr])))
+              inIds.zip(ex._1).toMap)))
           }
           
-          ???
-//          assert(inVars.size == 1)
-//          val distinguishingPredicates =
-//            getGroupsDistinguishedByPredicates(
-//              typesAndInputs.map({ case (tpe, inputs) =>
-//                (
-//                  Set[Expr](IsInstanceOf(inVars.head, tpe.asInstanceOf[ClassType])),
-//                  inputs
-//                )
-//              }),
-//              getEnum(Nil), unorderedFragmentsAll zip examples toMap, evaluator, 30
-//            )
+          val commonSubexpressions = {
+            val subexpressions =
+              for((_, inputs) <- typesAndInputs;
+                input <- inputs;
+                _ = assert(input.size == 1);
+                (_, expr) = input.head) yield {
+                Util.mapOfSubexpressionsToPathFunctions(expr).map(p => p._2(inVars.head)).toSet
+              }
+            subexpressions reduce (_ intersect _)
+          }
+          
+          assert(inVars.size == 1)
+          val distinguishingPredicates =
+            getGroupsDistinguishedByPredicates(
+              typesAndInputs.map({ case (_, inputs) => inputs }),
+              getEnum(commonSubexpressions.toList), evaluator, 30
+            )
+          fine("distinguishingPredicates: " + distinguishingPredicates)
           
           // need to distinguish Literal(5) from literal Literal(9)
           // get paths from fragment that uses decomposition on input
@@ -668,7 +674,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     val fromSecondChainToChain = {
       val flattened =
         filteredDiffGroups.map(_._1.toList.map({ case (a,b) =>
-          (fragmentsAndInputsMap(b), (a, b))
+          (fragmentsAndInputsMap(b)._1.toMap, (a, b))
         })).flatten
       assert(flattened.distinct.size == flattened.map(_._1).distinct.size)
       flattened.toMap
@@ -683,7 +689,7 @@ class Synthesizer(implicit program: Program) extends HasLogger {
       })
     
     val distinguishedByGroup_ =
-      getGroupsDistinguishedByPredicates(
+      getGroupsDistinguishedByPredicatesVariantIO(
         filteredPartitions,
         getEnum: TypeTree => Iterable[Expr],
         evaluator: Evaluator,
@@ -789,13 +795,26 @@ class Synthesizer(implicit program: Program) extends HasLogger {
     
     results
   }
-  
-  def getGroupsDistinguishedByPredicates(
+
+  def getGroupsDistinguishedByPredicatesVariantIO(
     filteredDiffGroups: List[Set[InputOutputExample]],
     getEnum: TypeTree => Iterable[Expr],
     evaluator: Evaluator,
     numberOfExpressions: Int
-  ) = {
+  ): Map[Expr, Iterable[(Set[InputMapping], Boolean)]] =
+    getGroupsDistinguishedByPredicates(
+      filteredDiffGroups.map(_.map(_._1.toMap)),
+      getEnum: TypeTree => Iterable[Expr],
+      evaluator: Evaluator,
+      numberOfExpressions: Int
+    )
+  
+  def getGroupsDistinguishedByPredicates(
+    filteredDiffGroups: List[Set[InputMapping]],
+    getEnum: TypeTree => Iterable[Expr],
+    evaluator: Evaluator,
+    numberOfExpressions: Int
+  ): Map[Expr, Iterable[(Set[InputMapping], Boolean)]] = {
     
     val enum = getEnum(BooleanType)
     val testedExpressions = enum.take(numberOfExpressions)
@@ -810,8 +829,8 @@ class Synthesizer(implicit program: Program) extends HasLogger {
         partition <- filteredDiffGroups
       ) yield {
         val res =
-          for( (inputs, _) <- partition ) yield {
-            evaluator.eval(conditionExpr, new Model(inputs.toMap)) match {
+          for( inputs <- partition ) yield {
+            evaluator.eval(conditionExpr, new Model(inputs)) match {
               case EvaluationResults.Successful(BooleanLiteral(v)) =>
                 info(s"evaluation success: $v for $conditionExpr, and inputs ${inputs}")
                 v

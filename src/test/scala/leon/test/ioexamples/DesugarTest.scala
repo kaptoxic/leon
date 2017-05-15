@@ -489,7 +489,18 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
 
   }
   
-  def getEnum(exprs: List[Expr]) = {
+  test("test getEnum") {
+    
+    val newVars = "a" :: "b" :: Nil map { name => FreshIdentifier(name, Int32Type).toVariable }
+    val enum = getEnum(newVars)
+   
+    enum.take(30).map(_.toString) should not contain ("test < 0")
+    enum.take(30).map(_.toString) should contain ("a == b")
+    enum.take(30) should have size (30)
+
+  }
+  
+  def getEnum(exprs: Seq[Expr]) = {
     import synthesis.ioexamples.backwards.TermSynthesizer
 
     val myGrammar = {
@@ -503,19 +514,24 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
       val TopLevelAnds(ws) = problem.ws
       val hints = ws.collect { case Hint(e) if formulaSize(e) >= 4 => e }
       val inputs = /*problem.allAs.map(_.toVariable) ++ hints ++*/ exprs
-      val exclude = sctx.settings.functionsToIgnore
+      fine(program.definedFunctions.map(_.id.name).mkString("\n"))
+      val exclude =
+        program.definedFunctions.toSet.filter({
+          x => Set("test") contains x.id.name
+        })
+        //sctx.settings.functionsToIgnore
       val recCalls = {
         if (sctx.findOptionOrDefault(SynthesisPhase.optIntroduceRecCalls)) Empty()
         else SafeRecursiveCalls(sctx.program, problem.ws, problem.pc)
       }
 
       BaseGrammar ||
-        Closures ||
-        EqualityGrammar(Set(IntegerType, Int32Type, BooleanType) ++ inputs.map { _.getType }) ||
-        OneOf(inputs) ||
-        Constants(sctx.functionContext.fullBody) ||
-        FunctionCalls(sctx.program, sctx.functionContext, inputs.map(_.getType), exclude) ||
-        recCalls
+      Closures ||
+      EqualityGrammar(Set(IntegerType, Int32Type, BooleanType) ++ inputs.map { _.getType }) ||
+      OneOf(inputs) ||
+      Constants(sctx.functionContext.fullBody) ||
+//      FunctionCalls(sctx.program, sctx.functionContext, inputs.map(_.getType), exclude) ||
+      recCalls
     }
 
     val termSynthesizer = new TermSynthesizer(sctx, problem, inGrammar = Some(myGrammar))
