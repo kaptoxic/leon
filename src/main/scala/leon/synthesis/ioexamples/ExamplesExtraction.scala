@@ -30,6 +30,16 @@ class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
         (problem.as zip ins, (problem.xs.head, out))
     })
   }
+  
+  def extractPostcondition(problem: Problem): Expr = {
+    val Extractors.TopLevelAnds(ands) = problem.phi
+    val andsNoPasses =
+      ands.filter({
+        case _: Passes => false
+        case _ => true
+      })
+    Constructors.and(andsNoPasses: _*)
+  }
 
 }
 
