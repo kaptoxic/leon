@@ -44,7 +44,7 @@ class InSynth(declarations: List[Declaration], goalType: Type, ordered: Boolean 
   }
   
   def getExpressions(builder: InitialEnvironmentBuilder) = {
-    info("InSynth synthesizing type + " + goalType + " with declarations " + builder.getAllDeclarations.mkString("\n"))
+    println("InSynth synthesizing type + " + goalType + " with declarations " + builder.getAllDeclarations.mkString("\n"))
     val proofTree = solver.getProofTree(builder)
     	
 		assert(proofTree != null, "Proof tree is null" )  

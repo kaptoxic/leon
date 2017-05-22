@@ -20,7 +20,9 @@ object ExamplesExtraction extends HasLogger {
             fine("allIdentifiers(rin): " + allIdentifiers(rin) + "arguments: " + arguments)
             allIdentifiers(rin) == arguments
           } => true
-          case _ => false
+          case _ =>
+            println("found false")
+            false
         }) => {
         fine("found needed And: " + passAnd)
         (for (expr <- exprs)
@@ -36,7 +38,8 @@ object ExamplesExtraction extends HasLogger {
 	          }
         	}) ++ otherSeq
       }
-      case _ =>
+      case r =>
+        println("returning otherSeq, which has size " + otherSeq.size + " for matching " + r)
         otherSeq
     }
 

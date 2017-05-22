@@ -42,7 +42,8 @@ object InstantiateSynthesizer {
           Map(givenVariable.toVariable -> ResultVariable().setType(holeFunDef.returnType)), p.phi))
         holeFunDef.precondition = Some(p.pc)
 
-        SynthesizerExamplesImprove2(
+        //SynthesizerExamplesImprove2(
+        SynthesizerExamplesImproveAnalytic(
           program, desiredType, holeFunDef, p, freshResVar,
           20,
           reporter = reporter,
@@ -56,7 +57,8 @@ object InstantiateSynthesizer {
     }
   }
 
-  def instantiate(sctx: SynthesisContext, p: Problem)(rule: Rule, synthesizer: SynthesizerExamplesImprove2 = instatiateDefaultSynthesizer(sctx, p)): Traversable[RuleInstantiation] = {
+//  def instantiate(sctx: SynthesisContext, p: Problem)(rule: Rule, synthesizer: SynthesizerExamplesImprove2 = instatiateDefaultSynthesizer(sctx, p)): Traversable[RuleInstantiation] = {
+  def instantiate(sctx: SynthesisContext, p: Problem)(rule: Rule, synthesizer: SynthesizerExamplesImproveAnalytic = instatiateDefaultSynthesizer(sctx, p)): Traversable[RuleInstantiation] = {
 
     p.xs match {
       case givenVariable :: Nil =>

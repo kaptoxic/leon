@@ -90,6 +90,8 @@ case class SynthesizerForRuleExamples(
   // accumulate the final expression of the hole
   private var accumulatingExpression: Expr => Expr = _
   //private var accumulatingExpressionMatch: Expr => Expr = _
+  
+  private var branchesSeen: List[Expr] = Nil
 
   // time
   var startTime: Long = _
@@ -109,7 +111,7 @@ case class SynthesizerForRuleExamples(
     if (variableRefinedCondition) {
       // store for later fetch (will memoize values)
       booleanExpressionsSaved =
-        inSynthBoolean.getExpressions(getCurrentBuilder) take numberOfBooleanSnippets
+        inSynthBoolean.getExpressions(getCurrentBuilder)// take numberOfBooleanSnippets
       // reset flag
       variableRefinedCondition = false
     }
@@ -164,6 +166,7 @@ case class SynthesizerForRuleExamples(
     fine("Refiner initialized. Recursive call: " + refiner.recurentExpression)
 
     exampleRunner = new ExampleRunner(program)
+    // TODO!!! this controls whether we synthesize examples
     if (generateInputExamples)
 	  counterExamples ++= introduceExamples(holeFunDef.args.map(_.id), loader)
     // add examples from passes      
@@ -269,6 +272,15 @@ case class SynthesizerForRuleExamples(
         reporter.info("####################################")
 
         var numberOfTested = 0
+        
+        // hack for testing precondition for RBTree balance
+        var boolSnippets = synthesizeBooleanExpressions
+        while (true) {
+        val prefix = boolSnippets.take(100).map(_.getSnippet)
+        println(prefix.mkString("\n"))
+        boolSnippets = boolSnippets.drop(100)
+        interactivePause
+        }
 
         // just printing of expressions and pass counts        
         info({
@@ -302,9 +314,10 @@ case class SynthesizerForRuleExamples(
                 map(_.getSnippet).filterNot(
                   snip => {
                     (seenBranchExpressions contains snip.toString) || refiner.isAvoidable(snip, problem.as)
-                  }).toSeq
+                  }).toSeq diff branchesSeen
             }
             info("got candidates of size: " + candidates.size)
+            println("branchesSeen: " + branchesSeen)
             //interactivePause
 
             if (candidates.size > 0) {
@@ -334,7 +347,7 @@ case class SynthesizerForRuleExamples(
               val countPassedResults = countPassedExamples(maxCandidate)
               info("maxCandidate is: " + maxCandidate)
               fine("passed/failed: " + countPassedResults._1.size + "/" + countPassedResults._2.size)
-              interactivePause
+//              interactivePause
               if (countPassedResults._1.size == counterExamples.size) {
                 found = true
                 break
@@ -465,6 +478,7 @@ case class SynthesizerForRuleExamples(
           // if precondition found
           if (innerFound) {
             reporter.info("Precondition " + " found for " + snippetTree)
+            branchesSeen = snippetTree :: branchesSeen
 
             return true
           }
@@ -499,7 +513,8 @@ case class SynthesizerForRuleExamples(
     val enabledFailed = exampleRunner.countPassed(newCondition, failed)
     val conditionAcceptable =
       enabledFailed._1.size == 0 &&
-        enabledPassed._1.size == passed.size
+        passed.size > 0
+//        enabledPassed._1.size == passed.size
     fine("passed but disabled: " + enabledPassed._2.mkString(", "))
     fine("disabled failed/total: " + enabledFailed._1.size + "/" + failed.size +
       " enabled passed: " + enabledPassed._1.size + "/" + passed.size)

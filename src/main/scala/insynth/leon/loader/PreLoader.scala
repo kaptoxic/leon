@@ -46,26 +46,26 @@ object PreLoader extends ( (Boolean) => List[Declaration] ) {
       FunctionType( List(BooleanType), BooleanType )
     )
     
-  def getOr =
-    // case Or(args) if args.isEmpty => BooleanLiteral(false)    
-    makeDeclaration(
-      makeNAE( "Or", { case List(arg1, arg2) => Or( List(arg1, arg2) ) } ),
-      FunctionType( List(BooleanType, BooleanType), BooleanType )
-    )  
+//  def getOr =
+//    // case Or(args) if args.isEmpty => BooleanLiteral(false)    
+//    makeDeclaration(
+//      makeNAE( "Or", { case List(arg1, arg2) => Or( List(arg1, arg2) ) } ),
+//      FunctionType( List(BooleanType, BooleanType), BooleanType )
+//    )  
+//    
+//  def getImplies =
+//    // case Implies(l, r) => (rec(ctx, l), rec(ctx, r)) match {
+//    makeDeclaration(
+//      makeNAE( "=>", { case List(left, right) => Implies( left, right ) } ),
+//      FunctionType( List(BooleanType, BooleanType), BooleanType )
+//    ) 
     
-  def getImplies =
-    // case Implies(l, r) => (rec(ctx, l), rec(ctx, r)) match {
-    makeDeclaration(
-      makeNAE( "=>", { case List(left, right) => Implies( left, right ) } ),
-      FunctionType( List(BooleanType, BooleanType), BooleanType )
-    ) 
-    
-  def getIff =
-    //case Iff(le, re) => (rec(ctx, le), rec(ctx, re)) match {
-    makeDeclaration(
-      makeNAE( "<=>", { case List(left, right) => Iff( left, right ) } ),
-      FunctionType( List(BooleanType, BooleanType), BooleanType )
-    ) 
+//  def getIff =
+//    //case Iff(le, re) => (rec(ctx, le), rec(ctx, re)) match {
+//    makeDeclaration(
+//      makeNAE( "<=>", { case List(left, right) => Iff( left, right ) } ),
+//      FunctionType( List(BooleanType, BooleanType), BooleanType )
+//    ) 
     
   def getEquals(listOfInstanceTypes: List[LeonType]) =
     // case Equals(le, re) => {
