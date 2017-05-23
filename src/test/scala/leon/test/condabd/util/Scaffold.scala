@@ -46,8 +46,8 @@ object Scaffold {
     val (newCtx, (program, results)) = try {
       pipeline.run(ctx, (content :: Nil, Nil))
     } catch {
-      case _: Throwable =>
-        fail("Error while processing")
+      case e: Throwable =>
+        fail("Error while processing: " + e)
     }
     
     extractProblems(newCtx, program, results)
@@ -87,8 +87,8 @@ object Scaffold {
       pipeline.run(ctx, file :: Nil)
     } catch {
       case LeonFatalError(msg) =>
-        fail(s"Compilation failed for file $file: ${msg.getOrElse("")}")
-//        throw new Exception(s"Compilation failed for file $file: ${msg.getOrElse("")}")
+        //fail(s"Compilation failed for file $file: ${msg.getOrElse("")}")
+        throw new Exception(s"Compilation failed for file $file: ${msg.getOrElse("")}")
     }
     
     val chooses = SourceInfo.extractFromProgram(newCtx, program)

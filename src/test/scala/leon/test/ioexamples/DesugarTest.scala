@@ -483,17 +483,39 @@ class DesugarTest extends FunSuite with Matchers with Inside with HasLogger {
           
       result should not be empty
       
-      result.get._1.toString shouldBe """if (e.isInstanceOf[Ite]) {
-        |  Literal(e.thn.v)
-        |} else if (e.isInstanceOf[IntLiteral]) {
-        |  Literal(e.v)
-        |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == true) {
-        |  Ite(CheckType(Literal(e.lhs.v), Literal(e.lhs.v)), Plus(Literal(e.lhs.v), Literal(e.lhs.v)))
-        |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == false) {
-        |  Ite(CheckType(Literal(e.rhs.v), Literal(e.lhs.v)), Plus(Literal(e.rhs.v), Literal(e.lhs.v)))
-        |} else {
-        |  ()
-        |}""".stripMargin
+      result.get._1.toString should (
+        equal ("""if (e.isInstanceOf[Ite]) {
+              |  Literal(e.thn.v)
+              |} else if (e.isInstanceOf[IntLiteral]) {
+              |  Literal(e.v)
+              |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == true) {
+              |  Ite(CheckType(Literal(e.lhs.v), Literal(e.lhs.v)), Plus(Literal(e.lhs.v), Literal(e.lhs.v)))
+              |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == false) {
+              |  Ite(CheckType(Literal(e.rhs.v), Literal(e.lhs.v)), Plus(Literal(e.rhs.v), Literal(e.lhs.v)))
+              |} else {
+              |  ()
+              |}""".stripMargin) or
+        equal ("""if (e.isInstanceOf[IntLiteral]) {
+              |  Literal(e.v)
+              |} else if (e.isInstanceOf[Ite]) {
+              |  Literal(e.thn.v)
+              |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == true) {
+              |  Ite(CheckType(Literal(e.lhs.v), Literal(e.lhs.v)), Plus(Literal(e.lhs.v), Literal(e.lhs.v)))
+              |} else if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == false) {
+              |  Ite(CheckType(Literal(e.rhs.v), Literal(e.lhs.v)), Plus(Literal(e.rhs.v), Literal(e.lhs.v)))
+              |} else {
+              |  ()
+              |}""".stripMargin) or
+        include ("(e.isInstanceOf[IntLiteral])") and 
+        include ("Literal(e.v)") and
+        include ("if (e.isInstanceOf[Ite])") and
+        include ("Literal(e.thn.v)") and
+        include ("if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == true)") and
+        include ("Ite(CheckType(Literal(e.lhs.v), Literal(e.lhs.v)), Plus(Literal(e.lhs.v), Literal(e.lhs.v)))") and
+        include ("if (e.isInstanceOf[Plus] && (e.rhs.v == e.lhs.v) == false)") and
+        include ("Ite(CheckType(Literal(e.rhs.v), Literal(e.lhs.v)), Plus(Literal(e.rhs.v), Literal(e.lhs.v)))") and
+        include ("()")
+      )
 
     }
 
