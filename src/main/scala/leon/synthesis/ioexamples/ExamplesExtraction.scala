@@ -15,7 +15,7 @@ import leon.utils.logging.HasLogger
  * Extracts examples
  */
 class ExamplesExtraction(ctx: LeonContext, program: Program) extends HasLogger {
-
+  
   def extract(problem: Problem): Seq[InputOutputExample] = {
     require(problem.xs.size == 1, "restrict to only one output")
     info("extracting examples from problem: " + problem)
@@ -63,5 +63,11 @@ object ExamplesExtraction {
       Some((idsAndExamples._1.head, idsAndExamples._2.toList))
     } else None
   }
+  
+  def transformType(problem: Problem, examples: Seq[InOutExample]) =
+    examples.map({
+      case InOutExample(ins, out :: Nil) =>
+        (problem.as zip ins, (problem.xs.head, out))
+    })
   
 }
