@@ -343,10 +343,13 @@ class Synthesizer(implicit program: Program) extends HasLogger {
               
             // solutions for ambigous fragments
             val ambigousBranches = {
+              // pick the condition by sorting with formula size and taking the first one
               val (cond, partitions) =
-                distinguishingPredicates.head
+                distinguishingPredicates.toList.sortBy({ p => ExprOps.formulaSize(p._1) }).reverse.head
+
               assert(partitions.size == 2)
               assert(ambigous.size == 2)
+
               val tpeCheck =
                 ambigous.head._1 zip inVars map {
                   case (inTpe: ClassType, inVar) =>
